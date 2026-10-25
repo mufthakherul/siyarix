@@ -90,6 +90,43 @@ async def test_workflow_timeout():
 
 
 @pytest.mark.asyncio
+async def test_workflow_condition_skip():
+    engine = WorkflowEngine()
+
+    async def step(args):
+        return {"status": "success"}
+
+    engine.register_step("step", step)
+    wf = engine.create_workflow(
+        "cond",
+        nodes=[{"id": "n1", "step_fn": "step", "args": {"_condition": "false"}}],
+    )
+    res = await engine.run_workflow(wf)
+    assert res.get_node("n1").status == WorkflowStepStatus.SKIPPED
+
+
+@pytest.mark.asyncio
+async def test_workflow_retries_soft_error():
+    engine = WorkflowEngine()
+    calls = {"n": 0}
+
+    async def flaky(args):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return {"status": "error", "error": "transient"}
+        return {"status": "success"}
+
+    engine.register_step("flaky", flaky)
+    wf = engine.create_workflow(
+        "retry",
+        nodes=[{"id": "n1", "step_fn": "flaky", "max_retries": 3}],
+    )
+    res = await engine.run_workflow(wf)
+    assert res.status == WorkflowStatus.COMPLETED
+    assert calls["n"] == 3
+
+
+@pytest.mark.asyncio
 async def test_workflow_soft_error_fails_and_skips_dependents():
     engine = WorkflowEngine()
 

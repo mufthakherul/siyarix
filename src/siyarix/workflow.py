@@ -131,6 +131,7 @@ class WorkflowEngine:
                 step_fn=n.get("step_fn", ""),
                 args=n.get("args", {}),
                 timeout=n.get("timeout", 300.0),
+                max_retries=int(n.get("max_retries", 0) or 0),
             )
             for i, n in enumerate(nodes or [])
         ]
@@ -178,6 +179,30 @@ class WorkflowEngine:
             )
         return workflow
 
+    @staticmethod
+    def _condition_passes(condition: str, context: dict[str, Any]) -> bool:
+        """Fail-closed evaluation of simple playbook conditions (no eval)."""
+        expr = (condition or "").strip()
+        if not expr:
+            return True
+        lowered = expr.lower()
+        if lowered in {"true", "always", "1", "yes"}:
+            return True
+        if lowered in {"false", "never", "0", "no"}:
+            return False
+        if "==" in expr:
+            left, _, right = expr.partition("==")
+            key = left.strip()
+            expect = right.strip().strip("'\"")
+            actual = context.get(key)
+            if actual is None and key.startswith("env."):
+                import os
+
+                actual = os.environ.get(key[4:], "")
+            return str(actual) == expect
+        # Unknown expressions are fail-closed (skip step).
+        return False
+
     async def _run_node(self, workflow: Workflow, node: WorkflowNode) -> None:
         node.status = WorkflowStepStatus.RUNNING
         step_fn = self._step_functions.get(node.step_fn)
@@ -185,24 +210,50 @@ class WorkflowEngine:
             node.status = WorkflowStepStatus.FAILED
             node.result = {"error": f"No step function: {node.step_fn}"}
             return
-        try:
-            async with self._semaphore:
-                result = await asyncio.wait_for(
-                    step_fn({**node.args, **workflow.context}), timeout=node.timeout
-                )
-                node.result = result if isinstance(result, dict) else {"output": result}
-                soft_status = str(node.result.get("status", "")).lower()
-                if soft_status in {"error", "failed", "failure"}:
-                    node.status = WorkflowStepStatus.FAILED
-                else:
+
+        merged_args = {**node.args, **workflow.context}
+        condition = str(merged_args.get("_condition") or "")
+        if condition and not self._condition_passes(condition, merged_args):
+            node.status = WorkflowStepStatus.SKIPPED
+            node.result = {"status": "skipped", "error": f"Condition not met: {condition}"}
+            return
+
+        attempts = max(1, int(node.max_retries) + 1)
+        last_error: dict[str, Any] = {}
+        for attempt in range(attempts):
+            node.retry_count = attempt
+            try:
+                async with self._semaphore:
+                    result = await asyncio.wait_for(
+                        step_fn(merged_args), timeout=node.timeout
+                    )
+                    node.result = result if isinstance(result, dict) else {"output": result}
+                    soft_status = str(node.result.get("status", "")).lower()
+                    if soft_status in {"error", "failed", "failure"}:
+                        last_error = node.result
+                        if attempt + 1 < attempts:
+                            continue
+                        node.status = WorkflowStepStatus.FAILED
+                        return
                     node.status = WorkflowStepStatus.COMPLETED
                     workflow.context[f"result_{node.id}"] = node.result
-        except asyncio.TimeoutError:
-            node.status = WorkflowStepStatus.FAILED
-            node.result = {"error": f"Timeout after {node.timeout}s"}
-        except Exception as e:
-            node.status = WorkflowStepStatus.FAILED
-            node.result = {"error": str(e)}
+                    return
+            except asyncio.TimeoutError:
+                last_error = {"error": f"Timeout after {node.timeout}s"}
+                if attempt + 1 < attempts:
+                    continue
+                node.status = WorkflowStepStatus.FAILED
+                node.result = last_error
+                return
+            except Exception as e:
+                last_error = {"error": str(e)}
+                if attempt + 1 < attempts:
+                    continue
+                node.status = WorkflowStepStatus.FAILED
+                node.result = last_error
+                return
+        node.status = WorkflowStepStatus.FAILED
+        node.result = last_error or {"error": "exhausted retries"}
 
     def _skip_blocked_dependents(self, workflow: Workflow) -> None:
         """Mark PENDING nodes whose deps failed as SKIPPED so the DAG can finish."""

@@ -217,20 +217,25 @@ class PlaybookEngine:
         data = self.load(path)
         plan = self.create_plan(data, variables)
         self._ensure_tool_step_functions({s.tool for s in plan.steps if s.tool})
-        nodes = [
-            {
-                "id": step.id,
-                "name": step.description,
-                "step_fn": step.tool,
-                "args": {
-                    "tool": step.tool,
-                    "command": step.command,
+        nodes = []
+        for step in plan.steps:
+            meta = self._parse_step_args(step.command or "")
+            retries = int(meta.get("_retries") or 0)
+            nodes.append(
+                {
+                    "id": step.id,
+                    "name": step.description,
+                    "step_fn": step.tool,
+                    "args": {
+                        "tool": step.tool,
+                        "command": step.command,
+                        "timeout": step.timeout,
+                        "_condition": meta.get("_condition", ""),
+                    },
                     "timeout": step.timeout,
-                },
-                "timeout": step.timeout,
-            }
-            for step in plan.steps
-        ]
+                    "max_retries": max(0, retries),
+                }
+            )
         edges = []
         for step in plan.steps:
             for dep in step.dependencies:

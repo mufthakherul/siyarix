@@ -71,6 +71,11 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-16 | Closed | `tsocks` treated as scope-blocked proxy wrapper |
 | RH-17 | Closed | Glued `unzip -od /` extract-to-root blocked |
 | RH-18 | Closed | Versioned GST plugin paths / `LIBRARY_PATH` / `KUBE_EDITOR` / cargo rustc wrapper skipped from `.env` |
+| RH-19 | Closed | `ssh -w` TUN/TAP + `-o Tunnel=` blocked under scope |
+| RH-20 | Closed | `gost` / `ss-local` / shadowsocks / v2ray / xray scope-blocked wrappers |
+| RH-21 | Closed | `KUBECONFIG=` + `kubectl --kubeconfig` blocked under scope |
+| RH-22 | Closed | `setfacl` / `chattr` / `setfattr` on auth paths blocked |
+| RH-23 | Closed | `GTK_MODULES` / `GIO_EXTRA_MODULES` / Magick coder / `KUBECTL_EXTERNAL_DIFF` skipped from `.env` |
 
 ## Premium ops
 

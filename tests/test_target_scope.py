@@ -153,6 +153,25 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
             assert_command_in_scope("tsocks nmap 10.0.0.1", scope_env=scope)
 
+    def test_blocks_ssh_tun_and_proxy_toolkits_under_scope(self) -> None:
+        scope = "10.0.0.0/8"
+        with pytest.raises(PermissionDeniedError, match="TUN/TAP|tunnel"):
+            assert_command_in_scope("ssh -w0:0 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="tunnel"):
+            assert_command_in_scope("ssh -oTunnel=ethernet 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope("gost -L=:1080 -F=socks5://evil:1080", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope("ss-local -s evil -p 8388 -l 1080", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="config-from-file|Transport"):
+            assert_command_in_scope(
+                "KUBECONFIG=/tmp/evil kubectl get pods", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="config-from-file"):
+            assert_command_in_scope(
+                "kubectl --kubeconfig=/tmp/evil get pods", scope_env=scope
+            )
+
     def test_blocks_out_of_scope_ipv4(self) -> None:
         with pytest.raises(PermissionDeniedError, match="out of authorized scope"):
             assert_command_in_scope("nmap 10.0.0.1", scope_env="192.168.1.0/24")

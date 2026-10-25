@@ -133,6 +133,9 @@ _HOST_TOOL_NAMES = frozenset(
         "xfreerdp",
         "docker",
         "podman",
+        "kubectl",
+        "oc",
+        "helm",
         "nslookup",
         "ansible",
         "ansible-playbook",
@@ -168,6 +171,16 @@ _HOST_TOOL_NAMES = frozenset(
         "torsocks",
         "torify",
         "tsocks",
+        "gost",
+        "ss-local",
+        "ss-server",
+        "ss-redir",
+        "ss-tunnel",
+        "shadowsocks",
+        "shadowsocks-libev",
+        "shadowsocks-client",
+        "v2ray",
+        "xray",
         "cloudflared",
         "ngrok",
         "bore",
@@ -183,6 +196,16 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "torsocks",
         "torify",
         "tsocks",  # RH-16
+        "gost",  # RH-20
+        "ss-local",
+        "ss-server",
+        "ss-redir",
+        "ss-tunnel",
+        "shadowsocks",
+        "shadowsocks-libev",
+        "shadowsocks-client",
+        "v2ray",
+        "xray",
         "cloudflared",
         "ngrok",
         "bore",
@@ -259,10 +282,11 @@ _SOCAT_SOCKS_RE = re.compile(
     r"(?i)^(?:SOCKS4A?|PROXY):"
     r"(?P<proxy>[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
 )
-# Glued ssh ``-oProxyJump=evil`` / ``-oProxyCommand=…`` / ``-oDynamicForward=…``.
+# Glued ssh ``-oProxyJump=evil`` / ``-oProxyCommand=…`` / ``-oDynamicForward=…`` /
+# ``-oTunnel=ethernet`` (RH-19).
 _GLUED_SSH_O_RE = re.compile(
     r"(?i)^(?:-o|--option)['\"]?"
-    r"(?P<key>proxyjump|proxycommand|dynamicforward|localforward|remoteforward)"
+    r"(?P<key>proxyjump|proxycommand|dynamicforward|localforward|remoteforward|tunnel)"
     r"=(?P<val>.+?)['\"]?$"
 )
 # Leading ``ALL_PROXY=… curl …`` style env assignments (SOCKS/HTTP pivots).
@@ -298,6 +322,9 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "SVN_SSH",
         "ANSIBLE_SSH_EXECUTABLE",
         "ANSIBLE_SSH_ARGS",
+        "KUBECONFIG",
+        "KUBE_CONFIG",
+        "KUBE_CONFIG_PATH",
     }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
@@ -788,7 +815,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 or flag.startswith("--input-file")
                 or re.match(r"^-i/", flag) is not None
             )
-            if curl_cfg or wget_cfg or aria_in:
+            # Opaque kube API endpoint via config file (RH-21).
+            kube_cfg = base in {"kubectl", "oc", "helm"} and (
+                flag in {"--kubeconfig", "--kube-config"}
+                or flag.startswith("--kubeconfig")
+                or flag.startswith("--kube-config")
+            )
+            if curl_cfg or wget_cfg or aria_in or kube_cfg:
                 raise PermissionDeniedError(
                     f"URL/config-from-file is not allowed under authorized scope "
                     f"(authorized scope: {scope_display})"
@@ -845,7 +878,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if glued_o is not None:
                 key = glued_o.group("key").lower()
                 val = glued_o.group("val").strip().strip("'\"")
-                if key in {"proxycommand", "dynamicforward"}:
+                if key in {"proxycommand", "dynamicforward", "tunnel"}:
                     raise PermissionDeniedError(
                         f"ssh {key} is not allowed under authorized scope "
                         f"(authorized scope: {scope_display})"
@@ -1350,7 +1383,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 opt = nxt.strip().strip("'\"")
                 opt_key, sep, opt_val = opt.partition("=")
                 key_l = opt_key.lower()
-                if key_l in {"proxycommand", "dynamicforward"}:
+                if key_l in {"proxycommand", "dynamicforward", "tunnel"}:
                     raise PermissionDeniedError(
                         f"ssh {key_l} is not allowed under authorized scope "
                         f"(authorized scope: {scope_display})"
@@ -1379,6 +1412,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     or flag.startswith("--option")
                 )
                 jump_opt = flag in {"-J", "--jump"}
+                # TUN/TAP device forwarding ``-w`` / ``-w0:0`` (RH-19).
+                if base == "ssh" and (flag == "-w" or re.match(r"^-w[\d:]", flag)):
+                    raise PermissionDeniedError(
+                        f"ssh -w TUN/TAP tunnel is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
                 # Spaced ``-D 9050`` and glued ``-D9050`` / ``-L8080:h:80`` (RH-08).
                 glued_dyn = bool(re.match(r"^-D\d", flag))
                 glued_lr = bool(re.match(r"^-[LR]\d", flag))

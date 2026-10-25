@@ -438,6 +438,10 @@ def test_assert_allows_safe_commands(command: str) -> None:
         # RH-17 — glued unzip -od /
         "unzip -od / a.zip",
         "unzip -jod / archive.zip",
+        # RH-22 — ACL / immutable / xattr on auth files
+        "setfacl -m u:nobody:rwx /etc/passwd",
+        "chattr +i /etc/passwd",
+        "setfattr -n user.evil -v 1 /etc/shadow",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

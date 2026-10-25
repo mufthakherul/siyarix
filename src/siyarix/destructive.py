@@ -496,7 +496,9 @@ _INPLACE_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _CHMOD_AUTH_RE = re.compile(
-    r"\b(?:chmod|chown|chgrp)\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern,
+    r"\b(?:chmod|chown|chgrp|setfacl|getfacl|chattr|lsattr|setfattr|getfattr)\b"
+    r"[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _SETUID_SYSTEM_RE = re.compile(

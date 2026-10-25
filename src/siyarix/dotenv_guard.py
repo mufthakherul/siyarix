@@ -257,6 +257,14 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "KUBE_EDITOR",
         "CARGO_BUILD_RUSTC_WRAPPER",
         "RUSTC_WRAPPER",
+        "GTK_MODULES",
+        "GTK3_MODULES",
+        "GTK2_MODULES",
+        "GIO_EXTRA_MODULES",
+        "MAGICK_CODER_MODULE_PATH",
+        "MAGICK_CODER_FILTER_PATH",
+        "MAGICK_HOME",
+        "KUBECTL_EXTERNAL_DIFF",
     }
 )
 
@@ -430,6 +438,13 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "PKG_CONFIG_PATH",
         "KUBE_EDITOR",
         "CARGO_BUILD_RUSTC_WRAPPER",
+        "GTK_MODULES",
+        "GTK3_MODULES",
+        "GTK2_MODULES",
+        "GIO_EXTRA_MODULES",
+        "MAGICK_CODER_MODULE_PATH",
+        "MAGICK_CODER_FILTER_PATH",
+        "KUBECTL_EXTERNAL_DIFF",
     }
 )
 
@@ -455,14 +470,18 @@ def should_skip_dotenv_key(key: str) -> bool:
         "PLUGIN" in key_upper or key_upper.endswith("_LIBRARY") or "MODULE" in key_upper
     ):
         return True
-    # Broad plugin/module path pivots (RH-12 / RH-18), including versioned
+    # Broad plugin/module path pivots (RH-12 / RH-18 / RH-23), including versioned
     # suffixes like ``GST_PLUGIN_SYSTEM_PATH_1_0``.
     if "PLUGIN" in key_upper and (
         "_PATH" in key_upper
         or key_upper.endswith(("_DIR", "_HOME", "_DIRS", "_PATHS"))
     ):
         return True
+    if key_upper.endswith("_MODULES") or key_upper.endswith("_MODULE_PATH"):
+        return True
     if key_upper.endswith("_RUSTC_WRAPPER") or key_upper.endswith("RUSTC_WRAPPER"):
+        return True
+    if key_upper.endswith("_EXTERNAL_DIFF"):
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

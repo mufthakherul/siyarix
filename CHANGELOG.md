@@ -62,6 +62,7 @@ All notable changes to this project will be documented in this file.
 - Playbook `env.*` redacts database/DSN/URL/connection/sslkeylog names.
 - SecretRedactor/DLP redact full PEM private-key bodies (RSA/EC/OPENSSH BEGIN…END).
 - `SIYARIX_ALLOWED_SCOPE` fails closed on `file:`/`ftp:`/`data:`/`gopher:`/`unix:` URLs.
+- `siyarix doctor` / `production-check` probes mmcblk/`7z`/`bsdtar` hard-blocks and `file://` scope deny.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

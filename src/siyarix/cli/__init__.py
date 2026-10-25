@@ -2581,6 +2581,9 @@ def production_check(
             "python -c \"__import__('os').system('rm -rf /')\"",
             "nwipe /dev/sda",
             "chmod -R 777 /tmp/../",
+            "dd if=/dev/zero of=/dev/mmcblk0",
+            "7z x /tmp/a.7z -o/",
+            "bsdtar xf /tmp/x -C /",
         )
         for _probe in _probe_blocks:
             try:
@@ -2593,10 +2596,15 @@ def production_check(
             raise RuntimeError("expected scope deny for inet_aton 0177.1")
         except _PermDenied:
             pass
+        try:
+            _assert_scope("curl file:///etc/passwd", scope_env="10.0.0.0/8")
+            raise RuntimeError("expected scope deny for file:// under authorized scope")
+        except _PermDenied:
+            pass
         _add(
             "destructive_guard",
             "pass",
-            "hard-blocks + inet_aton scope probes ok",
+            "hard-blocks + inet_aton/file:// scope probes ok",
         )
     except Exception as exc:  # pragma: no cover - defensive
         _add("destructive_guard", "fail", f"unavailable: {exc}")

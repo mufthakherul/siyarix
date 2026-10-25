@@ -580,3 +580,17 @@ def test_should_skip_rh47_dotenv_keys() -> None:
         "KAFKA_HOST",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh48_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "TMATE_SERVER",
+        "ARGOCD_SERVER",
+        "OPENVPN3_CONFIG",
+        "TELEPORT_HOME",
+        "RCLONE_CONFIG",
+        "KUBE_API_SERVER",
+    ):
+        assert should_skip_dotenv_key(key), key

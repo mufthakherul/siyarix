@@ -706,6 +706,27 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "aws ssm start-session --target i-0123", scope_env=scope
             )
+        # RH-48 — public shells, Teleport, mosh, parallel unwrap
+        with pytest.raises(PermissionDeniedError, match="tmate|Proxy/tunnel"):
+            assert_command_in_scope("tmate -F", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="ttyd|Proxy/tunnel"):
+            assert_command_in_scope("ttyd -p 7681 bash", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="tsh|Proxy/tunnel"):
+            assert_command_in_scope("tsh proxy db --tunnel", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("mosh evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="pwncat|Proxy/tunnel"):
+            assert_command_in_scope("pwncat -l 4444", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="upterm|Proxy/tunnel"):
+            assert_command_in_scope("upterm host", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="openvpn3|Proxy/tunnel"):
+            assert_command_in_scope(
+                "openvpn3 session-start --config cfg", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="telebit|Proxy/tunnel"):
+            assert_command_in_scope("telebit http 8080", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("parallel nmap ::: evilhost", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

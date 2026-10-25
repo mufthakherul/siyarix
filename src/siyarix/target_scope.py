@@ -92,6 +92,8 @@ _HOST_TOOL_NAMES = frozenset(
     {
         "ssh",
         "autossh",
+        "mosh",
+        "mosh-client",
         "nmap",
         "ncat",
         "nc",
@@ -293,6 +295,19 @@ _HOST_TOOL_NAMES = frozenset(
         "k3s",
         "kubefwd",
         "microk8s",
+        # RH-48 — public shells / Teleport / VPN / C2 / tunnels.
+        "tmate",
+        "ttyd",
+        "gotty",
+        "wetty",
+        "tsh",
+        "tctl",
+        "upterm",
+        "openvpn3",
+        "telebit",
+        "pwncat",
+        "pwncat-cs",
+        "websocat",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -417,6 +432,19 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "k3s",
         "kubefwd",
         "microk8s",
+        # RH-48 — public shells / Teleport / VPN / C2 / tunnels.
+        "tmate",
+        "ttyd",
+        "gotty",
+        "wetty",
+        "tsh",
+        "tctl",
+        "upterm",
+        "openvpn3",
+        "telebit",
+        "pwncat",
+        "pwncat-cs",
+        "websocat",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -1105,6 +1133,19 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         payload = next((g for g in _shell_c.groups() if g), "")
         if payload.strip():
             assert_command_in_scope(payload.strip(), scope_env=scope_env)
+    # RH-48: GNU parallel ``cmd ::: hosts`` hides operands from host-tool scan.
+    if re.search(r"(?:^|\s)parallel(?:\s|$)", decoded_early, re.IGNORECASE):
+        _par_parts = re.split(r"\s:::\s+", decoded_early, maxsplit=1)
+        if len(_par_parts) == 2:
+            _par_left = re.sub(
+                r"^.*\bparallel\b\s*", "", _par_parts[0], count=1, flags=re.IGNORECASE
+            ).strip()
+            for _op in _par_parts[1].split():
+                if not _op or _op.startswith("-"):
+                    continue
+                assert_command_in_scope(
+                    f"{_par_left} {_op}".strip(), scope_env=scope_env
+                )
 
     for url in _NON_HTTP_URL_RE.findall(decoded_early):
         raise PermissionDeniedError(

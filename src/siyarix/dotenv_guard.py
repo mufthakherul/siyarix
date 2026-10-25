@@ -554,6 +554,14 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "R2_ENDPOINT",
         "ELASTICSEARCH_HOST",
         "KAFKA_HOST",
+        "TMATE_SERVER",
+        "ARGOCD_SERVER",
+        "OPENVPN3_CONFIG",
+        "TELEPORT_HOME",
+        "RCLONE_CONFIG",
+        "KUBE_API_SERVER",
+        "TSH_PROXY",
+        "TELEPORT_PROXY",
     }
 )
 
@@ -695,6 +703,14 @@ def should_skip_dotenv_key(key: str) -> bool:
         "R2_ENDPOINT",
         "ELASTICSEARCH_HOST",
         "KAFKA_HOST",
+        "TMATE_SERVER",
+        "ARGOCD_SERVER",
+        "OPENVPN3_CONFIG",
+        "TELEPORT_HOME",
+        "RCLONE_CONFIG",
+        "KUBE_API_SERVER",
+        "TSH_PROXY",
+        "TELEPORT_PROXY",
     }:
         return True
     if key_upper.startswith("TAILSCALE_") or key_upper.startswith("WIREGUARD_"):
@@ -729,7 +745,16 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper.endswith(("_CONFIG_HOME", "_CONFIG_DIR", "_CONFIG_FILE")):
         return True
-    if key_upper in {"BOUNDARY_ADDR", "NERDCTL_HOST", "MSSQL_HOST", "OVPN_CONFIG"}:
+    if key_upper in {"BOUNDARY_ADDR", "NERDCTL_HOST", "MSSQL_HOST", "OVPN_CONFIG",
+                     "TMATE_SERVER", "ARGOCD_SERVER", "KUBE_API_SERVER"}:
+        return True
+    if key_upper.startswith("TELEPORT_") or key_upper.startswith("TSH_"):
+        return True
+    if key_upper in {"RCLONE_CONFIG", "OPENVPN3_CONFIG"}:
+        return True
+    if key_upper.endswith("_SERVER") and any(
+        key_upper.startswith(p) for p in ("TMATE_", "ARGOCD_", "KUBE_", "TELEPORT_", "TSH_")
+    ):
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

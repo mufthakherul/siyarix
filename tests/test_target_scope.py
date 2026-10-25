@@ -170,3 +170,16 @@ class TestAssertCommandInScope:
             assert_command_in_scope("nmap 0x7f.1", scope_env="10.0.0.0/8")
         ips2, _ = extract_targets("nmap 0x7f.0.0.1")
         assert ips2 == ["127.0.0.1"]
+
+    def test_inet_aton_short_octal_ipv4(self) -> None:
+        # glibc/curl inet_aton: 0177.1 → 127.0.0.1 (not 177.0.0.1)
+        ips, _ = extract_targets("nmap 0177.1")
+        assert ips == ["127.0.0.1"]
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("nmap 0177.1", scope_env="10.0.0.0/8")
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("curl http://0177.1/", scope_env="177.0.0.0/8")
+        # Hex-dotted must not claim leading-zero octal forms.
+        from siyarix.target_scope import _expand_hex_dotted_ipv4
+
+        assert _expand_hex_dotted_ipv4("0177.1") is None

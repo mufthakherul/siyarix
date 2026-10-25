@@ -53,6 +53,13 @@ _IPV4_SHORT_RE = re.compile(
     r"(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){1,2}"
     r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])"
 )
+# Short/octal inet_aton forms (0177.1 → 127.0.0.1). Leading-zero octet required.
+_IPV4_INET_ATON_RE = re.compile(
+    r"(?<![\w.])(?=(?:[\w.]*0[0-7]))"
+    r"(?:0x[0-9a-fA-F]{1,2}|0[0-7]{1,3}|[1-9]?\d|1\d{2}|2[0-4]\d|25[0-5]|0)"
+    r"(?:\.(?:0x[0-9a-fA-F]{1,2}|0[0-7]{1,3}|[1-9]?\d|1\d{2}|2[0-4]\d|25[0-5]|0)){1,3}"
+    r"(?![\w.])"
+)
 
 # Bracketed IPv6 literals: https://[2001:db8::1]/80
 _IPV6_BRACKETED_RE = re.compile(r"\[([0-9a-fA-F:]+)\]")
@@ -123,22 +130,69 @@ def _try_int_ip(token: str) -> str | None:
         return None
 
 
+def _parse_inet_octet(part: str) -> int | None:
+    """Parse one IPv4 octet (decimal, leading-zero octal, or ``0x`` hex)."""
+    try:
+        lower = part.lower()
+        if lower.startswith("0x"):
+            value = int(part, 16)
+        elif part.startswith("0") and len(part) > 1 and all(c in "01234567" for c in part):
+            value = int(part, 8)
+        elif part.isdigit():
+            value = int(part, 10)
+        else:
+            return None
+        if 0 <= value <= 255:
+            return value
+    except ValueError:
+        return None
+    return None
+
+
 def _expand_hex_dotted_ipv4(token: str) -> str | None:
-    """Expand hex-dotted IPv4 (``0x7f.1``, ``0x7f.0x0.0x0.0x1``) like inet_aton."""
+    """Expand hex-dotted IPv4 (``0x7f.1``, ``0x7f.0.0.1``) like inet_aton.
+
+    Requires at least one ``0x`` octet so plain dotted forms are not mis-parsed.
+    """
     parts = token.split(".")
     if not (2 <= len(parts) <= 4):
         return None
+    if not any(p.lower().startswith("0x") for p in parts):
+        return None
     nums: list[int] = []
     for part in parts:
-        try:
-            if part.lower().startswith("0x"):
-                nums.append(int(part, 16))
-            else:
-                nums.append(int(part, 10))
-        except ValueError:
+        n = _parse_inet_octet(part)
+        if n is None:
             return None
-    if any(n < 0 or n > 255 for n in nums):
+        nums.append(n)
+    if len(nums) == 2:
+        dotted = f"{nums[0]}.0.0.{nums[1]}"
+    elif len(nums) == 3:
+        dotted = f"{nums[0]}.{nums[1]}.0.{nums[2]}"
+    else:
+        dotted = ".".join(str(n) for n in nums)
+    try:
+        return str(ipaddress.IPv4Address(dotted))
+    except ValueError:
         return None
+
+
+def _expand_inet_aton_ipv4(token: str) -> str | None:
+    """Expand short/octal IPv4 the way curl/glibc ``inet_aton`` does (``0177.1``)."""
+    parts = token.split(".")
+    if not (2 <= len(parts) <= 4):
+        return None
+    # Require a leading-zero octal octet so plain ``127.1`` still uses short-decimal.
+    if not any(
+        p.startswith("0") and len(p) > 1 and all(c in "01234567" for c in p) for p in parts
+    ):
+        return None
+    nums: list[int] = []
+    for part in parts:
+        n = _parse_inet_octet(part)
+        if n is None:
+            return None
+        nums.append(n)
     if len(nums) == 2:
         dotted = f"{nums[0]}.0.0.{nums[1]}"
     elif len(nums) == 3:
@@ -157,7 +211,7 @@ def _expand_short_ipv4(token: str) -> str | None:
     if len(parts) not in (2, 3):
         return None
     try:
-        nums = [int(p) for p in parts]
+        nums = [int(p, 10) for p in parts]
     except ValueError:
         return None
     if any(n < 0 or n > 255 for n in nums):
@@ -200,6 +254,11 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
         if match.count(".") == 3:
             continue
         expanded = _expand_short_ipv4(match)
+        if expanded:
+            _add_ip(expanded)
+
+    for match in _IPV4_INET_ATON_RE.findall(text):
+        expanded = _expand_inet_aton_ipv4(match)
         if expanded:
             _add_ip(expanded)
 
@@ -355,6 +414,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if not ip_in_scope(hex_dotted, allowed_items):
                 raise PermissionDeniedError(
                     f"Target IP {hex_dotted} is out of authorized scope: {scope_display}"
+                )
+            continue
+        inet_aton = _expand_inet_aton_ipv4(host)
+        if inet_aton is not None:
+            if not ip_in_scope(inet_aton, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {inet_aton} is out of authorized scope: {scope_display}"
                 )
             continue
         short_ip = _expand_short_ipv4(host)

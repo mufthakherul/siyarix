@@ -624,6 +624,22 @@ class TestDangerAnalyzerAnalyze:
         r = self.da.analyze("chmod 777 /etc")
         assert r.severity == "critical"
 
+    def test_critical_chmod_recurse_root_equiv(self) -> None:
+        r = self.da.analyze("chmod -R 777 /*")
+        assert r.severity == "critical"
+
+    def test_critical_ntfsformat(self) -> None:
+        r = self.da.analyze("ntfsformat /dev/sda1")
+        assert r.severity == "critical"
+
+    def test_critical_rsync_block_device(self) -> None:
+        r = self.da.analyze("rsync -a /tmp/x /dev/sda")
+        assert r.severity == "critical"
+
+    def test_critical_interpreter_dev_write(self) -> None:
+        r = self.da.analyze("python -c \"open('/dev/sda','wb').write(b'x')\"")
+        assert r.severity == "critical"
+
     def test_high_shutdown(self) -> None:
         r = self.da.analyze("shutdown -h now")
         assert r.severity == "high"

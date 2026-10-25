@@ -224,7 +224,9 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
     re.compile(r"\bmkfs\.", re.I),
     re.compile(
-        r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b", re.I
+        r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+        r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
+        re.I,
     ),
     re.compile(r"\bmkswap\b"),
     re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
@@ -236,11 +238,17 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
         re.I,
     ),
     re.compile(
-        r"\b(?:cp|tee|install|openssl|tar|dc3dd|badblocks|fio)\b.*/dev/(?:sd|nvme|vd|xvd)",
+        r"\b(?:cp|tee|install|openssl|tar|dc3dd|badblocks|fio|rsync)\b"
+        r".*/dev/(?:sd|nvme|vd|xvd)",
         re.I,
     ),
     re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
     re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
+    re.compile(
+        r"(?:open|File\.write|writeFileSync|file_put_contents)\s*\(\s*['\"]?/dev/"
+        r"(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
+        re.I,
+    ),
     re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
     re.compile(
         r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"

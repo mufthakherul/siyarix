@@ -468,7 +468,11 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Raw disk overwrite (dd)",
     ),
     (
-        re.compile(r"\b(fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b", re.I),
+        re.compile(
+            r"\b(fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+            r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
+            re.I,
+        ),
         "critical",
         "Partition / swap device tool",
     ),
@@ -505,7 +509,10 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Filesystem repair/write wipe",
     ),
     (
-        re.compile(r"\b(?:tar|dc3dd|badblocks|fio)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        re.compile(
+            r"\b(?:tar|dc3dd|badblocks|fio|rsync)\b.*/dev/(?:sd|nvme|vd|xvd)",
+            re.I,
+        ),
         "critical",
         "Archive/forensics write onto block device",
     ),
@@ -548,9 +555,21 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "truncate/openssl/install onto block device",
     ),
     (
-        re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
+        re.compile(
+            r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/(?:\*|\.)?(?:\s|$)",
+            re.I,
+        ),
         "critical",
         "Recursive chmod/chown on /",
+    ),
+    (
+        re.compile(
+            r"(?:open|File\.write|writeFileSync|file_put_contents)\s*\(\s*['\"]?/dev/"
+            r"(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
+            re.I,
+        ),
+        "critical",
+        "Interpreter write to block device",
     ),
     (
         re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),

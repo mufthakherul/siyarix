@@ -32,6 +32,10 @@ All notable changes to this project will be documented in this file.
 - Strip shell quotes before destructive matching (`m'k'fs` → `mkfs`).
 - Scope: whole-integer octal IPv4 (`017700000001`) and hex-dotted (`0x7f.1` / `0x7f.0.0.1` → `127.0.0.1`).
 - Hard-block `btrfs` destructive ops, `pvremove`/`dmsetup remove`, `xfs_repair -L`, `debugfs -w`.
+- Normalize recursive `chmod`/`chown` root equivalents (`/*`, `/.`, `//`).
+- Hard-block `rsync` onto block devices; `ntfsformat`/`mkntfs`/`newfs(_*)` formatters.
+- Hard-block interpreter writes to block devices (`open`/`File.write`/`writeFileSync`/`file_put_contents`).
+- Scope: short/octal inet_aton IPv4 (`0177.1` → `127.0.0.1`); hex-dotted requires a `0x` octet.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

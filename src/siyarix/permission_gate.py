@@ -51,7 +51,8 @@ class PermissionGate:
         ),
         re.compile(r"\brm\b\s+--(?:recursive|force)", re.IGNORECASE),
         re.compile(
-            r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b",
+            r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+            r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
             re.IGNORECASE,
         ),
         # Any dd with of=/dev/<block> (last of= checked in assert_command_not_destructive).

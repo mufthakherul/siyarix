@@ -35,7 +35,8 @@ _SYSTEM_RM_ROOTS = frozenset(
 )
 _ROOT_EQUIV = frozenset({"/", "/*", "/.", "/./", "//", "///"})
 _PARTITION_RE = re.compile(
-    r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b",
+    r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+    r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
     re.IGNORECASE,
 )
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
@@ -53,7 +54,7 @@ _BLOCK_WIPE_TOOLS_RE = re.compile(
     re.IGNORECASE,
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
-    r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|install|pv|openssl|tar|badblocks|fio)\b"
+    r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|install|pv|openssl|tar|badblocks|fio|rsync)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
@@ -79,8 +80,17 @@ _INTERPRETER_WIPE_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
-_CHMOD_CHOWN_ROOT_RE = re.compile(
-    r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/(?:\s|$)",
+_INTERPRETER_DEV_WRITE_RE = re.compile(
+    r"(?:"
+    r"open\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|File\.write\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|writeFileSync\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|file_put_contents\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r")",
+    re.IGNORECASE,
+)
+_CHMOD_CHOWN_RECURSE_RE = re.compile(
+    r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+(\S+)",
     re.IGNORECASE,
 )
 _VOLUME_DESTROY_RE = re.compile(
@@ -189,10 +199,18 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Interpreter wipe of system paths is blocked."
         )
 
-    if _CHMOD_CHOWN_ROOT_RE.search(cmd_clean):
+    if _INTERPRETER_DEV_WRITE_RE.search(cmd_clean):
         raise PermissionDeniedError(
-            "Destructive command detected: Recursive chmod/chown on / is blocked."
+            "Destructive command detected: Interpreter write to block devices is blocked."
         )
+
+    chmod_match = _CHMOD_CHOWN_RECURSE_RE.search(cmd_clean)
+    if chmod_match:
+        path_tok = _normalize_path_token(chmod_match.group(1))
+        if path_tok in {"/", "/*"} or path_tok in _ROOT_EQUIV:
+            raise PermissionDeniedError(
+                "Destructive command detected: Recursive chmod/chown on / is blocked."
+            )
 
     if _VOLUME_DESTROY_RE.search(cmd_clean):
         raise PermissionDeniedError(

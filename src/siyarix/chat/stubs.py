@@ -247,6 +247,10 @@ class AdversarialTester:
                     "mkfs ",
                     "fdisk ",
                     "parted ",
+                    "ntfsformat",
+                    "mkntfs",
+                    "newfs",
+                    "rsync ",
                 )
             ):
                 findings.append(

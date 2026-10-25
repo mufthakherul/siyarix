@@ -56,7 +56,7 @@ class ConnectivityMonitor:
 
         for target in self._TARGETS:
             try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
+                async with httpx.AsyncClient(timeout=5.0, follow_redirects=False) as client:
                     response = await client.get(target, timeout=5.0)
                     if response.status_code < 500:
                         self._consecutive_successes += 1

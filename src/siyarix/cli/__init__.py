@@ -1665,7 +1665,14 @@ async def _execute_targets_parallel(
                 f"{merged.error_message}; {msg}" if merged.error_message else msg
             )
             continue
-        merged.all_findings.extend(raw.all_findings or [])
+        for finding in raw.all_findings or []:
+            if isinstance(finding, dict):
+                tagged = dict(finding)
+                tagged.setdefault("target", target)
+                tagged.setdefault("scan_target", target)
+                merged.all_findings.append(tagged)
+            else:
+                merged.all_findings.append(finding)
         merged.step_results.extend(raw.step_results or [])
         merged.duration_ms += float(raw.duration_ms or 0.0)
         merged.retries_performed += int(raw.retries_performed or 0)

@@ -295,6 +295,11 @@ def load_env_file() -> None:
             "SSL_CERT_DIR",
             "DOCKER_CERT_PATH",
             "DOCKER_TLS_VERIFY",
+            "NODE_TLS_REJECT_UNAUTHORIZED",
+            "PIP_TRUSTED_HOST",
+            "NPM_CONFIG_STRICT_SSL",
+            "COMPOSER_DISABLE_TLS",
+            "UV_INSECURE_HOST",
         }
     )
     _blocked_vars = {
@@ -352,6 +357,11 @@ def load_env_file() -> None:
         "SSL_CERT_DIR",
         "DOCKER_CERT_PATH",
         "DOCKER_TLS_VERIFY",
+        "NODE_TLS_REJECT_UNAUTHORIZED",
+        "PIP_TRUSTED_HOST",
+        "NPM_CONFIG_STRICT_SSL",
+        "COMPOSER_DISABLE_TLS",
+        "UV_INSECURE_HOST",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

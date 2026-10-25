@@ -285,3 +285,22 @@ class TestAssertCommandInScope:
             assert_command_in_scope("enum4linux evil-host", scope_env=scope)
         assert_command_in_scope("scp file 10.1.2.3:/tmp/", scope_env=scope)
         assert_command_in_scope("socat TCP:10.1.2.3:80 -", scope_env=scope)
+
+    def test_ssh_opt_sftp_rsync_aria2c_under_scope(self) -> None:
+        scope = "10.0.0.0/8,example.com"
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "ssh -o ProxyJump=jump evilhost", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "ssh -o ForwardAgent=yes evilhost", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("sftp bastion", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("rsync bastion:/path .", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
+            assert_command_in_scope("aria2c -i /tmp/urls", scope_env=scope)
+        assert_command_in_scope("ssh -o ForwardAgent=yes 10.1.2.3", scope_env=scope)
+        assert_command_in_scope("rsync 10.1.2.3:/path .", scope_env=scope)

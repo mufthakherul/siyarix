@@ -162,6 +162,11 @@ def _load_dotenv(path: Path | None = None) -> None:
             "SSL_CERT_DIR",
             "DOCKER_CERT_PATH",
             "DOCKER_TLS_VERIFY",
+            "NODE_TLS_REJECT_UNAUTHORIZED",
+            "PIP_TRUSTED_HOST",
+            "NPM_CONFIG_STRICT_SSL",
+            "COMPOSER_DISABLE_TLS",
+            "UV_INSECURE_HOST",
         }
     )
     _blocked_vars = {
@@ -219,6 +224,11 @@ def _load_dotenv(path: Path | None = None) -> None:
         "SSL_CERT_DIR",
         "DOCKER_CERT_PATH",
         "DOCKER_TLS_VERIFY",
+        "NODE_TLS_REJECT_UNAUTHORIZED",
+        "PIP_TRUSTED_HOST",
+        "NPM_CONFIG_STRICT_SSL",
+        "COMPOSER_DISABLE_TLS",
+        "UV_INSECURE_HOST",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():
@@ -2647,6 +2657,10 @@ def production_check(
             "debootstrap stable /",
             "mount -B /tmp/e /etc/passwd",
             "shuf -o /etc/passwd /tmp/x",
+            "cp -t/etc/cron.d /tmp/pwn",
+            "mount -o rw,bind /tmp/evil /etc/passwd",
+            "tar -P -xf evil.tar",
+            "ddrescue /tmp/x /etc/passwd",
         )
         for _probe in _probe_blocks:
             try:

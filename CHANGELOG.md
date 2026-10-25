@@ -81,6 +81,9 @@ All notable changes to this project will be documented in this file.
 - Hard-block `gdd`/`ddr`/`dd_rescue` onto disks/auth; `gtar -C /`; `mke2fs`/`mkdosfs`; `unar`/`unrar -o|-d|-op` extract-to-root.
 - Hard-block `cp`/`install -t`/`--target-directory` onto auth dirs; package `--root`/`--installroot`/`-r` onto `/`.
 - Hard-block apk `-p /`, `debootstrap`/`pacstrap` onto `/`, `mount -B` onto auth, `shuf -o` onto auth.
+- Hard-block glued `cp -t/auth`, `mount -o rw,bind`, `tar -P`/`--absolute-names`, `__import__('shutil').copy` auth, ddrescue→auth.
+- Scope: ssh `-o` options no longer hide the real host; bare `sftp`/`rsync` remotes; aria2c `-i` config-from-file.
+- `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.
 - Block procfs hijacks (`core_pattern`/`modprobe`/`hotplug`/`binfmt_misc`); git `--prefix=/`/`--work-tree=/`.
 - Scope fail-closed on curl `--config`/`-K` and wget `-i`/`--input-file`; hardlink `ln` onto auth.

@@ -59,6 +59,11 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SSL_CERT_DIR=/tmp/certs",
                 "DOCKER_CERT_PATH=/tmp/certs",
                 "DOCKER_TLS_VERIFY=0",
+                "NODE_TLS_REJECT_UNAUTHORIZED=0",
+                "PIP_TRUSTED_HOST=evil.example",
+                "NPM_CONFIG_STRICT_SSL=false",
+                "COMPOSER_DISABLE_TLS=1",
+                "UV_INSECURE_HOST=evil.example",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -106,6 +111,11 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SSL_CERT_DIR",
         "DOCKER_CERT_PATH",
         "DOCKER_TLS_VERIFY",
+        "NODE_TLS_REJECT_UNAUTHORIZED",
+        "PIP_TRUSTED_HOST",
+        "NPM_CONFIG_STRICT_SSL",
+        "COMPOSER_DISABLE_TLS",
+        "UV_INSECURE_HOST",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -154,4 +164,9 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SSL_CERT_DIR" not in os.environ
     assert "DOCKER_CERT_PATH" not in os.environ
     assert "DOCKER_TLS_VERIFY" not in os.environ
+    assert "NODE_TLS_REJECT_UNAUTHORIZED" not in os.environ
+    assert "PIP_TRUSTED_HOST" not in os.environ
+    assert "NPM_CONFIG_STRICT_SSL" not in os.environ
+    assert "COMPOSER_DISABLE_TLS" not in os.environ
+    assert "UV_INSECURE_HOST" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

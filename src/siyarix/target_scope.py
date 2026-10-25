@@ -108,6 +108,9 @@ _HOST_TOOL_NAMES = frozenset(
         "ftp",
         "scp",
         "sftp",
+        "rsync",
+        "lftp",
+        "aria2c",
         "enum4linux",
         "enum4linux-ng",
         "impacket-smbclient",
@@ -493,20 +496,32 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 or flag.startswith("--input-file")
                 or re.match(r"^-i/", flag) is not None
             )
-            if curl_cfg or wget_in:
+            aria_in = base == "aria2c" and (
+                flag in {"-i", "--input-file"}
+                or flag.startswith("--input-file")
+                or re.match(r"^-i/", flag) is not None
+            )
+            if curl_cfg or wget_in or aria_in:
                 raise PermissionDeniedError(
                     f"URL/config-from-file is not allowed under authorized scope "
                     f"(authorized scope: {scope_display})"
                 )
-        # scp/sftp: only ``[user@]host:path`` remotes are targets (not local filenames).
-        if base in {"scp", "sftp"}:
+        # scp/sftp/rsync: ``[user@]host:path`` / ``host::module``; sftp also bare host.
+        if base in {"scp", "sftp", "rsync"}:
             for nxt in tokens[i + 1 :]:
                 if nxt.startswith("-"):
                     continue
                 scp_m = _SCP_REMOTE_RE.match(nxt)
-                if scp_m is None:
+                # rsync daemon: ``host::module``
+                if scp_m is None and base == "rsync" and "::" in nxt:
+                    candidate = nxt.split("::", 1)[0].split("@")[-1]
+                elif scp_m is not None:
+                    candidate = (scp_m.group("host") or "").strip("[]")
+                elif base == "sftp":
+                    # Bare ``sftp bastion`` / ``sftp user@bastion``.
+                    candidate = nxt.split("@")[-1].split("/")[0]
+                else:
                     continue
-                candidate = (scp_m.group("host") or "").strip("[]")
                 if not candidate:
                     continue
                 int_ip = _try_int_ip(candidate)
@@ -535,6 +550,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         )
                 break
             continue
+        _ssh_opt_flags = frozenset({"-o", "--option"})
         skip_next_port = False
         for nxt in tokens[i + 1 :]:
             if skip_next_port:
@@ -542,8 +558,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 continue
             if nxt.startswith("-"):
                 flag = nxt.split("=", 1)[0]
-                if flag in _port_flags or flag.lower().startswith("-p"):
-                    if "=" not in nxt:
+                ssh_opt = base in {"ssh", "scp", "sftp"} and (
+                    flag in _ssh_opt_flags
+                    or flag.startswith("-o")
+                    or flag.startswith("--option")
+                )
+                if flag in _port_flags or flag.lower().startswith("-p") or ssh_opt:
+                    # ``-o Key=val``, ``-oKey=val`` (glued), or ``-p 22``.
+                    if "=" not in nxt and flag in _ssh_opt_flags | _port_flags:
+                        skip_next_port = True
+                    elif "=" not in nxt and flag.lower().startswith("-p") and len(flag) <= 2:
                         skip_next_port = True
                 continue
             if "://" in nxt:

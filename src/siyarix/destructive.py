@@ -308,7 +308,9 @@ _CP_TO_AUTH_RE = re.compile(
 )
 _CP_TARGET_DIR_AUTH_RE = re.compile(
     r"\b(?:cp|mv|install)\b[\s\S]{0,180}"
-    r"(?:-t|--target-directory)(?:=|\s+)" + _AUTH_DIR_RE.pattern,
+    # ``-t /path``, ``-t=/path``, glued ``-t/path`` / ``--target-directory/path``.
+    r"(?:(?:-t|--target-directory)(?:=|\s+)|-t(?=/)|--target-directory(?=/))"
+    + _AUTH_DIR_RE.pattern,
     re.IGNORECASE,
 )
 _MV_RSYNC_TO_AUTH_RE = re.compile(
@@ -336,8 +338,15 @@ _PROCFS_HIJACK_RE = re.compile(
     re.IGNORECASE,
 )
 _MOUNT_BIND_AUTH_RE = re.compile(
-    r"\bmount\b[\s\S]{0,160}(?:--bind\b|-B\b|-o\s+\S*bind\b)[\s\S]{0,160}"
+    # Match before and after comma→space scrub (``-o rw,bind`` / ``-o rw bind``).
+    r"\bmount\b[\s\S]{0,160}"
+    r"(?:--bind\b|-B\b|-o(?:=|\s+)\S*bind\b|-o(?:=|\s+)\S*\s+bind\b)"
+    r"[\s\S]{0,160}"
     + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_TAR_ABSOLUTE_NAMES_RE = re.compile(
+    r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}(?:--absolute-names\b|-P\b)",
     re.IGNORECASE,
 )
 _SHUF_OUT_AUTH_RE = re.compile(
@@ -403,6 +412,10 @@ _DD_OF_AUTH_RE = re.compile(
     r"\b(?:dd|dc3dd|ddrescue)\b[\s\S]{0,120}\bof=" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
+_DD_RESCUE_AUTH_RE = re.compile(
+    r"\b(?:dd_?rescue|ddr|gddrescue)\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
 _INTERPRETER_AUTH_WRITE_RE = re.compile(
     r"(?:"
     r"open\s*\(\s*" + _AUTH_FILE_RE.pattern
@@ -416,9 +429,10 @@ _INTERPRETER_AUTH_WRITE_RE = re.compile(
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    + r"|shutil\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
+    # ``__import__('shutil').copy`` → ``shutil).copy`` after quote-strip.
+    + r"|shutil\s*\)?\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
-    + r"|os\s*\.\s*(?:rename|replace)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:rename|replace)\s*\([^)]*" + _AUTH_FILE_RE.pattern
     + r"|extractall\s*\(\s*/"
     + r"|ZipFile\s*\([^)]*\)[\s\S]{0,80}\.extract(?:all)?\s*\(\s*/"
     + r")",
@@ -554,8 +568,10 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Overwriting block devices is blocked."
         )
     # Strip remaining escapes (``\/`` → ``/``) so ``exec(...rmtree(\"/\")`` matches.
+    # Keep a pre-comma form for mount ``-o rw,bind`` (comma scrub would hide ``bind``).
+    cmd_esc = quoted_clean.replace("\\", "")
     # Normalize list-argv commas (``['rm','-rf','/']`` → ``rm -rf /``).
-    cmd_clean = re.sub(r"\s*,\s*", " ", quoted_clean.replace("\\", ""))
+    cmd_clean = re.sub(r"\s*,\s*", " ", cmd_esc)
 
     if _FORK_BOMB_RE.search(cmd_clean):
         raise PermissionDeniedError(
@@ -625,7 +641,7 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Overwriting block devices is blocked."
         )
 
-    if _is_extract_to_root(cmd_clean):
+    if _is_extract_to_root(cmd_clean) or _TAR_ABSOLUTE_NAMES_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Extracting archives onto / is blocked."
         )
@@ -663,8 +679,10 @@ def assert_command_not_destructive(command: str) -> None:
         or _CMAKE_COPY_AUTH_RE.search(cmd_clean)
         or _INPLACE_AUTH_RE.search(cmd_clean)
         or _CHMOD_AUTH_RE.search(cmd_clean)
+        or _MOUNT_BIND_AUTH_RE.search(cmd_esc)
         or _MOUNT_BIND_AUTH_RE.search(cmd_clean)
         or _SHUF_OUT_AUTH_RE.search(cmd_clean)
+        or _DD_RESCUE_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(

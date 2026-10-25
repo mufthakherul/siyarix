@@ -138,6 +138,9 @@ _HOST_TOOL_NAMES = frozenset(
         "helm",
         "kustomize",
         "nerdctl",
+        "clickhouse-client",
+        "clickhouse",
+        "cqlsh",
         "nslookup",
         "ansible",
         "ansible-playbook",
@@ -186,6 +189,8 @@ _HOST_TOOL_NAMES = frozenset(
         "corkscrew",
         "connect-proxy",
         "connect",
+        "pproxy",
+        "proxy.py",
         "cloudflared",
         "ngrok",
         "bore",
@@ -214,6 +219,8 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "corkscrew",  # RH-25
         "connect-proxy",
         "connect",
+        "pproxy",  # RH-32
+        "proxy.py",
         "cloudflared",
         "ngrok",
         "bore",
@@ -311,6 +318,8 @@ _SCOPE_PROXY_ENV_NAMES: frozenset[str] = frozenset(
         "GIT_HTTP_PROXY",
         "GIT_HTTPS_PROXY",
         "RSYNC_PROXY",
+        "GRPC_PROXY",
+        "grpc_proxy",
     }
 )
 # Leading daemon / transport pivots that hide the real egress host (RH-14/15).
@@ -348,6 +357,14 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "MONGODB_URI",
         "DATABASE_URL",
         "SQLALCHEMY_DATABASE_URI",
+        # Service discovery / DB hosts (RH-33).
+        "CONSUL_HTTP_ADDR",
+        "CONSUL_HTTP_HOST",
+        "VAULT_ADDR",
+        "NOMAD_ADDR",
+        "CLICKHOUSE_HOST",
+        "CASSANDRA_HOST",
+        "ETCDCTL_ENDPOINTS",
     }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
@@ -1066,8 +1083,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     scope_display,
                 )
             continue
-        # docker/podman daemon endpoints: ``-H tcp://host``, ``--url``.
+        # docker/podman daemon endpoints: ``-H tcp://host``, ``--url``, ``context use``.
         if base in {"docker", "podman"}:
+            # ``docker context use <name>`` / ``podman --connection`` hide the daemon (RH-34).
+            rest_lower = [t.lower() for t in tokens[i + 1 :]]
+            for j in range(len(rest_lower) - 1):
+                if rest_lower[j] == "context" and rest_lower[j + 1] == "use":
+                    raise PermissionDeniedError(
+                        f"{base} context use is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display}); pass an explicit -H/--host"
+                    )
             skip_daemon = False
             for nxt in tokens[i + 1 :]:
                 if skip_daemon:
@@ -1081,7 +1106,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 glued = _glued_host_flag_value(
                     nxt,
                     short=frozenset({"-H"}),
-                    long=frozenset({"--host", "--url"}),
+                    long=frozenset({"--host", "--url", "--connection"}),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -1089,7 +1114,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     continue
                 flag = nxt.split("=", 1)[0]
-                if flag in {"-H", "--host", "--url"}:
+                if flag in {"-H", "--host", "--url", "--connection"}:
                     if "=" in nxt:
                         _assert_host_token_in_scope(
                             _proxy_host_from_val(nxt.split("=", 1)[1]),
@@ -1106,6 +1131,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "redis-cli",
             "mongosh",
             "mongo",
+            "clickhouse-client",
+            "clickhouse",
+            "cqlsh",
             "evil-winrm",
             "xfreerdp",
             "impacket-psexec",
@@ -1289,6 +1317,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     skip_r = False
                     continue
+                # ``0/0`` / ``0.0.0.0/0`` / ``::/0`` = full-tunnel egress pivot (RH-30).
+                bare = nxt.strip().strip("'\"")
+                if bare in {"0/0", "0.0.0.0/0", "::/0", "0::/0"}:
+                    raise PermissionDeniedError(
+                        f"sshuttle full-tunnel {bare} is not allowed under authorized "
+                        f"scope (authorized scope: {scope_display})"
+                    )
                 if not nxt.startswith("-"):
                     continue
                 flag = nxt.split("=", 1)[0]
@@ -1304,11 +1339,26 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             continue
         # chisel ``client host:port …`` / crackmapexec|nxc ``smb host``.
         if base in {"chisel", "crackmapexec", "cme", "nxc", "netexec"}:
+            # Reverse SOCKS / R:socks via an in-scope hop still pivots out (RH-29).
+            # Scan *all* remotes first — host validation below breaks after the
+            # first hop and must not skip a trailing ``R:socks``.
+            if base == "chisel":
+                for nxt in tokens[i + 1 :]:
+                    low = nxt.lower().strip().strip("'\"")
+                    if (
+                        low in {"r:socks", "socks", "socks5", "socks4"}
+                        or low.startswith("r:socks")
+                        or ":socks" in low
+                    ):
+                        raise PermissionDeniedError(
+                            f"chisel SOCKS reverse pivot is not allowed under "
+                            f"authorized scope (authorized scope: {scope_display})"
+                        )
             skip_sub = base == "chisel"
             for nxt in tokens[i + 1 :]:
+                low = nxt.lower().strip().strip("'\"")
                 if nxt.startswith("-"):
                     continue
-                low = nxt.lower()
                 if skip_sub and low in {"client", "server"}:
                     skip_sub = False
                     continue

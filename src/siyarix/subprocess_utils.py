@@ -347,6 +347,7 @@ _SCRUB_ENV_EXACT: frozenset[str] = frozenset(
         "SIYARIX_VAULT_PASSWORD",
         "SIYARIX_PREAUTHORIZED",
         "AWS_SECRET_ACCESS_KEY",
+        "AWS_ACCESS_KEY_ID",  # RH-31
         "AWS_SESSION_TOKEN",
         "AZURE_CLIENT_SECRET",
         "GOOGLE_APPLICATION_CREDENTIALS",
@@ -363,15 +364,25 @@ _SCRUB_ENV_EXACT: frozenset[str] = frozenset(
         "AMQP_URL",
         "BROKER_URL",
         "CELERY_BROKER_URL",
+        # Provider short keys / framework secrets (RH-31).
+        "OPENAI_KEY",
+        "ANTHROPIC_KEY",
+        "XAI_KEY",
+        "GROQ_KEY",
+        "DJANGO_SECRET_KEY",
+        "FLASK_SECRET_KEY",
+        "SECRET_KEY",
     }
 )
 _SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
     "_API_KEY",
     "_SECRET",
+    "_SECRET_KEY",
     "_PASSWORD",
     "_TOKEN",
     "_PRIVATE_KEY",
     "_ACCESS_KEY",
+    "_ACCESS_KEY_ID",
     "_MASTER_PASSWORD",
     "_MASTER_KEY",
     "_PASSPHRASE",
@@ -380,6 +391,8 @@ _SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
     "_DATABASE_URL",
     "_DSN",
 )
+# Bare ``FOO_KEY`` provider shorthand (OPENAI_KEY, etc.).
+_SCRUB_BARE_KEY_RE = re.compile(r"^(?:[A-Z][A-Z0-9_]*)_KEY$")
 
 
 def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
@@ -392,6 +405,9 @@ def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
         if any(upper.endswith(suf) for suf in _SCRUB_ENV_SUFFIXES):
             continue
         if upper.startswith("SIYARIX_") and upper.endswith("_KEY"):
+            continue
+        # Bare provider ``*_KEY`` (OPENAI_KEY) — RH-31.
+        if _SCRUB_BARE_KEY_RE.match(upper):
             continue
         # Any *URL / *URI that looks like a DSN with userinfo (RH-13).
         if (upper.endswith("_URL") or upper.endswith("_URI")) and "://" in val:

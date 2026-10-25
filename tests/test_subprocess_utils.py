@@ -234,6 +234,9 @@ class TestPrepareEnv:
         monkeypatch.setenv("SIYARIX_SUDO_PASSWORD", "s3cret")
         monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "vault")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("OPENAI_KEY", "sk-bare")  # RH-31
+        monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIATEST")
+        monkeypatch.setenv("DJANGO_SECRET_KEY", "django-secret")
         monkeypatch.setenv("SIYARIX_HARMLESS", "ok")
         monkeypatch.setenv("DATABASE_URL", "postgres://u:p@h/db")
         monkeypatch.setenv("REDIS_URL", "redis://:pass@h/0")
@@ -243,6 +246,9 @@ class TestPrepareEnv:
         assert "SIYARIX_SUDO_PASSWORD" not in result
         assert "SIYARIX_MASTER_PASSWORD" not in result
         assert "OPENAI_API_KEY" not in result
+        assert "OPENAI_KEY" not in result
+        assert "AWS_ACCESS_KEY_ID" not in result
+        assert "DJANGO_SECRET_KEY" not in result
         assert "ANTHROPIC_API_KEY" not in result
         assert "DATABASE_URL" not in result
         assert "REDIS_URL" not in result

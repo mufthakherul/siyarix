@@ -53,7 +53,15 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-A02/A10/A11 | Closed | Plugin auto-pip off by default; PEP508-only requirements (reject paths/URLs/VCS); git/pip via `safe_run_sync` scrub; origin re-validated; no CWD index |
 | SX-A06 | Closed | file_key warns by default; `--strict` / `SIYARIX_REQUIRE_MASTER_PASSWORD` / `SIYARIX_PRODUCTION` fail-closed; CredentialStore refuses file_key under those flags |
 | CI | Partial | coverage 70%; Trivy CRITICAL exit 1; `production-check` job; stress/chaos markers; workflows use `uv pip` (not unlocked `pip install -e`) |
-| SX-A01 | Partial | `SIYARIX_TRUST_PLUGINS=1` required before in-process load; true OS isolation still open |
+| SX-A01 | Partial | Lab: `SIYARIX_TRUST_PLUGINS=1`; under `SIYARIX_PRODUCTION` / `REQUIRE_MASTER_PASSWORD` require `=force`; production-check `plugin_trust` row; true OS isolation still open |
+| RH-29 | Closed | chisel `R:socks` / `:socks` scanned before hop-host break (in-scope hop cannot pivot) |
+| RH-30 | Closed | sshuttle `0/0` / `0.0.0.0/0` / `::/0` full-tunnel blocked under scope |
+| RH-31 | Closed | Child-env scrub: `AWS_ACCESS_KEY_ID`, bare `*_KEY`, `*_SECRET_KEY`, framework `SECRET_KEY` |
+| RH-32 | Closed | `pproxy` / `proxy.py` scope-blocked tunnel wrappers |
+| RH-33 | Closed | `CONSUL_*` / `VAULT_ADDR` / `CLICKHOUSE_HOST` / `cqlsh` / clickhouse client under scope |
+| RH-34 | Closed | `docker context use` / `--connection` hide daemon — blocked under scope |
+| RH-35 | Closed | `gem unpack --target /`, `aunpack -X /` extract-to-root blocked |
+| RH-36 | Closed | Dotenv skips `BROWSER` / Guile / pip index / `GRPC_PROXY` / Vault / GDK / NSS wrapper / Electron pivots |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
 | Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |
 | CISA KEV | Closed | Feed status `planned` (was false `integrated`) |
@@ -84,7 +92,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 
 ## Premium ops
 
-- `siyarix production-check` — security/config readiness table (`--strict` for CI); includes `permission_gate`, `tool_registry`, `command_review`, and `destructive_guard`.
+- `siyarix production-check` — security/config readiness table (`--strict` for CI); includes `permission_gate`, `tool_registry`, `command_review`, `destructive_guard`, and `plugin_trust`. Logic lives in `siyarix.cli.production_check`.
 - `siyarix scan @targets.txt --parallel N` — true multi-target concurrent scans (merged findings).
 - `make_tool_registry()` — shared PermissionGate-on-by-default construction for CLI/chat/plugins/core.
 - `siyarix compliance run` — exit `2` on FAIL probes, `3` when NOT_EVALUATED remain (scaffold, not attestation).

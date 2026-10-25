@@ -446,6 +446,10 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "ar x a.a --output /",
         "mksquashfs /tmp/x /dev/sda",
         "setcap cap_sys_admin+ep /bin/bash",
+        # RH-35
+        "gem unpack foo.gem --target /",
+        "aunpack -X / evil.tar.gz",
+        "atool --extract-to=/ evil.zip",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

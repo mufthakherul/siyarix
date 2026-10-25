@@ -452,6 +452,23 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "TCLLIBPATH",
         "TCL_LIBRARY",
         "TK_LIBRARY",
+        # Browser / language / package / proxy pivots (RH-36).
+        "BROWSER",
+        "GUILE_LOAD_PATH",
+        "GUILE_LOAD_COMPILED_PATH",
+        "PIP_FIND_LINKS",
+        "PIP_EXTRA_INDEX_URL",
+        "PIP_INDEX_URL",
+        "GRPC_PROXY",
+        "grpc_proxy",
+        "VAULT_ADDR",
+        "VAULT_AGENT_ADDR",
+        "GDK_PIXBUF_MODULEDIR",
+        "GDK_PIXBUF_MODULE_FILE",
+        "NSS_WRAPPER_PASSWD",
+        "NSS_WRAPPER_GROUP",
+        "ELECTRON_RUN_AS_NODE",
+        "ELECTRON_NO_ASAR",
     }
 )
 
@@ -495,6 +512,14 @@ def should_skip_dotenv_key(key: str) -> bool:
     if key_upper in {"CC", "CXX", "CPP", "LD", "AS", "FC"}:
         return True
     if key_upper.endswith("LIBPATH") or key_upper.endswith("_LIBRARY"):
+        return True
+    if key_upper.endswith("_LOAD_PATH") or key_upper.endswith("_FIND_LINKS"):
+        return True
+    if key_upper.endswith("_PIXBUF_MODULEDIR") or key_upper.startswith("NSS_WRAPPER_"):
+        return True
+    if key_upper.startswith("ELECTRON_"):
+        return True
+    if key_upper in {"BROWSER", "VAULT_ADDR", "GRPC_PROXY"}:
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

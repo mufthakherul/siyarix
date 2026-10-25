@@ -176,6 +176,9 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\b(?:unar|unrar|rar)\b[\s\S]{0,140}(?:-op|-o|-d)(?:=|\s*)(\S+)"
     # ``ar x a.a --output /`` / ``ar -O /`` (RH-27). Avoid matching ``-O`` inside ``--output``.
     r"|\bar\b[\s\S]{0,160}(?:--output(?:=|\s*)|(?<![-\w])-O(?:=|\s*))(\S+)"
+    # ``gem unpack … --target /`` / ``aunpack -X /`` (RH-35).
+    r"|\bgem\b[\s\S]{0,160}(?:unpack|install)\b[\s\S]{0,120}(?:--target|-i)(?:=|\s*)(\S+)"
+    r"|\b(?:aunpack|atool)\b[\s\S]{0,100}(?:-X|--extract-to)(?:=|\s*)(\S+)"
     r")",
     re.IGNORECASE,
 )

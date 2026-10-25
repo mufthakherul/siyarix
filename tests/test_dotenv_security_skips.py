@@ -168,6 +168,22 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "CARGO_BUILD_RUSTC_WRAPPER=/tmp/evil",
                 "LIBRARY_PATH=/tmp/evil",
                 "KUBE_EDITOR=/tmp/evil",
+                # RH-36
+                "BROWSER=/tmp/evil",
+                "GUILE_LOAD_PATH=/tmp/evil",
+                "GUILE_LOAD_COMPILED_PATH=/tmp/evil",
+                "PIP_FIND_LINKS=/tmp/evil",
+                "PIP_EXTRA_INDEX_URL=http://evil/simple",
+                "PIP_INDEX_URL=http://evil/simple",
+                "GRPC_PROXY=http://evil:8080",
+                "VAULT_ADDR=http://evil:8200",
+                "VAULT_AGENT_ADDR=http://evil:8200",
+                "GDK_PIXBUF_MODULEDIR=/tmp/evil",
+                "GDK_PIXBUF_MODULE_FILE=/tmp/evil",
+                "NSS_WRAPPER_PASSWD=/tmp/evil",
+                "NSS_WRAPPER_GROUP=/tmp/evil",
+                "ELECTRON_RUN_AS_NODE=1",
+                "ELECTRON_NO_ASAR=1",
                 "APP_HARMLESS=ok",
             ]
         ),
@@ -324,6 +340,21 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "CARGO_BUILD_RUSTC_WRAPPER",
         "LIBRARY_PATH",
         "KUBE_EDITOR",
+        "BROWSER",
+        "GUILE_LOAD_PATH",
+        "GUILE_LOAD_COMPILED_PATH",
+        "PIP_FIND_LINKS",
+        "PIP_EXTRA_INDEX_URL",
+        "PIP_INDEX_URL",
+        "GRPC_PROXY",
+        "VAULT_ADDR",
+        "VAULT_AGENT_ADDR",
+        "GDK_PIXBUF_MODULEDIR",
+        "GDK_PIXBUF_MODULE_FILE",
+        "NSS_WRAPPER_PASSWD",
+        "NSS_WRAPPER_GROUP",
+        "ELECTRON_RUN_AS_NODE",
+        "ELECTRON_NO_ASAR",
         "APP_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -481,5 +512,21 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "RSYNC_RSH" not in os.environ
     assert "RSYNC_CONNECT_PROG" not in os.environ
     assert "RSYNC_PROXY" not in os.environ
+    # RH-36 browser / language / package / vault pivots
+    assert "BROWSER" not in os.environ
+    assert "GUILE_LOAD_PATH" not in os.environ
+    assert "GUILE_LOAD_COMPILED_PATH" not in os.environ
+    assert "PIP_FIND_LINKS" not in os.environ
+    assert "PIP_EXTRA_INDEX_URL" not in os.environ
+    assert "PIP_INDEX_URL" not in os.environ
+    assert "GRPC_PROXY" not in os.environ
+    assert "VAULT_ADDR" not in os.environ
+    assert "VAULT_AGENT_ADDR" not in os.environ
+    assert "GDK_PIXBUF_MODULEDIR" not in os.environ
+    assert "GDK_PIXBUF_MODULE_FILE" not in os.environ
+    assert "NSS_WRAPPER_PASSWD" not in os.environ
+    assert "NSS_WRAPPER_GROUP" not in os.environ
+    assert "ELECTRON_RUN_AS_NODE" not in os.environ
+    assert "ELECTRON_NO_ASAR" not in os.environ
     # All SIYARIX_* keys are blocked from .env; non-security APP_* still loads.
     assert os.environ.get("APP_HARMLESS") == "ok"

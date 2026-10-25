@@ -3039,6 +3039,12 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                     for zinfo in zf.infolist():
                         if zinfo.filename.startswith("/") or ".." in zinfo.filename:
                             continue
+                        # Skip symlink/external members (zip-slip via link target).
+                        if getattr(zinfo, "is_symlink", lambda: False)():
+                            continue
+                        mode = zinfo.external_attr >> 16
+                        if mode & 0o120000 == 0o120000:  # S_IFLNK
+                            continue
                         if not _safe_under_bin(zinfo.filename):
                             continue
                         zf.extract(zinfo, bin_dir)
@@ -3046,6 +3052,8 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                 with tarfile.open(archive_path, "r:gz") as tf:
                     for tinfo in tf.getmembers():
                         if tinfo.name.startswith("/") or ".." in tinfo.name:
+                            continue
+                        if tinfo.issym() or tinfo.islnk():
                             continue
                         if not _safe_under_bin(tinfo.name):
                             continue

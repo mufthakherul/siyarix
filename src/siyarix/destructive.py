@@ -87,10 +87,27 @@ _INTERPRETER_DEV_WRITE_RE = re.compile(
     r"|IO\.write\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"|writeFile(?:Sync)?\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"|file_put_contents\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|urlretrieve\s*\([^)]*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"|Path\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     r"|pathlib\s*\.\s*Path\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
+    r")",
+    re.IGNORECASE,
+)
+_GPG_OPENSSL_OUT_BLOCK_RE = re.compile(
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out)\s*"
+    + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_OPENSSL_OUT_AUTH_RE = re.compile(
+    r"\bopenssl\b[\s\S]{0,160}(?:-out|--out)\s*" + r"/etc/(?:passwd|shadow|sudoers|group)\b",
+    re.IGNORECASE,
+)
+_EXTRACT_TO_ROOT_RE = re.compile(
+    r"(?:"
+    r"\btar\b[\s\S]{0,120}(?:-C|--directory)\s+/(?:\s|$)"
+    r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)\s+/(?:\s|$)"
     r")",
     re.IGNORECASE,
 )
@@ -264,9 +281,18 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Interpreter write to block devices is blocked."
         )
 
-    if _QEMU_IMG_BLOCK_RE.search(cmd_clean) or _DOWNLOAD_TO_BLOCK_RE.search(cmd_clean):
+    if (
+        _QEMU_IMG_BLOCK_RE.search(cmd_clean)
+        or _DOWNLOAD_TO_BLOCK_RE.search(cmd_clean)
+        or _GPG_OPENSSL_OUT_BLOCK_RE.search(cmd_clean)
+    ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting block devices is blocked."
+        )
+
+    if _EXTRACT_TO_ROOT_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Extracting archives onto / is blocked."
         )
 
     if _RSYNC_DELETE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
@@ -293,6 +319,7 @@ def assert_command_not_destructive(command: str) -> None:
         or _REDIRECT_TO_AUTH_RE.search(cmd_clean)
         or _DD_OF_AUTH_RE.search(cmd_clean)
         or _INTERPRETER_AUTH_WRITE_RE.search(cmd_clean)
+        or _OPENSSL_OUT_AUTH_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."

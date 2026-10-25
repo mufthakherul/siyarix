@@ -43,6 +43,7 @@ All notable changes to this project will be documented in this file.
 - `siyarix doctor` / `production-check` probes live hard-blocks + inet_aton scope deny.
 - SecretRedactor/DLP URL-password redaction handles embedded `@` in passwords.
 - Hard-block `curl -o/dev` (no space), `dd of=/etc/passwd`, and interpreter writes to auth files.
+- Hard-block `urlretrieve` onto disks; `gpg`/`openssl` output onto disks/auth; `tar -C /` / `unzip -d /`.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

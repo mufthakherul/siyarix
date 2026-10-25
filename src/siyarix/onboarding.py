@@ -25,11 +25,13 @@ import json
 import logging
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
 import sys
 import textwrap
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -58,6 +60,38 @@ from siyarix.templates.wizard_text import (
 from siyarix.tool_installer import ToolInstaller
 
 logger = logging.getLogger(__name__)
+
+# GitHub release downloads may redirect to CDN hosts; never follow off-allowlist.
+_GITHUB_RELEASE_HOSTS = frozenset(
+    {
+        "github.com",
+        "api.github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+        "github-releases.githubusercontent.com",
+    }
+)
+_SAFE_RELEASE_TAG_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _sanitize_release_tag(tag: str) -> str:
+    """Return a path-safe GitHub release tag or raise ``ValueError``."""
+    cleaned = (tag or "").strip()
+    if not _SAFE_RELEASE_TAG_RE.fullmatch(cleaned):
+        raise ValueError(f"Unsafe or empty release tag: {tag!r}")
+    return cleaned
+
+
+def _assert_github_release_url(url: str) -> str:
+    """Require https + allowlisted GitHub/CDN host for release downloads."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError(f"Release URL must use https: {url!r}")
+    host = (parsed.hostname or "").strip().lower()
+    if host not in _GITHUB_RELEASE_HOSTS and not host.endswith(".githubusercontent.com"):
+        raise ValueError(f"Release URL host not allowlisted: {host!r}")
+    return url
+
 
 # ── Cybersecurity model tiers for recommended setup ──────────────────────
 # Ordered by free RAM tiers. All models are security-focused.
@@ -2967,15 +3001,13 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         machine = _platform.machine().lower()
         system = _platform.system().lower()
 
-        # Fetch the latest release tag from GitHub API
+        # Fetch the latest release tag from GitHub API (no redirects → SSRF-safe).
         try:
             api_url = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
-            resp = httpx.get(api_url, timeout=15)
+            resp = httpx.get(api_url, timeout=15, follow_redirects=False)
             resp.raise_for_status()
             release_data = resp.json()
-            tag = release_data.get("tag_name", "")
-            if not tag:
-                raise ValueError("No tag_name in release data")
+            tag = _sanitize_release_tag(str(release_data.get("tag_name", "")))
         except Exception as exc:
             self._console.print(f"  [red]Failed to fetch latest release: {exc}[/red]")
             self._console.print(
@@ -3007,7 +3039,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             return False
 
         asset_name = f"llama-{tag}-bin-{suffix}"
-        download_url = f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
+        download_url = (
+            f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
+        )
+        _assert_github_release_url(download_url)
 
         bin_dir = Path.home() / ".siyarix" / "bin"
         bin_dir.mkdir(parents=True, exist_ok=True)
@@ -3015,11 +3050,27 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             self._console.print(f"  Downloading [cyan]{asset_name}[/cyan]...")
             archive_path = bin_dir / asset_name
-            with httpx.stream("GET", download_url, timeout=300, follow_redirects=True) as r:
-                r.raise_for_status()
-                with open(archive_path, "wb") as fh:
-                    for chunk in r.iter_bytes(chunk_size=65536):
-                        fh.write(chunk)
+            # Follow redirects manually so each hop stays on allowlisted GitHub hosts.
+            current_url = download_url
+            for _hop in range(5):
+                with httpx.stream(
+                    "GET", current_url, timeout=300, follow_redirects=False
+                ) as r:
+                    if r.status_code in {301, 302, 303, 307, 308}:
+                        loc = (r.headers.get("location") or "").strip()
+                        if not loc:
+                            raise ValueError("Redirect without Location header")
+                        current_url = _assert_github_release_url(
+                            str(httpx.URL(current_url).join(loc))
+                        )
+                        continue
+                    r.raise_for_status()
+                    with open(archive_path, "wb") as fh:
+                        for chunk in r.iter_bytes(chunk_size=65536):
+                            fh.write(chunk)
+                    break
+            else:
+                raise ValueError("Too many redirects while downloading llama.cpp")
             self._console.print("  [green]\u2713 Downloaded[/green]")
 
             # Extract (resolve final paths under bin_dir to block zip/tar slip)

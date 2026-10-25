@@ -226,3 +226,5 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="еxample"):
             assert_command_in_scope("nmap еxample.com", scope_env=scope)
         assert_command_in_scope("nmap -p 80 10.1.2.3", scope_env=scope)
+        # IPv6 hextets must not be misread as integer IPv4 (``2001`` → 0.0.7.209).
+        assert_command_in_scope("nmap -6 2001:db8::10", scope_env="2001:db8::/32")

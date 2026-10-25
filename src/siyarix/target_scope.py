@@ -439,7 +439,11 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 continue
             if "://" in nxt:
                 break  # URLs handled by scheme / http(s) checks
-            candidate = nxt.split("@")[-1].split("/")[0].split(":")[0]
+            raw_host = nxt.split("@")[-1].split("/")[0]
+            # IPv6 (``2001:db8::1`` / ``[2001:db8::1]``) — do not truncate on ``:``.
+            if raw_host.startswith("[") or raw_host.count(":") >= 2:
+                break
+            candidate = raw_host.split(":")[0]  # strip ``host:port``
             if not candidate:
                 continue
             # Integer / short IPv4 hosts (``curl 0`` → 0.0.0.0).

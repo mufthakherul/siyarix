@@ -537,6 +537,12 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "cp evil /boot/grub/grub.cfg",
         "cp evil /etc/polkit-1/rules.d/49-nopasswd.rules",
         "btrfs device delete /dev/sdb /",
+        # RH-53 — NM connections, fish config, btrfs replace, zpool labelclear
+        "cp x /etc/NetworkManager/system-connections/evil.nmconnection",
+        "cp x /home/op/.config/fish/config.fish",
+        "cp x /etc/fish/config.fish",
+        "btrfs replace start /dev/sda /dev/sdb /mnt",
+        "zpool labelclear -f /dev/sda",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

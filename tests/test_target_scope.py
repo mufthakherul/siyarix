@@ -800,6 +800,19 @@ class TestAssertCommandInScope:
             assert_command_in_scope("pscp root@evilhost:file /tmp/local", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("psftp evilhost", scope_env=scope)
+        # RH-53 — glued DB/host flags on mariadb/benchmarks/kcat/cypher-shell
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("mariadb -h1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("redis-benchmark -h1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("valkey-benchmark -h1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("kcat -b1.1.1.1:9092 -L", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("cypher-shell -a1.1.1.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
+            assert_command_in_scope("mycli -h1.1.1.1", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

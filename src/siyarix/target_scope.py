@@ -140,12 +140,18 @@ _HOST_TOOL_NAMES = frozenset(
         "openssl",
         "git",
         "mysql",
+        "mariadb",
+        "mycli",
         "psql",
+        "pgcli",
         "redis-cli",
+        "redis-benchmark",
         "mongosh",
         "mongo",
         "valkey-cli",
+        "valkey-benchmark",
         "keydb-cli",
+        "keydb-benchmark",
         "cypher-shell",
         "cockroach",
         "sqlplus",
@@ -549,9 +555,10 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "easytier",
     }
 )
-# Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
+# Glued short host flags: ``mysql -h1.1.1.1``, ``kcat -b1.1.1.1``, ``cypher-shell -a1.1.1.1``.
+# Letter set is filtered by the caller's ``short`` frozenset (RH-53).
 _GLUED_HOST_SHORT_RE = re.compile(
-    r"^(?P<flag>-[hHiS])(?P<val>[^=\s-].+)$"
+    r"^(?P<flag>-[a-zA-Z])(?P<val>[^=\s-].+)$"
 )
 # Glued long host/connect flags: ``openssl … -connect1.1.1.1:443``.
 _GLUED_HOST_LONG_RE = re.compile(
@@ -1105,6 +1112,29 @@ def _assert_host_token_in_scope(
             )
 
 
+# Multi-letter mode flags that must not be parsed as glued ``-s`` + host (RH-53).
+_MULTI_LETTER_SHORT_FLAGS = frozenset(
+    {
+        "-ssh",
+        "-ssl",
+        "-sku",
+        "-smtp",
+        "-socks",
+        "-socks5",
+        "-socks4",
+        "-server",
+        "-session",
+        "-serial",
+        "-silent",
+        "-stdin",
+        "-stdout",
+        "-help",
+        "-version",
+        "-verbose",
+    }
+)
+
+
 def _glued_host_flag_value(
     token: str, *, short: frozenset[str], long: frozenset[str]
 ) -> str | None:
@@ -1116,6 +1146,11 @@ def _glued_host_flag_value(
     long_m = _GLUED_HOST_LONG_RE.match(raw)
     if long_m is not None and long_m.group("flag").lower() in {f.lower() for f in long}:
         return (long_m.group("eq") or long_m.group("glued") or "").strip().strip("'\"")
+    low = raw.lower().split("=", 1)[0]
+    if low in _MULTI_LETTER_SHORT_FLAGS or any(
+        low == f or low.startswith(f + "=") for f in _MULTI_LETTER_SHORT_FLAGS
+    ):
+        return None
     short_m = _GLUED_HOST_SHORT_RE.match(raw)
     if short_m is not None and short_m.group("flag") in short:
         return short_m.group("val").strip().strip("'\"")
@@ -1757,12 +1792,18 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         # DB / RDP / WinRM host flags (``mysql -h``, ``xfreerdp /v:``).
         if base in {
             "mysql",
+            "mariadb",
+            "mycli",
             "psql",
+            "pgcli",
             "redis-cli",
+            "redis-benchmark",
             "mongosh",
             "mongo",
             "valkey-cli",
+            "valkey-benchmark",
             "keydb-cli",
+            "keydb-benchmark",
             "clickhouse-client",
             "clickhouse",
             "cqlsh",
@@ -1798,9 +1839,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "remmina",
             "plink",
             "dbclient",
-            "putty",
-            "pscp",
-            "psftp",
+            # putty/pscp/psftp: handled via _HOST_TOOL_NAMES / scp remote matcher
+            # (avoid treating ``putty -ssh`` as glued ``-s`` + host).
         }:
             skip_db = False
             for nxt in tokens[i + 1 :]:
@@ -1825,7 +1865,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         _assert_host_token_in_scope(host, allowed_items, scope_display)
                     continue
                 if not nxt.startswith("-"):
-                    # Positional host (impacket-psexec / bare redis-cli / putty target).
+                    # Positional host (impacket-psexec / bare redis-cli target).
                     cand = (
                         nxt.split("@")[-1]
                         .split("/")[0]

@@ -373,6 +373,8 @@ _AUTH_FILE_RE = re.compile(
     r"|/etc/init\.d(?:/\S*)?"
     r"|/etc/xdg/autostart(?:/\S*)?"
     r"|/etc/NetworkManager/dispatcher\.d(?:/\S*)?"
+    # RH-53 — NM connection profiles (rogue Wi-Fi/VPN persistence).
+    r"|/etc/NetworkManager/system-connections(?:/\S*)?"
     # PAM / linker conf / spool crontabs (RH-43).
     r"|/etc/pam\.d(?:/\S*)?"
     r"|/etc/ld\.so\.conf(?:\.d(?:/\S*)?)?"
@@ -392,6 +394,9 @@ _AUTH_FILE_RE = re.compile(
     r"|/etc/doas\.conf\b"
     r"|/etc/modprobe\.d(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
+    # RH-53 — fish shell login persistence (sibling of .zshrc/.bashrc).
+    r"|/etc/fish(?:/\S*)?"
+    r"|/(?:root|home/[^/\s]+)/\.config/fish(?:/\S*)?"
     r")",
     re.IGNORECASE,
 )
@@ -707,7 +712,8 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\bpvremove\b"
     r"|\bdmsetup\s+remove(?:_all)?\b"
     r"|\bmdadm\b[\s\S]{0,80}--zero-superblock\b"
-    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:delete|remove|replace)|balance\s+start)\b"
+    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:delete|remove|replace)|replace\s+start|balance\s+start)\b"
+    r"|\bzpool\s+labelclear\b"
     r"|\bxfs_repair\s+[^\n]*-L\b"
     r"|\bdebugfs\s+-w\b"
     # dump/restore family writing onto ``/`` (operator root clobber).

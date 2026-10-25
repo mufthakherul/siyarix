@@ -667,3 +667,20 @@ def test_should_skip_rh52_dotenv_keys() -> None:
         "CASSANDRA_HOST",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh53_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "PS4",
+        "PS1",
+        "PAGER",
+        "MANPAGER",
+        "GIT_PAGER",
+        "LESSCLOSE",
+        "LESSOPEN",
+        "MARIADB_HOST",
+        "POSTGRES_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key

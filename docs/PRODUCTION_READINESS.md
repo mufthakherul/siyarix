@@ -52,7 +52,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (257 files)**; pytest **6062 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: workflow soft-error→FAILED + skip dependents; playbook `if`/`retries` + edge conditions; threat-intel input validation + no-redirect; IPv4-mapped/link-local blocked in local-provider URL checks; unknown deep-scan profiles raise; kwargs/args/flags/`command` honor `SIYARIX_ALLOWED_SCOPE`; onboarding archive extract rejects slip + symlinks; SX-025 PermissionGate + webhook probes.
+Latest local checks on this branch: **mypy clean (257 files)**; pytest **6068 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: workflow soft-error→FAILED + skip dependents; playbook `if`/`retries` + edge conditions; threat-intel input validation + no-redirect; IPv4-mapped/link-local blocked in local-provider URL checks; unknown deep-scan profiles raise; kwargs/args/flags/`command` honor `SIYARIX_ALLOWED_SCOPE`; onboarding archive extract rejects slip + symlinks; SX-025 PermissionGate + webhook probes.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln
@@ -63,7 +63,9 @@ normalized `rm -fr/--recursive` destructive checks, plugin path/entrypoint sandb
 fail-closed, learned-skill review preserved, atomic settings.toml writes, cache_invalidate rowcount,
 CLI multi-target `--parallel` concurrency, compliance status exit codes, chat/CLI registry factory,
 DLP↔SecretRedactor pattern sync, broadened `.env` credential skips, non-TTY review guidance,
-SecretRedactor URL-password redaction (no longer preserves the secret).
+SecretRedactor URL-password redaction (no longer preserves the secret),
+RegistryExecutor/workflow cyclic-dep SKIPPED, dd/mkfs harden, CGNAT/userinfo SSRF,
+cache wall-clock TTL + hashed paths, broadened .env skips, generic-handler validation.
 
 Goal status: production gates must stay green (`mypy` + full non-e2e pytest). Absolute “every
 possible bug / most-powerful product forever” is not a finite claim — known SX + hunt P0/P1

@@ -666,14 +666,16 @@ class AuditLogger:
 
 
 _audit_instance: AuditLogger | None = None
+_audit_instance_lock = threading.Lock()
 
 
 def __getattr__(name: str) -> Any:
     if name == "audit":
         global _audit_instance
-        if _audit_instance is None:
-            _audit_instance = AuditLogger()
-        return _audit_instance
+        with _audit_instance_lock:
+            if _audit_instance is None:
+                _audit_instance = AuditLogger()
+            return _audit_instance
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

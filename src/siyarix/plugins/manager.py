@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -180,6 +181,7 @@ class PluginManager:
     """Enterprise manager for discovery, loading, lifecycle, and remote registry."""
 
     _instance: PluginManager | None = None
+    _instance_lock = threading.Lock()
 
     def __init__(
         self,
@@ -203,6 +205,7 @@ class PluginManager:
         self._loaded_modules: dict[str, Any] = {}
         self._plugin_tools_map: dict[str, list[str]] = {}  # plugin_name -> [tool_names]
         self._config_data: dict[str, Any] = self._load_config()
+        self._state_lock = threading.RLock()
 
     @classmethod
     def get_instance(
@@ -211,15 +214,16 @@ class PluginManager:
         provider_manager: ProviderManager | None = None,
         plugins_dir: Path | None = None,
     ) -> PluginManager:
-        if cls._instance is None:
-            cls._instance = cls(
-                registry=registry,
-                provider_manager=provider_manager,
-                plugins_dir=plugins_dir,
-            )
-        elif registry is not None:
-            cls._instance.registry = registry
-        return cls._instance
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = cls(
+                    registry=registry,
+                    provider_manager=provider_manager,
+                    plugins_dir=plugins_dir,
+                )
+            elif registry is not None:
+                cls._instance.registry = registry
+            return cls._instance
 
     # -----------------------------------------------------------------------
     # Configuration & State Storage
@@ -236,10 +240,13 @@ class PluginManager:
         return {"disabled": [], "registry_mirrors": []}
 
     def _save_config(self) -> None:
-        try:
-            self.config_file.write_text(json.dumps(self._config_data, indent=2), encoding="utf-8")
-        except Exception as e:
-            logger.warning("Failed to save plugins_config.json: %s", e)
+        with self._state_lock:
+            try:
+                self.config_file.write_text(
+                    json.dumps(self._config_data, indent=2), encoding="utf-8"
+                )
+            except Exception as e:
+                logger.warning("Failed to save plugins_config.json: %s", e)
 
     def is_enabled(self, name: str) -> bool:
         disabled = self._config_data.get("disabled", [])

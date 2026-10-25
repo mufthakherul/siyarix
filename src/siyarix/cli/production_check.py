@@ -250,9 +250,20 @@ def build_production_payload(
             "yes",
             "on",
         }
-        from siyarix.plugins.isolation import plugin_preflight_enabled
+        from siyarix.plugins.isolation import (
+            plugin_os_isolate_enabled,
+            plugin_preflight_enabled,
+        )
+        import shutil
 
         preflight = plugin_preflight_enabled()
+        os_iso = plugin_os_isolate_enabled()
+        bwrap = bool(shutil.which("bwrap"))
+        iso_note = (
+            f"bwrap preflight={'on' if (os_iso and bwrap) else 'off'}"
+            f"{'' if bwrap or not os_iso else ' (bwrap missing)'}; "
+            "register_tools still in-process"
+        )
         if trust == "off":
             _add(
                 "plugin_trust",
@@ -264,15 +275,14 @@ def build_production_payload(
                 "plugin_trust",
                 "warn" if (production or strict) else "info",
                 "SIYARIX_TRUST_PLUGINS=force — in-process plugins are fully trusted; "
-                f"subprocess compile preflight={'on' if preflight else 'off'} "
-                "(true OS isolation still open)",
+                f"subprocess compile preflight={'on' if preflight else 'off'}; {iso_note}",
             )
         else:
             _add(
                 "plugin_trust",
                 "warn" if strict else "info",
                 "SIYARIX_TRUST_PLUGINS=1 (lab) — in-process load; use =force under "
-                f"SIYARIX_PRODUCTION; preflight={'on' if preflight else 'off'}",
+                f"SIYARIX_PRODUCTION; preflight={'on' if preflight else 'off'}; {iso_note}",
             )
     except Exception as exc:  # pragma: no cover - defensive
         _add("plugin_trust", "warn", f"unavailable: {exc}")

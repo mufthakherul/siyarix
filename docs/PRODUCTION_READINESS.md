@@ -52,7 +52,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (258 files)**; pytest **6147 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: chmod/chown root-equiv (`/*`/`/.`); inet_aton `0177.1` scope; rsync/ntfsformat/mkntfs/newfs; interpreter block-device writes; hex-dotted requires `0x`; btrfs/LVM/xfs/debugfs; `siyarix doctor`; ATA/partition/tar wipe; quote-normalized mkfs; octal/hex IPv4; parallel-scan UX; IP-pinned HTTPS; SX-025 probes.
+Latest local checks on this branch: **mypy clean (258 files)**; pytest **6155 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: pathlib/`IO.write`/`writeFile`/`qemu-img`/`rsync --delete`/`mv` system roots; chmod/chown root-equiv (`/*`/`/.`); inet_aton `0177.1` scope; rsync/ntfsformat/mkntfs/newfs; interpreter block-device writes; hex-dotted requires `0x`; btrfs/LVM/xfs/debugfs; `siyarix doctor`; ATA/partition/tar wipe; quote-normalized mkfs; octal/hex IPv4; parallel-scan UX; IP-pinned HTTPS; SX-025 probes.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln

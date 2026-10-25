@@ -245,10 +245,18 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
     re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
     re.compile(
-        r"(?:open|File\.write|writeFileSync|file_put_contents)\s*\(\s*['\"]?/dev/"
-        r"(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
+        r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
+        r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
         re.I,
     ),
+    re.compile(
+        r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
+        r"\.write_(?:bytes|text)\s*\(",
+        re.I,
+    ),
+    re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(r"\brsync\b.*--delete", re.I),
+    re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
     re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
     re.compile(
         r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"

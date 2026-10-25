@@ -564,12 +564,36 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (
         re.compile(
-            r"(?:open|File\.write|writeFileSync|file_put_contents)\s*\(\s*['\"]?/dev/"
-            r"(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
+            r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
+            r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
             re.I,
         ),
         "critical",
         "Interpreter write to block device",
+    ),
+    (
+        re.compile(
+            r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
+            r"\.write_(?:bytes|text)\s*\(",
+            re.I,
+        ),
+        "critical",
+        "pathlib write to block device",
+    ),
+    (
+        re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        "critical",
+        "qemu-img write onto block device",
+    ),
+    (
+        re.compile(r"\brsync\b.*--delete.*/", re.I),
+        "critical",
+        "rsync --delete on system path",
+    ),
+    (
+        re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
+        "critical",
+        "Move system directory",
     ),
     (
         re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),

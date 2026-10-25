@@ -84,9 +84,26 @@ _INTERPRETER_DEV_WRITE_RE = re.compile(
     r"(?:"
     r"open\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"|File\.write\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|writeFileSync\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|IO\.write\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|writeFile(?:Sync)?\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
     r"|file_put_contents\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"|Path\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
+    r"|pathlib\s*\.\s*Path\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
+    r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     r")",
+    re.IGNORECASE,
+)
+_RSYNC_DELETE_RE = re.compile(
+    r"\brsync\b[\s\S]{0,200}--delete(?:-\w+)?\b",
+    re.IGNORECASE,
+)
+_QEMU_IMG_BLOCK_RE = re.compile(
+    r"\bqemu-img\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_MV_SYSTEM_RE = re.compile(
+    r"\bmv\b\s+(?:-[^\s]+\s+)*(\S+)\s+(\S+)",
     re.IGNORECASE,
 )
 _CHMOD_CHOWN_RECURSE_RE = re.compile(
@@ -203,6 +220,29 @@ def assert_command_not_destructive(command: str) -> None:
         raise PermissionDeniedError(
             "Destructive command detected: Interpreter write to block devices is blocked."
         )
+
+    if _QEMU_IMG_BLOCK_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Overwriting block devices is blocked."
+        )
+
+    if _RSYNC_DELETE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: rsync --delete on system paths is blocked."
+        )
+
+    mv_match = _MV_SYSTEM_RE.search(cmd_clean)
+    if mv_match:
+        src = _normalize_path_token(mv_match.group(1))
+        system_src = src in {"/", "/*"} or src in _ROOT_EQUIV or src in _SYSTEM_RM_ROOTS
+        if not system_src:
+            system_src = any(
+                src == root or src.startswith(root + "/") for root in _SYSTEM_RM_ROOTS
+            )
+        if system_src:
+            raise PermissionDeniedError(
+                "Destructive command detected: Moving system directories is blocked."
+            )
 
     chmod_match = _CHMOD_CHOWN_RECURSE_RE.search(cmd_clean)
     if chmod_match:

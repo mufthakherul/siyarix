@@ -1618,9 +1618,20 @@ class LLMEngineMixin:
                         and "{param_" in _learned_skill.intent_pattern
                     ):
                         if _learned_skill.confidence >= 0.80 or _has_param_accum:
-                            asyncio.create_task(
+                            _compile_task = asyncio.create_task(
                                 self._compile_universal_skill(_learned_skill, llm_call_fn)
                             )
+
+                            def _log_compile_result(task: asyncio.Task[Any]) -> None:
+                                try:
+                                    task.result()
+                                except Exception:
+                                    logger.debug(
+                                        "CLS universal skill compile failed",
+                                        exc_info=True,
+                                    )
+
+                            _compile_task.add_done_callback(_log_compile_result)
             except Exception as _exc:
                 logger.debug("CLS LLM observation failed: %s", _exc)
 

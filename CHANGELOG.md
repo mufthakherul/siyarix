@@ -28,6 +28,9 @@ All notable changes to this project will be documented in this file.
 - Hard-block `truncate`/`install`/`openssl` onto disks; perl/ruby/node interpreter wipes; recursive `chmod`/`chown` on `/`.
 - Scope extract expands short IPv4 (`127.1`, `127.0.1`) without mangling full dotted-quads.
 - Parallel multi-target scan progress shows ok/fail counts, bar, and in-flight targets.
+- Hard-block `hdparm`/`nvme`/`cryptsetup`/`sfdisk`/`gdisk`/`cfdisk`, `tar`/`dc3dd`/`badblocks`/`fio` onto disks, and `zpool`/`zfs`/`lvremove`/`mdadm --zero-superblock`.
+- Strip shell quotes before destructive matching (`m'k'fs` → `mkfs`).
+- Scope: whole-integer octal IPv4 (`017700000001`) and hex-dotted (`0x7f.1` → `127.0.0.1`).
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).
 - Broaden `.env` credential skips (bearer/cookie/session/webhook/auth/…) in CLI and chat loaders.

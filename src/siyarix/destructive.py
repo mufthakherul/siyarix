@@ -34,9 +34,12 @@ _SYSTEM_RM_ROOTS = frozenset(
     }
 )
 _ROOT_EQUIV = frozenset({"/", "/*", "/.", "/./", "//", "///"})
-_PARTITION_RE = re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.IGNORECASE)
+_PARTITION_RE = re.compile(
+    r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b",
+    re.IGNORECASE,
+)
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
-_DD_WORD_RE = re.compile(r"\bdd\b", re.IGNORECASE)
+_DD_WORD_RE = re.compile(r"\b(?:dd|dc3dd|ddrescue)\b", re.IGNORECASE)
 
 # Block-device node paths (sd / nvme / vd / xvd / hd / loop / dm / mapper).
 _BLOCK_DEV_RE = re.compile(
@@ -45,11 +48,13 @@ _BLOCK_DEV_RE = re.compile(
     re.IGNORECASE,
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
-    r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install)\b",
+    r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install|"
+    r"hdparm|nvme|cryptsetup|sg_format|sg_sanitize)\b",
     re.IGNORECASE,
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
-    r"\b(?:cp|tee|cat|dd|install|pv|openssl)\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
+    r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|install|pv|openssl|tar|badblocks|fio)\b"
+    r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 _REDIRECT_TO_BLOCK_RE = re.compile(
@@ -60,16 +65,17 @@ _FIND_DELETE_RE = re.compile(
     r"\bfind\b[\s\S]{0,400}(?:-delete\b|-exec\s+rm\b)",
     re.IGNORECASE,
 )
+# Matched after quote-stripping, so paths appear as bare ``/`` (not ``'/'``).
 _INTERPRETER_WIPE_RE = re.compile(
     r"(?:"
-    r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/"
-    r"|os\s*\.\s*(?:remove|unlink|rmdir)\s*\(\s*['\"]/"
-    r"|Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*(?:unlink|rmdir)"
-    r"|pathlib\s*\.\s*Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*(?:unlink|rmdir)"
-    r"|FileUtils\s*\.\s*rm_rf\s*\(?\s*['\"]/"
-    r"|unlink\s+(?:q(?:w)?\()?\s*['\"/]"  # perl unlink '/…' or unlink q(/…)
-    r"|rmSync\s*\(\s*['\"]/"
-    r"|fs\s*\.\s*(?:rmSync|rmdirSync|unlinkSync)\s*\(\s*['\"]/"
+    r"shutil\s*\.\s*rmtree\s*\(\s*/"
+    r"|os\s*\.\s*(?:remove|unlink|rmdir)\s*\(\s*/"
+    r"|Path\s*\(\s*/?\s*\)\s*\.\s*(?:unlink|rmdir)"
+    r"|pathlib\s*\.\s*Path\s*\(\s*/?\s*\)\s*\.\s*(?:unlink|rmdir)"
+    r"|FileUtils\s*\.\s*rm_rf\s*\(?\s*/"
+    r"|unlink\s+(?:q(?:w)?\()?\s*/"  # perl unlink /… or unlink q(/…)
+    r"|rmSync\s*\(\s*/"
+    r"|fs\s*\.\s*(?:rmSync|rmdirSync|unlinkSync)\s*\(\s*/"
     r")",
     re.IGNORECASE,
 )
@@ -77,6 +83,21 @@ _CHMOD_CHOWN_ROOT_RE = re.compile(
     r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/(?:\s|$)",
     re.IGNORECASE,
 )
+_VOLUME_DESTROY_RE = re.compile(
+    r"(?:"
+    r"\bzpool\s+destroy\b"
+    r"|\bzfs\s+destroy\b"
+    r"|\blvremove\b"
+    r"|\bvgremove\b"
+    r"|\bmdadm\b[\s\S]{0,80}--zero-superblock\b"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def _strip_shell_quotes(text: str) -> str:
+    """Remove ``'`` / ``"`` so ``m'k'fs`` collapses to ``mkfs`` before matching."""
+    return text.replace("'", "").replace('"', "")
 
 
 def _normalize_path_token(tok: str) -> str:
@@ -118,9 +139,11 @@ def _targets_block_device(cmd_clean: str) -> bool:
 
 def assert_command_not_destructive(command: str) -> None:
     """Raise :class:`PermissionDeniedError` for fork bombs, disk wipes, and mkfs/fdisk."""
-    cmd_clean = (command or "").strip().lower()
-    if not cmd_clean:
+    raw = (command or "").strip().lower()
+    if not raw:
         return
+    # Collapse shell quote-splitting evasion (m'k'fs → mkfs) before matching.
+    cmd_clean = _strip_shell_quotes(raw)
 
     if any(marker in cmd_clean for marker in _FORK_BOMB_MARKERS):
         raise PermissionDeniedError(
@@ -164,6 +187,11 @@ def assert_command_not_destructive(command: str) -> None:
     if _CHMOD_CHOWN_ROOT_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Recursive chmod/chown on / is blocked."
+        )
+
+    if _VOLUME_DESTROY_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Volume/array destroy is blocked."
         )
 
     if _PARTITION_RE.search(cmd_clean):

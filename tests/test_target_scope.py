@@ -155,3 +155,16 @@ class TestAssertCommandInScope:
         ips, _ = extract_targets("nmap 192.168.1.5")
         assert "192.168.1.5" in ips
         assert "192.168.0.1" not in ips
+
+    def test_blocks_whole_octal_integer_ipv4(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("nmap 017700000001", scope_env="10.0.0.0/8")
+        ips, _ = extract_targets("nmap 017700000001")
+        assert "127.0.0.1" in ips
+
+    def test_hex_dotted_ipv4_expands_correctly(self) -> None:
+        ips, _ = extract_targets("nmap 0x7f.1")
+        assert "127.0.0.1" in ips
+        assert "0.0.0.127" not in ips
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("nmap 0x7f.1", scope_env="10.0.0.0/8")

@@ -33,6 +33,12 @@ _IPV4_RE = re.compile(
 # Hex / decimal / octal IPv4 obfuscations commonly accepted by curl/wget.
 _IPV4_HEX_RE = re.compile(r"\b0x[0-9a-fA-F]{1,8}\b")
 _IPV4_DECIMAL_RE = re.compile(r"\b(?:[1-9]\d{7,9}|[1-3]\d{9})\b")  # 8–10 digit ints
+# Whole-integer octal IPv4 (e.g. 017700000001 → 127.0.0.1). Leading 0 required.
+_IPV4_OCTAL_INT_RE = re.compile(r"\b0[0-7]{8,11}\b")
+# Hex-dotted short/full IPv4 (e.g. 0x7f.1 → 127.0.0.1, 0x7f.0x0.0x0.0x1).
+_IPV4_HEX_DOTTED_RE = re.compile(
+    r"(?<![\w.])(?:0x[0-9a-fA-F]{1,2}\.){1,3}(?:0x[0-9a-fA-F]{1,2}|\d{1,3})(?![\w.])"
+)
 # Octal-dotted IPv4 (e.g. 0177.0.0.1). Lookahead requires a 0[0-7]+ octet so
 # ordinary dotted-decimal (127.0.0.1) is not mis-parsed as base-8.
 _IPV4_OCTAL_RE = re.compile(
@@ -91,10 +97,18 @@ def _decode_for_extract(command: str) -> str:
 
 
 def _try_int_ip(token: str) -> str | None:
-    """Parse hex/decimal integer forms of IPv4 (e.g. ``0x7f000001``, ``2130706433``)."""
+    """Parse hex/decimal/octal integer forms of IPv4.
+
+    Examples: ``0x7f000001``, ``2130706433``, ``017700000001``.
+    """
     try:
-        if token.lower().startswith("0x"):
+        lower = token.lower()
+        if lower.startswith("0x"):
             value = int(token, 16)
+        elif token.startswith("0") and len(token) > 1 and all(
+            c in "01234567" for c in token
+        ):
+            value = int(token, 8)
         elif token.isdigit():
             value = int(token, 10)
         else:
@@ -103,6 +117,34 @@ def _try_int_ip(token: str) -> str | None:
             return None
         return str(ipaddress.IPv4Address(value))
     except (ValueError, OverflowError):
+        return None
+
+
+def _expand_hex_dotted_ipv4(token: str) -> str | None:
+    """Expand hex-dotted IPv4 (``0x7f.1``, ``0x7f.0x0.0x0.0x1``) like inet_aton."""
+    parts = token.split(".")
+    if not (2 <= len(parts) <= 4):
+        return None
+    nums: list[int] = []
+    for part in parts:
+        try:
+            if part.lower().startswith("0x"):
+                nums.append(int(part, 16))
+            else:
+                nums.append(int(part, 10))
+        except ValueError:
+            return None
+    if any(n < 0 or n > 255 for n in nums):
+        return None
+    if len(nums) == 2:
+        dotted = f"{nums[0]}.0.0.{nums[1]}"
+    elif len(nums) == 3:
+        dotted = f"{nums[0]}.{nums[1]}.0.{nums[2]}"
+    else:
+        dotted = ".".join(str(n) for n in nums)
+    try:
+        return str(ipaddress.IPv4Address(dotted))
+    except ValueError:
         return None
 
 
@@ -166,12 +208,26 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
         except ValueError:
             continue
 
-    for match in _IPV4_HEX_RE.findall(text):
+    # Expand hex-dotted forms first, then scrub them so bare ``0x7f`` is not
+    # mis-parsed as ``0.0.0.127`` from a fragment of ``0x7f.1``.
+    scrub_for_ints = text
+    for match in _IPV4_HEX_DOTTED_RE.findall(text):
+        expanded = _expand_hex_dotted_ipv4(match)
+        if expanded:
+            _add_ip(expanded)
+        scrub_for_ints = scrub_for_ints.replace(match, " ")
+
+    for match in _IPV4_HEX_RE.findall(scrub_for_ints):
         parsed = _try_int_ip(match)
         if parsed:
             _add_ip(parsed)
 
-    for match in _IPV4_DECIMAL_RE.findall(text):
+    for match in _IPV4_OCTAL_INT_RE.findall(scrub_for_ints):
+        parsed = _try_int_ip(match)
+        if parsed:
+            _add_ip(parsed)
+
+    for match in _IPV4_DECIMAL_RE.findall(scrub_for_ints):
         parsed = _try_int_ip(match)
         if parsed:
             _add_ip(parsed)
@@ -289,6 +345,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if not ip_in_scope(int_ip, allowed_items):
                 raise PermissionDeniedError(
                     f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+                )
+            continue
+        hex_dotted = _expand_hex_dotted_ipv4(host)
+        if hex_dotted is not None:
+            if not ip_in_scope(hex_dotted, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {hex_dotted} is out of authorized scope: {scope_display}"
                 )
             continue
         short_ip = _expand_short_ipv4(host)

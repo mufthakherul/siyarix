@@ -468,9 +468,32 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Raw disk overwrite (dd)",
     ),
     (
-        re.compile(r"\b(fdisk|parted|mkswap)\b", re.I),
+        re.compile(r"\b(fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b", re.I),
         "critical",
         "Partition / swap device tool",
+    ),
+    (
+        re.compile(
+            r"\b(hdparm|nvme|cryptsetup|sg_format|sg_sanitize)\b.*/dev/",
+            re.I,
+        ),
+        "critical",
+        "ATA/NVMe/LUKS wipe utility",
+    ),
+    (
+        re.compile(r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove)\b", re.I),
+        "critical",
+        "Volume/array destroy",
+    ),
+    (
+        re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
+        "critical",
+        "mdadm zero-superblock",
+    ),
+    (
+        re.compile(r"\b(?:tar|dc3dd|badblocks|fio)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        "critical",
+        "Archive/forensics write onto block device",
     ),
     (
         re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vda\d*)", re.I),

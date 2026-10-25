@@ -223,16 +223,27 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
     re.compile(r"\bmkfs\.", re.I),
-    re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.I),
+    re.compile(
+        r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b", re.I
+    ),
     re.compile(r"\bmkswap\b"),
     re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
     re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
     re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
-    re.compile(r"\b(wipefs|sgdisk|blkdiscard|truncate|shred)\b.*(/dev/)", re.I),
-    re.compile(r"\b(?:cp|tee|install|openssl)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(
+        r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"
+        r"sg_format|sg_sanitize)\b.*(/dev/)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:cp|tee|install|openssl|tar|dc3dd|badblocks|fio)\b.*/dev/(?:sd|nvme|vd|xvd)",
+        re.I,
+    ),
     re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
     re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
     re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
+    re.compile(r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove)\b", re.I),
+    re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
 ]
 
 

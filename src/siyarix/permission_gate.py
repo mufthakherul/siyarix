@@ -50,7 +50,10 @@ class PermissionGate:
             r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*[\s]*)*(?:-[a-zA-Z]*[rf])", re.IGNORECASE
         ),
         re.compile(r"\brm\b\s+--(?:recursive|force)", re.IGNORECASE),
-        re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.IGNORECASE),
+        re.compile(
+            r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap)\b",
+            re.IGNORECASE,
+        ),
         # Any dd with of=/dev/<block> (last of= checked in assert_command_not_destructive).
         re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.IGNORECASE),
         re.compile(r"\bdd\b\s+if=", re.IGNORECASE),

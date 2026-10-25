@@ -61,7 +61,9 @@ class TestEnsureOllamaRunning:
 
             ensure_ollama_running()
 
-        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=3)
+        mock_get.assert_called_once_with(
+            "http://localhost:11434/api/tags", timeout=3, follow_redirects=False
+        )
 
     def test_ollama_running_status_500(self) -> None:
         mock_settings = MagicMock()
@@ -191,7 +193,29 @@ class TestEnsureOllamaRunning:
 
             ensure_ollama_running()
 
-        mock_get.assert_called_once_with("http://localhost:11434/api/tags", timeout=3)
+        mock_get.assert_called_once_with(
+            "http://localhost:11434/api/tags", timeout=3, follow_redirects=False
+        )
+
+    def test_unsafe_ollama_url_skipped(self) -> None:
+        mock_settings = MagicMock()
+        mock_settings.get.side_effect = lambda key, default=None: {
+            "model_provider": "ollama",
+            "_start_ollama_on_launch": True,
+            "ollama_url": "http://example.com:11434",
+        }.get(key, default)
+
+        with (
+            patch("siyarix.config.SettingsStore", return_value=mock_settings),
+            patch.object(httpx, "get") as mock_get,
+            patch("siyarix.providers.ollama_utils.shutil.which") as mock_which,
+        ):
+            from siyarix.providers.ollama_utils import ensure_ollama_running
+
+            ensure_ollama_running()
+
+        mock_get.assert_not_called()
+        mock_which.assert_not_called()
 
     def test_provider_is_ollama_should_start_true(self) -> None:
         mock_settings = MagicMock()

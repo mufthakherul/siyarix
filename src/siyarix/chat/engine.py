@@ -942,7 +942,9 @@ class LLMEngineMixin:
 
                     base_url = PROVIDER_CONFIG.get(provider_name, ("", "", ""))[0]
                     if base_url:
-                        async with httpx.AsyncClient(timeout=5) as _client:
+                        async with httpx.AsyncClient(
+                            timeout=5, follow_redirects=False
+                        ) as _client:
                             await _client.get(base_url.rstrip("/v1"))
                         llm_connected = True
                     else:

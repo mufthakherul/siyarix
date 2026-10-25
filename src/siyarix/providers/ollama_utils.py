@@ -22,9 +22,18 @@ def ensure_ollama_running() -> None:
             return
 
         ollama_url = settings.get("ollama_url") or "http://localhost:11434"
+        from ..provider_utils import _is_safe_url
+
+        if not _is_safe_url(str(ollama_url)):
+            logger.warning("Refusing unsafe ollama_url for auto-start probe: %s", ollama_url)
+            return
 
         try:
-            r = httpx.get(f"{ollama_url}/api/tags", timeout=3)
+            r = httpx.get(
+                f"{str(ollama_url).rstrip('/')}/api/tags",
+                timeout=3,
+                follow_redirects=False,
+            )
             if r.status_code < 500:
                 return
         except Exception:

@@ -142,20 +142,47 @@ class OfflineCommandQueue:
         logger.info("Queued command %s: %s", cmd_id, instruction[:60])
         return cmd_id
 
+    def _deps_satisfied(self, conn: sqlite3.Connection, dependencies: list[str]) -> bool:
+        """Return True when every dependency id exists and is ``completed``."""
+        if not dependencies:
+            return True
+        placeholders = ",".join("?" * len(dependencies))
+        rows = conn.execute(
+            f"SELECT id, status FROM queued_commands WHERE id IN ({placeholders})",
+            dependencies,
+        ).fetchall()
+        by_id = {str(r["id"]): str(r["status"]) for r in rows}
+        return all(by_id.get(dep_id) == "completed" for dep_id in dependencies)
+
     def dequeue(self, batch_size: int = 5) -> list[QueuedCommand]:
         """Atomically claim up to *batch_size* pending commands as processing.
 
         Claim happens in one transaction so concurrent flush/replay workers
-        cannot dequeue the same row twice.
+        cannot dequeue the same row twice. Rows with unsatisfied ``dependencies``
+        stay pending until every dependency id is ``completed``.
         """
         with self._lock:
             with self._transaction() as conn:
-                rows = conn.execute(
-                    "SELECT id FROM queued_commands WHERE status = 'pending' "
+                # Over-fetch then filter by dependency readiness (fail-closed).
+                candidates = conn.execute(
+                    "SELECT * FROM queued_commands WHERE status = 'pending' "
                     "ORDER BY created_at ASC LIMIT ?",
-                    (batch_size,),
+                    (max(batch_size * 5, batch_size),),
                 ).fetchall()
-                ids = [row["id"] for row in rows]
+                ids: list[str] = []
+                for row in candidates:
+                    try:
+                        deps = json.loads(row["dependencies"] or "[]")
+                    except (TypeError, json.JSONDecodeError):
+                        deps = []
+                    if not isinstance(deps, list):
+                        deps = []
+                    deps_s = [str(d) for d in deps]
+                    if not self._deps_satisfied(conn, deps_s):
+                        continue
+                    ids.append(str(row["id"]))
+                    if len(ids) >= batch_size:
+                        break
                 if not ids:
                     return []
                 placeholders = ",".join("?" * len(ids))

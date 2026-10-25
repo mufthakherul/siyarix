@@ -176,26 +176,20 @@ class TestDispatchAlert:
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            fake_response = MagicMock()
-            fake_response.__enter__.return_value = fake_response
-
-            mock_opener = MagicMock()
-            mock_opener.open.return_value = fake_response
-            with patch.object(urllib.request, "build_opener", return_value=mock_opener):
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 finding = {"id": "vuln-1", "target": "example.com", "type": "sql injection"}
                 await d.dispatch_alert(finding)
 
-            mock_opener.open.assert_called_once()
-            req = mock_opener.open.call_args[0][0]
-            assert req.get_method() == "POST"
-            sent = json.loads(req.data)
-            assert "CRITICAL VULNERABILITY" in sent["text"]
+            mock_post.assert_called_once()
+            url, payload = mock_post.call_args[0][:2]
+            assert url == "https://example.com/hooks"
+            assert "CRITICAL VULNERABILITY" in payload["text"]
 
     @pytest.mark.asyncio
     async def test_no_url_configured(self, dispatcher_without_url: WebhookDispatcher) -> None:
-        with patch.object(urllib.request, "build_opener") as mock_build:
+        with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
             await dispatcher_without_url.dispatch_alert({"target": "x"})
-            mock_build.assert_not_called()
+            mock_post.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_urlerror_on_dispatch(self) -> None:
@@ -204,9 +198,10 @@ class TestDispatchAlert:
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            mock_opener = MagicMock()
-            mock_opener.open.side_effect = urllib.error.URLError("connection failed")
-            with patch.object(urllib.request, "build_opener", return_value=mock_opener):
+            with patch(
+                "siyarix.webhooks._https_post_json_pinned",
+                side_effect=urllib.error.URLError("connection failed"),
+            ):
                 await d.dispatch_alert({"id": "vuln-1", "target": "x", "type": "open port"})
 
     @pytest.mark.asyncio
@@ -216,14 +211,11 @@ class TestDispatchAlert:
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            fake_response = MagicMock()
-            fake_response.__enter__.return_value = fake_response
-            mock_opener = MagicMock()
-            mock_opener.open.return_value = fake_response
-            with patch.object(urllib.request, "build_opener", return_value=mock_opener):
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 await d.dispatch_alert(
                     {"id": "vuln-1", "title": "XSS Vulnerability", "target": "x"}
                 )
+            mock_post.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

@@ -31,6 +31,9 @@ All notable changes to this project will be documented in this file.
 - Broaden `.env` skips (PGPASSWORD, DATABASE_URL, bare API_KEY/TOKEN, …).
 - Cache disk TTL uses wall clock; cache filenames are SHA-256 (no `..` escape).
 - Generic tool handlers share `_run()` injection validation; skills default `command_review=True`.
+- Offline queue `dequeue` honors dependency readiness (fail-closed until deps complete).
+- Webhook/notification dispatch pins resolved public IPs (DNS-rebinding TOCTOU shrink).
+- Legacy `PluginLoader` delegates to sandboxed PluginManager; deep-scan runs executor permission checks.
 - Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
 - Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
 - Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).

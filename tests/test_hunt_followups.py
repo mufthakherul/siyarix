@@ -139,6 +139,61 @@ async def test_workflow_resolves_dependency_cycles() -> None:
     assert all(n.status == WorkflowStepStatus.SKIPPED for n in out.nodes)
 
 
+def test_https_post_json_pinned_connects_to_resolved_ip(monkeypatch: pytest.MonkeyPatch) -> None:
+    from siyarix.webhooks import _https_post_json_pinned
+
+    monkeypatch.setattr(
+        "siyarix.webhooks._resolve_public_ips",
+        lambda host, port=443: ["93.184.216.34"],
+    )
+    monkeypatch.setattr("siyarix.webhooks._validate_url", lambda url, allow_ip=False: None)
+
+    created: dict[str, object] = {}
+
+    class _FakeResp:
+        status = 200
+
+        def read(self) -> bytes:
+            return b"ok"
+
+    class _FakeConn:
+        def __init__(self, host: str, port: int = 443, timeout: float = 5.0, context=None):
+            created["host"] = host
+            created["port"] = port
+            self.sock = None
+            self.connect = lambda: None
+
+        def request(self, method: str, path: str, body=None, headers=None) -> None:
+            if self.sock is None:
+                self.connect()
+            created["method"] = method
+            created["path"] = path
+            created["headers"] = headers
+
+        def getresponse(self) -> _FakeResp:
+            return _FakeResp()
+
+        def close(self) -> None:
+            created["closed"] = True
+
+    monkeypatch.setattr("http.client.HTTPSConnection", _FakeConn)
+
+    def _fake_create_connection(address, timeout=None):
+        created["connect_addr"] = address
+        return MagicMock()
+
+    monkeypatch.setattr("socket.create_connection", _fake_create_connection)
+    monkeypatch.setattr(
+        "ssl.create_default_context",
+        lambda: MagicMock(wrap_socket=lambda sock, server_hostname=None: sock),
+    )
+
+    _https_post_json_pinned("https://example.com/hook", {"ok": True}, timeout=2.0)
+    assert created["connect_addr"][0] == "93.184.216.34"
+    assert created["host"] == "example.com"
+    assert created["headers"]["Host"] == "example.com"
+
+
 def test_cache_data_path_hashes_and_uses_wall_clock(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     from siyarix import cache_manager as cm
 

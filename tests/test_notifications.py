@@ -162,49 +162,42 @@ class TestNotificationDispatcher:
         url = "https://hooks.slack.com/services/T00/B00/xxx"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
-            with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:
-                mock_client = AsyncMock()
-                MockClient.return_value.__aenter__.return_value = mock_client
-                mock_client.post.return_value = MagicMock()
-                mock_client.post.return_value.raise_for_status = MagicMock()
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 await nd.dispatch("test message")
-                mock_client.post.assert_called_once_with(url, json={"text": "test message"})
+                mock_post.assert_called_once()
+                assert mock_post.call_args[0][0] == url
+                assert mock_post.call_args[0][1] == {"text": "test message"}
 
     @pytest.mark.asyncio
     async def test_dispatch_discord_webhook(self):
         url = "https://discord.com/api/webhooks/xxx/yyy"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
-            with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:
-                mock_client = AsyncMock()
-                MockClient.return_value.__aenter__.return_value = mock_client
-                mock_client.post.return_value = MagicMock()
-                mock_client.post.return_value.raise_for_status = MagicMock()
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 await nd.dispatch("test message")
-                mock_client.post.assert_called_once_with(url, json={"content": "test message"})
+                mock_post.assert_called_once()
+                assert mock_post.call_args[0][0] == url
+                assert mock_post.call_args[0][1] == {"content": "test message"}
 
     @pytest.mark.asyncio
     async def test_dispatch_generic_webhook(self):
         url = "https://example.com/webhook"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
-            with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:
-                mock_client = AsyncMock()
-                MockClient.return_value.__aenter__.return_value = mock_client
-                mock_client.post.return_value = MagicMock()
-                mock_client.post.return_value.raise_for_status = MagicMock()
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 await nd.dispatch("test message")
-                mock_client.post.assert_called_once_with(url, json={"content": "test message"})
+                mock_post.assert_called_once()
+                assert mock_post.call_args[0][0] == url
+                assert mock_post.call_args[0][1] == {"content": "test message"}
 
     @pytest.mark.asyncio
     async def test_dispatch_http_error(self, caplog):
         url = "https://hooks.slack.com/services/T00/B00/xxx"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
-            with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:
-                mock_client = AsyncMock()
-                MockClient.return_value.__aenter__.return_value = mock_client
-                mock_client.post.side_effect = Exception("HTTP 500")
+            with patch(
+                "siyarix.webhooks._https_post_json_pinned", side_effect=Exception("HTTP 500")
+            ):
                 await nd.dispatch("test message")
                 assert "Failed to dispatch notification" in caplog.text
 
@@ -213,12 +206,9 @@ class TestNotificationDispatcher:
         url = "https://hooks.slack.com/services/T00/B00/xxx"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
-            with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:
-                mock_client = AsyncMock()
-                mock_response = MagicMock()
-                mock_response.raise_for_status.side_effect = Exception("status error")
-                MockClient.return_value.__aenter__.return_value = mock_client
-                mock_client.post.return_value = mock_response
+            with patch(
+                "siyarix.webhooks._https_post_json_pinned", side_effect=Exception("status error")
+            ):
                 await nd.dispatch("test message")
                 assert "Failed to dispatch notification" in caplog.text
 
@@ -227,11 +217,7 @@ class TestNotificationDispatcher:
         url = "https://hooks.slack.com/services/T00/B00/xxx"
         with patch.dict(os.environ, {"SIYARIX_WEBHOOK_URL": url}):
             nd = NotificationDispatcher()
-            with patch("siyarix.notifications.httpx.AsyncClient") as MockClient:
-                mock_client = AsyncMock()
-                MockClient.return_value.__aenter__.return_value = mock_client
-                mock_client.post.return_value = MagicMock()
-                mock_client.post.return_value.raise_for_status = MagicMock()
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 from siyarix.events import Event
 
                 event = Event(
@@ -246,7 +232,7 @@ class TestNotificationDispatcher:
                     },
                 )
                 await nd._on_finding(event)
-                mock_client.post.assert_called_once()
+                mock_post.assert_called_once()
 
     def test_init_does_not_register_handler_without_url(self):
         with patch.dict(os.environ, {}, clear=True):

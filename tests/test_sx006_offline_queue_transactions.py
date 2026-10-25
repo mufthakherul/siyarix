@@ -96,6 +96,19 @@ class TestSX006Transactions:
         assert all(c.status == "processing" for c in first + second)
         q.close()
 
+    def test_dequeue_waits_for_dependencies(self, tmp_path):
+        db = tmp_path / "deps.db"
+        q = OfflineCommandQueue(db_path=db)
+        parent = q.enqueue("parent")
+        child = q.enqueue("child", dependencies=[parent])
+        first = q.dequeue(batch_size=5)
+        assert [c.id for c in first] == [parent]
+        assert q.dequeue(batch_size=5) == []
+        q.mark_completed(parent)
+        second = q.dequeue(batch_size=5)
+        assert [c.id for c in second] == [child]
+        q.close()
+
     def test_reclaim_stale_processing(self, tmp_path):
         db = tmp_path / "reclaim.db"
         q = OfflineCommandQueue(db_path=db)

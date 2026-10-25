@@ -98,6 +98,85 @@ def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     return any(ip in net for net in _EXTRA_BLOCKED_NETWORKS)
 
 
+def _resolve_public_ips(host: str, port: int = 443) -> list[str]:
+    """Resolve *host* and return public IPs only (raises if any answer is blocked)."""
+    import socket
+
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except OSError as exc:
+        raise ValueError(f"Unable to resolve webhook hostname: {host}") from exc
+
+    ips: list[str] = []
+    for info in infos:
+        sockaddr = info[4]
+        try:
+            resolved = ipaddress.ip_address(sockaddr[0])
+        except ValueError:
+            continue
+        if _is_blocked_ip(resolved):
+            raise ValueError(f"Webhook hostname resolves to blocked IP: {host} -> {resolved}")
+        text = str(resolved)
+        if text not in ips:
+            ips.append(text)
+    if not ips:
+        raise ValueError(f"Unable to resolve webhook hostname: {host}")
+    return ips
+
+
+def _https_post_json_pinned(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    timeout: float = 5.0,
+    headers: dict[str, str] | None = None,
+) -> None:
+    """POST JSON to *url* after SSRF checks, connecting to a pinned resolved IP.
+
+    DNS is resolved once under policy; the TCP/TLS connection targets that IP while
+    SNI/Host keep the original hostname — shrinking DNS-rebinding TOCTOU.
+    """
+    import http.client
+    import socket
+    import ssl
+
+    _validate_url(url, allow_ip=False)
+    parsed = urllib.parse.urlparse(url)
+    host = (parsed.hostname or "").strip().lower()
+    port = parsed.port or 443
+    path = parsed.path or "/"
+    if parsed.query:
+        path = f"{path}?{parsed.query}"
+
+    pinned_ips = _resolve_public_ips(host, port)
+    # Re-validate immediately before connect (hostname policy + fresh DNS).
+    _validate_url(url, allow_ip=False)
+    pinned_ips = _resolve_public_ips(host, port)
+    target_ip = pinned_ips[0]
+
+    body = json.dumps(payload).encode("utf-8")
+    req_headers = {"Content-Type": "application/json", "Host": host}
+    if headers:
+        req_headers.update(headers)
+
+    context = ssl.create_default_context()
+    conn = http.client.HTTPSConnection(host, port=port, timeout=timeout, context=context)
+
+    def _pinned_connect() -> None:
+        sock = socket.create_connection((target_ip, port), timeout=timeout)
+        conn.sock = context.wrap_socket(sock, server_hostname=host)
+
+    conn.connect = _pinned_connect  # type: ignore[method-assign]
+    try:
+        conn.request("POST", path, body=body, headers=req_headers)
+        resp = conn.getresponse()
+        resp.read()
+        if resp.status >= 400:
+            raise urllib.error.URLError(f"Webhook HTTP {resp.status}")
+    finally:
+        conn.close()
+
+
 class WebhookDispatcher:
     """Dispatches alerts and remediation scripts to external services."""
 
@@ -135,26 +214,11 @@ class WebhookDispatcher:
         }
 
         try:
-            # Validate twice (pre-build + pre-connect) to shrink DNS-rebinding TOCTOU.
-            _validate_url(self.webhook_url, allow_ip=False)
-            req = urllib.request.Request(
-                self.webhook_url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-            )
-
-            class _NoRedirect(urllib.request.HTTPRedirectHandler):
-                def redirect_request(self, *args: Any, **kwargs: Any) -> None:
-                    # Redirects can pivot a validated public URL onto private/metadata hosts.
-                    return None
-
-            _validate_url(self.webhook_url, allow_ip=False)
-            opener = urllib.request.build_opener(_NoRedirect)
-            opener.open(req, timeout=5)  # nosec B310
+            _https_post_json_pinned(self.webhook_url, payload, timeout=5.0)
             logger.info("Webhook alert dispatched for %s", finding.get("id", "vuln"))
         except ValueError as e:
             logger.error("Webhook URL rejected by SSRF policy: %s", e)
-        except urllib.error.URLError as e:
+        except (urllib.error.URLError, OSError, TimeoutError) as e:
             logger.error("Failed to dispatch webhook: %s", e)
 
     def generate_remediation(self, finding: dict[str, Any]) -> str:

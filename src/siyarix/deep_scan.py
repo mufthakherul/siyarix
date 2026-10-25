@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from .exceptions import ToolExecutionError, ToolNotFoundError
+from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor
 from .models import PlanStep
 from .offline_store import OfflineStore
@@ -258,12 +258,16 @@ class DeepScanEngine:
         return self._aggregate(target, all_findings, scan_id)
 
     async def _execute_tool(self, step: PlanStep, pass_name: str) -> dict[str, Any]:
-        # Prefer ToolRegistry (PermissionGate-aware). Optional BaseExecutor is reserved
-        # for future backends; do not short-circuit alternative-tool fallback.
-        _ = pass_name, self._executor
+        # Prefer ToolRegistry (PermissionGate-aware). When an executor is injected,
+        # run its permission/scope/destructive checks before dispatch.
+        _ = pass_name
         try:
+            if self._executor is not None:
+                await self._executor._check_permissions(step)
             result = await self._registry.execute(step.tool, **step.args)
             return {"status": "completed", "findings": self._wrap_result(result, step.tool)}
+        except PermissionDeniedError as e:
+            return {"status": "error", "error": str(e), "tool": step.tool}
         except ToolNotFoundError:
             alt_result = await self._try_alternatives(step)
             if alt_result.get("status") != "error":

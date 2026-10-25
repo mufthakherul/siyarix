@@ -1,13 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Legacy dynamic Plugin Loader for Siyarix.
 
-Prefer :class:`siyarix.plugins.manager.PluginManager` for installs and loads.
-This module remains for compatibility but sandboxes paths and delegates to
-PluginManager when possible.
+Prefer :class:`siyarix.plugins.manager.PluginManager` for installs and
+package-style plugins. This compatibility loader supports bare ``*.py`` files
+under the plugins directory only after path sandbox checks.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import sys
 from pathlib import Path
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class PluginLoader:
-    """Discovers and loads external plugins (sandboxed compatibility shim)."""
+    """Discovers and loads external plugins (path-sandboxed)."""
 
     def __init__(
         self,
@@ -34,27 +35,9 @@ class PluginLoader:
         self.plugins_dir.mkdir(parents=True, exist_ok=True)
 
     def load_all(self) -> None:
-        """Scan and load plugins via PluginManager sandbox when available."""
+        """Scan and load all ``.py`` plugins from the plugins directory."""
         if not self.plugins_dir.exists():
             return
-
-        try:
-            from siyarix.plugins.manager import PluginManager
-
-            mgr = PluginManager(
-                registry=self.registry,
-                provider_manager=self.provider_manager,
-                plugins_dir=self.plugins_dir,
-            )
-            mgr.discover()
-            for name in list(mgr._installed_plugins.keys()):
-                try:
-                    mgr.load_plugin(name)
-                except Exception as exc:
-                    logger.error("Failed to load plugin %s: %s", name, exc)
-            return
-        except Exception as exc:
-            logger.debug("PluginManager unavailable; using legacy sandbox load: %s", exc)
 
         for p in sorted(self.plugins_dir.glob("*.py")):
             if p.name.startswith("_"):
@@ -66,8 +49,6 @@ class PluginLoader:
 
     def _load_plugin(self, path: Path) -> None:
         """Dynamically load a single python file as a plugin (path-sandboxed)."""
-        import importlib.util
-
         from siyarix.plugins.manager import _assert_under_dir
 
         safe_path = _assert_under_dir(path, self.plugins_dir, what="legacy plugin path")

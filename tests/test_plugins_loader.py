@@ -107,16 +107,22 @@ class TestLoadAll:
 
 class TestLoadPlugin:
     def test_no_spec_raises_importerror(self, loader):
+        plugin_path = _write_plugin(loader.plugins_dir, "nospec", "x = 1")
         with patch("importlib.util.spec_from_file_location", return_value=None):
             with pytest.raises(ImportError, match="Could not load spec"):
-                loader._load_plugin(Path("/fake/plugin.py"))
+                loader._load_plugin(plugin_path)
 
     def test_no_loader_raises_importerror(self, loader):
+        plugin_path = _write_plugin(loader.plugins_dir, "noloader", "x = 1")
         spec = MagicMock()
         spec.loader = None
         with patch("importlib.util.spec_from_file_location", return_value=spec):
             with pytest.raises(ImportError, match="Could not load spec"):
-                loader._load_plugin(Path("/fake/plugin.py"))
+                loader._load_plugin(plugin_path)
+
+    def test_path_outside_plugins_dir_rejected(self, loader):
+        with pytest.raises(ValueError, match="sandbox"):
+            loader._load_plugin(Path("/tmp/evil_plugin.py"))
 
     def test_loads_module_and_stores_in_sys_modules(self, loader):
         plugin_path = _write_plugin(loader.plugins_dir, "simple_plugin", "x = 42")

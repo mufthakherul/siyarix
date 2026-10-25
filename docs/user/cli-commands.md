@@ -99,7 +99,7 @@ siyarix health
 ```
 
 ### `production-check`
-Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, webhook destination policy, credential store, health).
+Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, PermissionGate / tool registry, `command_review`, shared destructive hard-blocks, webhook destination policy, `SIYARIX_ALLOWED_SCOPE`, credential store, health).
 ```bash
 siyarix production-check
 siyarix production-check -o json

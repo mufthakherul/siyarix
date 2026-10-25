@@ -362,18 +362,8 @@ def _get_sudo_password() -> str | None:
             _SudoCache.password = val
         return val
 
-    try:
-        from siyarix.config import SettingsStore
-
-        store = SettingsStore()
-        config_val = store.get("SIYARIX_SUDO_PASSWORD") or store.get("sudo_password")
-        if config_val:
-            val = str(config_val)
-            with _SUDO_PASSWORD_LOCK:
-                _SudoCache.password = val
-            return val
-    except Exception:
-        pass
+    # Intentionally do NOT read sudo passwords from settings.toml — plaintext
+    # persistence there is a production secret leak. Use SIYARIX_SUDO_PASSWORD.
 
     if sys.stdin.isatty():
         banner = (
@@ -381,8 +371,8 @@ def _get_sudo_password() -> str | None:
             "Sudo/administrator password required for this command\n"
             "(type it below -- input is hidden for security)\n"
             "\n"
-            "Tip: set SIYARIX_SUDO_PASSWORD env var or configure\n"
-            "     sudo_password in settings to skip this prompt.\n"
+            "Tip: set SIYARIX_SUDO_PASSWORD in the environment (not settings.toml)\n"
+            "     to skip this prompt.\n"
             "\n"
         )
         sys.stderr.write(banner)
@@ -421,7 +411,7 @@ def _get_sudo_password() -> str | None:
                 if not is_last
                 else "Incorrect password after 3 attempts. "
                 "The command will fail unless you configure the password "
-                "via the SIYARIX_SUDO_PASSWORD env var or settings.\n"
+                "via the SIYARIX_SUDO_PASSWORD environment variable.\n"
             )
             sys.stderr.write(msg)
             sys.stderr.flush()
@@ -431,7 +421,7 @@ def _get_sudo_password() -> str | None:
     else:
         logger.warning(
             "sudo required but no TTY available to prompt for password. "
-            "Set SIYARIX_SUDO_PASSWORD env var or configure sudo_password in settings."
+            "Set SIYARIX_SUDO_PASSWORD in the environment (never in settings.toml)."
         )
 
     return None
@@ -520,7 +510,7 @@ async def safe_run_async(
                     "sudo password is required for this command.\n"
                     "Provide it via one of:\n"
                     "  1. Set the SIYARIX_SUDO_PASSWORD environment variable\n"
-                    "  2. Configure sudo_password in settings\n"
+                    "  2. Export SIYARIX_SUDO_PASSWORD in your environment\n"
                     "  3. Run in an interactive terminal to be prompted"
                 ),
                 duration_ms=(time.monotonic() - start) * 1000,
@@ -753,7 +743,7 @@ async def safe_run_async_stream(
                     "sudo password is required for this command.\n"
                     "Provide it via one of:\n"
                     "  1. Set the SIYARIX_SUDO_PASSWORD environment variable\n"
-                    "  2. Configure sudo_password in settings\n"
+                    "  2. Export SIYARIX_SUDO_PASSWORD in your environment\n"
                     "  3. Run in an interactive terminal to be prompted"
                 ),
                 duration_ms=(time.monotonic() - start) * 1000,

@@ -254,21 +254,6 @@ class LLMEngineMixin:
         except Exception as exc:
             logger.debug("Ensemble integration skipped: %s", exc)
 
-        # Auto-queue plan for retry if in offline mode and plan has steps but execution may fail
-        if self._mode in ("registry", "offline") and plan.steps:
-            try:
-                from ..offline_queue import OfflineCommandQueue
-
-                queue = OfflineCommandQueue()
-                queue.enqueue(
-                    instruction=instruction,
-                    target=self._session.target or target,
-                    mode=self._mode,
-                    max_attempts=2,
-                )
-            except Exception:
-                pass
-
         # Adversarial plan review
         try:
             from .stubs import AdversarialTester, AdversarialSeverity
@@ -346,6 +331,17 @@ class LLMEngineMixin:
             logger.error("Execution failed: %s", exc, exc_info=True)
             error_msg = str(exc)
             if self._mode in ("registry", "offline"):
+                try:
+                    from ..offline_queue import OfflineCommandQueue
+
+                    OfflineCommandQueue().enqueue(
+                        instruction=instruction,
+                        target=self._session.target or target,
+                        mode=self._mode,
+                        max_attempts=2,
+                    )
+                except Exception:
+                    logger.debug("Failed to enqueue offline retry", exc_info=True)
                 self._print_assistant(
                     f"**Execution Error:** {error_msg}\n\n"
                     "This command has been queued for retry. "

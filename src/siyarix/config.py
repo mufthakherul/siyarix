@@ -603,8 +603,20 @@ def _format_toml_val(val: Any) -> str:
     return f'"{escaped}"'
 
 
+_SENSITIVE_SETTINGS_KEYS = frozenset(
+    {
+        "sudo_password",
+        "SIYARIX_SUDO_PASSWORD",
+        "api_key",
+        "openai_api_key",
+        "anthropic_api_key",
+        "gemini_api_key",
+    }
+)
+
+
 def _write_toml(path: Path, data: dict[str, Any]) -> None:
-    """Write dict as standard TOML."""
+    """Write dict as standard TOML (never persists sensitive secret keys)."""
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Siyarix Configuration Settings",
@@ -612,6 +624,9 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
         "",
     ]
     for key, value in sorted(data.items()):
+        if key in _SENSITIVE_SETTINGS_KEYS or key.lower().endswith("_password"):
+            # Secrets belong in the env/vault — never plaintext settings.toml.
+            continue
         desc = DESCRIPTIONS.get(key, "")
         if desc:
             lines.append(f"# {desc}")

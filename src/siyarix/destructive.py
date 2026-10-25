@@ -76,7 +76,8 @@ _BLOCK_WIPE_TOOLS_RE = re.compile(
     r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install|"
     r"hdparm|nvme|cryptsetup|integritysetup|veritysetup|"
     r"sg_format|sg_sanitize|nwipe|scrub|sg_unmap|"
-    r"dwipe|mop)\b",
+    r"dwipe|mop|partclone(?:\.\w+)?|ntfsclone|fsarchiver|"
+    r"flashcp|ubiformat|make_ext4fs|flash_eraseall)\b",
     re.IGNORECASE,
 )
 _FILE_WIPE_TOOLS_RE = re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.IGNORECASE)
@@ -87,7 +88,8 @@ _OS_SYSTEM_WIPE_RE = re.compile(
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
     r"\b(?:cp|tee|cat|g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|sg_dd|install|pv|openssl|"
-    r"tar|badblocks|fio|rsync|simg2img|bmaptool)\b"
+    r"tar|badblocks|fio|rsync|simg2img|bmaptool|partclone(?:\.\w+)?|ntfsclone|"
+    r"fsarchiver|flashcp|ubiformat|make_ext4fs)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
@@ -308,8 +310,11 @@ _OPENSSL_OUT_AUTH_RE = re.compile(
 )
 _MISC_WRITE_AUTH_RE = re.compile(
     r"(?:"
-    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|lzop|lzma)\b[\s\S]{0,120}"
-    r"(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern
+    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|lzop|lzma|zstd|pzstd)\b"
+    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern
+    # Positional decompress dest: ``lz4 -d x.lz4 /etc/passwd``, ``zstd -d x /etc/passwd``.
+    + r"|\b(?:lz4|lzop|zstd|pzstd|unzstd)\b[\s\S]{0,120}(?:-d|--decompress)\b"
+    r"[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
     + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|uudecode|objcopy)\b"
     r"[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
@@ -317,6 +322,25 @@ _MISC_WRITE_AUTH_RE = re.compile(
     + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _AUTH_FILE_RE.pattern
     + r"|\buudecode\b[\s\S]{0,100}(?:-o|--output-file)(?:=|\s*)"
     + _AUTH_FILE_RE.pattern
+    + r")",
+    re.IGNORECASE,
+)
+_RM_AUTH_RE = re.compile(
+    r"\brm\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_INTERPRETER_AUTH_DELETE_RE = re.compile(
+    r"(?:"
+    r"File\.delete\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|FileUtils\s*\.\s*rm(?:_r|_rf)?\s*\(?\s*" + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:remove|unlink)\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"[\s\S]{0,40}\.unlink\s*\("
+    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"[\s\S]{0,40}\.unlink\s*\("
+    + r"|unlink(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|unlink\s+(?:q(?:w)?\()?\s*" + _AUTH_FILE_RE.pattern
+    + r"|rmSync\s*\(\s*" + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -467,6 +491,9 @@ _SETUID_SYSTEM_RE = re.compile(
     r"|\bg?install\b[\s\S]{0,120}"
     r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
     r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
+    # ``setcap cap_setuid+ep /bin/bash`` — capability equivalent of setuid.
+    r"|\bsetcap\b[\s\S]{0,120}cap_set(?:uid|gid)\b[\s\S]{0,80}"
+    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
     r")",
     re.IGNORECASE,
 )
@@ -824,6 +851,8 @@ def assert_command_not_destructive(command: str) -> None:
         or _INTERPRETER_AUTH_WRITE_RE.search(cmd_clean)
         or _OPENSSL_OUT_AUTH_RE.search(cmd_clean)
         or _MISC_WRITE_AUTH_RE.search(cmd_clean)
+        or _RM_AUTH_RE.search(cmd_clean)
+        or _INTERPRETER_AUTH_DELETE_RE.search(cmd_clean)
         or _DOWNLOAD_TO_AUTH_RE.search(cmd_clean)
         or _DOWNLOAD_DIR_AUTH_RE.search(cmd_clean)
         or _CMAKE_COPY_AUTH_RE.search(cmd_clean)

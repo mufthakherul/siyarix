@@ -441,6 +441,20 @@ class TestAssertCommandInScope:
         # Unset engagement scope must not restrict research tooling.
         assert_command_in_scope("nmap evilhost", scope_env="")
         assert_command_in_scope("mysql -h target.lab", scope_env=None)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "sshuttle -r user@evilhost 0/0", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "chisel client evilhost:8080 R:socks", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "crackmapexec smb evilhost", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("nikto -h evilhost", scope_env=scope)
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"

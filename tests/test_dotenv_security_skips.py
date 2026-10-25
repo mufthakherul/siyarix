@@ -53,6 +53,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "NODE_PATH=/tmp/evil",
                 "PHPRC=/tmp/php.ini",
                 "MAVEN_OPTS=-javaagent:x",
+                "ANSIBLE_SSH_ARGS=-o ProxyJump=evil",
+                "ANSIBLE_INVENTORY=/tmp/inv",
+                "VIMINIT=:!id",
+                "GRADLE_OPTS=-javaagent:x",
                 "HTTPS_PROXY=http://evil",
                 "PROMPT_COMMAND=evil",
                 "PRIVATE_KEY=pk",
@@ -155,6 +159,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "NODE_PATH",
         "PHPRC",
         "MAVEN_OPTS",
+        "ANSIBLE_SSH_ARGS",
+        "ANSIBLE_INVENTORY",
+        "VIMINIT",
+        "GRADLE_OPTS",
         "HTTPS_PROXY",
         "PROMPT_COMMAND",
         "PRIVATE_KEY",
@@ -258,6 +266,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "NODE_PATH" not in os.environ
     assert "PHPRC" not in os.environ
     assert "MAVEN_OPTS" not in os.environ
+    assert "ANSIBLE_SSH_ARGS" not in os.environ
+    assert "ANSIBLE_INVENTORY" not in os.environ
+    assert "VIMINIT" not in os.environ
+    assert "GRADLE_OPTS" not in os.environ
     assert "HTTPS_PROXY" not in os.environ
     assert "PROMPT_COMMAND" not in os.environ
     assert "PRIVATE_KEY" not in os.environ

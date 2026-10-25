@@ -137,6 +137,13 @@ _HOST_TOOL_NAMES = frozenset(
         "ansible",
         "ansible-playbook",
         "ansible-inventory",
+        "sshuttle",
+        "chisel",
+        "crackmapexec",
+        "cme",
+        "nxc",
+        "netexec",
+        "nikto",
     }
 )
 # socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
@@ -855,7 +862,79 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             )
                     else:
                         skip_exec = True
-        # ansible ``-i host,`` / ``-i host,`` inventory (engagement-bound when scope set).
+        # sshuttle ``-r user@host`` full-tunnel remote (engagement-bound when scope set).
+        if base == "sshuttle":
+            skip_r = False
+            for nxt in tokens[i + 1 :]:
+                if skip_r:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_r = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-r", "--remote"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_r = True
+            continue
+        # chisel ``client host:port …`` / crackmapexec|nxc ``smb host``.
+        if base in {"chisel", "crackmapexec", "cme", "nxc", "netexec"}:
+            skip_sub = base == "chisel"
+            for nxt in tokens[i + 1 :]:
+                if nxt.startswith("-"):
+                    continue
+                low = nxt.lower()
+                if skip_sub and low in {"client", "server"}:
+                    skip_sub = False
+                    continue
+                if base != "chisel" and low in {
+                    "smb",
+                    "ssh",
+                    "winrm",
+                    "mssql",
+                    "ldap",
+                    "rdp",
+                    "ftp",
+                    "vnc",
+                }:
+                    continue
+                cand = nxt.split("@")[-1].split("/")[0].split(":")[0].strip().strip("'\"")
+                if cand:
+                    _assert_host_token_in_scope(cand, allowed_items, scope_display)
+                    break
+            continue
+        # nikto ``-h host`` / ``-host``.
+        if base == "nikto":
+            skip_h = False
+            for nxt in tokens[i + 1 :]:
+                if skip_h:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_h = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-h", "-host", "--host"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_h = True
+            continue
+        # ansible ``-i host,`` inventory (engagement-bound when scope set).
         if base in {"ansible", "ansible-playbook", "ansible-inventory"}:
             skip_inv = False
             for nxt in tokens[i + 1 :]:

@@ -109,6 +109,7 @@ All notable changes to this project will be documented in this file.
 - Hard-block `simg2img`/`bmaptool` onto disks; engagement-scope ansible `-i host,`; doctor probes + clearer remediations for researchers.
 - Multi-target scan always runs one execute per host (incl. `--parallel 1`); `--parallel` defaults from `default_parallel`/`SIYARIX_PARALLEL`.
 - Doctor: unset engagement scope is `pass` (not warn); JSON stdout not Rich-wrapped.
+- Hard-block partclone/ntfsclone/fsarchiver/flashcp; lz4/zstd positional→auth; setcap; `rm`/File.delete auth; sshuttle/chisel/cme/nikto scope; dotenv ANSIBLE_SSH_ARGS/VIMINIT/GRADLE_OPTS.
 - `.env` skips `GCONV_PATH`/`HOSTALIASES`.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.

@@ -53,7 +53,9 @@ Latest local checks on this branch: **mypy clean (256 files)**; pytest **5997 pa
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln
 reporting, permission-gate empty-command ordering, injection validator fail-closed,
-adversarial CRITICAL plan abort.
+adversarial CRITICAL plan abort, deep-scan scope enforcement, vault key refuse-silent-rotate,
+PermissionGate on by default, no sudo secrets in settings.toml, offline enqueue-on-failure only.
 
-Goal status: production gates green; absolute “every bug” claim still open to further
-exploration, but known P0/P1 hunt items above are closed with tests.
+Goal status: production gates green (`mypy` + **5997** pytest). Absolute “every possible
+bug / most-powerful product forever” is not a finite claim — known SX + hunt P0/P1 items
+are closed with tests; further polish can continue without blocking production use.

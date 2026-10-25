@@ -358,6 +358,15 @@ def load_env_file() -> None:
             "RAILS_MASTER_KEY",
             "ENCRYPTION_KEY",
             "APP_KEY",
+            "CLASSPATH",
+            "JAVA_OPTIONS",
+            "MSBUILDSTARTUPHOOKS",
+            "SOCKS5_SERVER",
+            "GIT_SSL_CAPATH",
+            "DOCKER_CONTEXT",
+            "NODE_PATH",
+            "PHPRC",
+            "MAVEN_OPTS",
         }
     )
     _blocked_vars = {
@@ -455,6 +464,15 @@ def load_env_file() -> None:
         "ZDOTDIR",
         "CONTAINER_HOST",
         "DOCKER_CONFIG",
+        "CLASSPATH",
+        "JAVA_OPTIONS",
+        "MSBUILDSTARTUPHOOKS",
+        "SOCKS5_SERVER",
+        "GIT_SSL_CAPATH",
+        "DOCKER_CONTEXT",
+        "NODE_PATH",
+        "PHPRC",
+        "MAVEN_OPTS",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

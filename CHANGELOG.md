@@ -102,6 +102,9 @@ All notable changes to this project will be documented in this file.
 - Brace suffix expand (`/{e,}tc`); ANSI-C octal `$'\057'`; hard-block `sg_dd`/`integritysetup`/`veritysetup`.
 - Scope: `--preproxy`, ssh `-L`/`-R` forward hosts, `openssl -connect`/`-proxy`, `git://`, `rpcclient -U user%pass`.
 - `.env` skips `DOTNET_STARTUP_HOOKS`/`CORECLR_PROFILER_PATH`/`HOSTFILE`/`CVS_RSH`/`ZDOTDIR`/`CONTAINER_HOST`/`DOCKER_CONFIG`/`RAILS_MASTER_KEY`/`ENCRYPTION_KEY`/`APP_KEY`.
+- gpg/openssl `-out` covers full auth set; xxd/iconv/ffmpeg/gs/fallocate/uudecode/objcopy/lzop/lzma auth writers; `ginstall` + setgid modes.
+- Scope: mysql/psql/redis/mongosh/docker/podman/host/nslookup/xfreerdp/evil-winrm; wget `-e http_proxy=`.
+- `.env` skips `CLASSPATH`/`JAVA_OPTIONS`/`MSBUILDSTARTUPHOOKS`/`SOCKS5_SERVER`/`GIT_SSL_CAPATH`/`DOCKER_CONTEXT`/`NODE_PATH`/`PHPRC`/`MAVEN_OPTS`.
 - `.env` skips `GCONV_PATH`/`HOSTALIASES`.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.

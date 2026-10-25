@@ -408,6 +408,29 @@ class TestAssertCommandInScope:
         assert_command_in_scope(
             "openssl s_client -connect 10.1.2.3:443", scope_env=scope
         )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("mysql -h evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("psql --host=evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("redis-cli -h evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "docker -H tcp://evilhost:2375 ps", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "host example.com evilhost", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "wget -e http_proxy=evilhost:8080 http://10.0.0.1/",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("xfreerdp /v:evilhost", scope_env=scope)
+        assert_command_in_scope("mysql -h 10.1.2.3", scope_env=scope)
+        assert_command_in_scope("host example.com 10.1.2.3", scope_env=scope)
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"

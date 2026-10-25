@@ -132,17 +132,12 @@ _GPG_OPENSSL_OUT_BLOCK_RE = re.compile(
     + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
-_OPENSSL_OUT_AUTH_RE = re.compile(
-    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
-    + r"/etc/(?:passwd|shadow|sudoers|group)\b",
-    re.IGNORECASE,
-)
 _MISC_WRITE_BLOCK_RE = re.compile(
     r"(?:"
-    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip)\b[\s\S]{0,120}"
+    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|lzop|lzma)\b[\s\S]{0,120}"
     r"(?:-o|--output)(?:=|\s*)" + _BLOCK_DEV_RE.pattern
-    + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|ddrescue)\b[\s\S]{0,200}"
-    + _BLOCK_DEV_RE.pattern
+    + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|ddrescue|uudecode|objcopy)\b"
+    r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
     + _BLOCK_DEV_RE.pattern
     + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _BLOCK_DEV_RE.pattern
@@ -301,6 +296,25 @@ _AUTH_FILE_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+_OPENSSL_OUT_AUTH_RE = re.compile(
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_MISC_WRITE_AUTH_RE = re.compile(
+    r"(?:"
+    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|lzop|lzma)\b[\s\S]{0,120}"
+    r"(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern
+    + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|uudecode|objcopy)\b"
+    r"[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
+    + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _AUTH_FILE_RE.pattern
+    + r"|\buudecode\b[\s\S]{0,100}(?:-o|--output-file)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern
+    + r")",
+    re.IGNORECASE,
+)
 _AUTH_DIR_RE = re.compile(
     r"(?:"
     r"/etc/sudoers\.d\b"
@@ -396,7 +410,7 @@ _DOWNLOAD_TO_AUTH_RE = re.compile(
     + _AUTH_FILE_RE.pattern
     + r"|\b(?:base64|brotli)\b[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
     + _AUTH_FILE_RE.pattern
-    + r"|\b(?:zstd|pzstd|unzstd|lz4|xz|gzip|gunzip)\b[\s\S]{0,100}"
+    + r"|\b(?:zstd|pzstd|unzstd|lz4|xz|gzip|gunzip|lzop|lzma)\b[\s\S]{0,100}"
     r"(?:-o|--output)(?:=|\s*)"
     + _AUTH_FILE_RE.pattern
     + r"|\b(?:split|csplit)\b[\s\S]{0,100}(?:-f|--prefix)(?:=|\s*)"
@@ -440,12 +454,13 @@ _CHMOD_AUTH_RE = re.compile(
 )
 _SETUID_SYSTEM_RE = re.compile(
     r"(?:"
+    # Setuid (4) / setgid (2) / combined (6,7) / sticky+set* (3,5) — not sticky-only (1).
     r"\bchmod\b[\s\S]{0,100}"
-    r"(?:[ug]*\+s|\+s|[0-7]*[4567][0-7]{3})\b[\s\S]{0,100}"
+    r"(?:[ug]*\+s|\+s|[0-7]*[2-7][0-7]{3})\b[\s\S]{0,100}"
     r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    # Glued ``-m4755`` as well as spaced/``=`` forms.
-    r"|\binstall\b[\s\S]{0,120}"
-    r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[4567][0-7]{3}|[ug]*\+s|\+s)\b"
+    # Glued ``-m4755`` / ``ginstall`` as well as spaced/``=`` forms.
+    r"|\bg?install\b[\s\S]{0,120}"
+    r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
     r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
     r")",
     re.IGNORECASE,
@@ -803,6 +818,7 @@ def assert_command_not_destructive(command: str) -> None:
         or _DD_OF_AUTH_RE.search(cmd_clean)
         or _INTERPRETER_AUTH_WRITE_RE.search(cmd_clean)
         or _OPENSSL_OUT_AUTH_RE.search(cmd_clean)
+        or _MISC_WRITE_AUTH_RE.search(cmd_clean)
         or _DOWNLOAD_TO_AUTH_RE.search(cmd_clean)
         or _DOWNLOAD_DIR_AUTH_RE.search(cmd_clean)
         or _CMAKE_COPY_AUTH_RE.search(cmd_clean)

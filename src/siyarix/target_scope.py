@@ -117,6 +117,18 @@ _HOST_TOOL_NAMES = frozenset(
         "socat",
         "openssl",
         "git",
+        "mysql",
+        "psql",
+        "redis-cli",
+        "mongosh",
+        "mongo",
+        "impacket-psexec",
+        "psexec.py",
+        "evil-winrm",
+        "xfreerdp",
+        "docker",
+        "podman",
+        "nslookup",
     }
 )
 # socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
@@ -728,6 +740,113 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         # git remote URLs are covered by ``_NON_HTTP_URL_RE`` (``git://``); skip argv noise.
         if base == "git":
             continue
+        # ``host``/``nslookup`` — every non-flag token is a name or DNS server.
+        if base in {"host", "nslookup"}:
+            for nxt in tokens[i + 1 :]:
+                if nxt.startswith("-"):
+                    continue
+                _assert_host_token_in_scope(
+                    nxt.split("@")[-1].split("/")[0].strip().strip("'\""),
+                    allowed_items,
+                    scope_display,
+                )
+            continue
+        # docker/podman daemon endpoints: ``-H tcp://host``, ``--url``.
+        if base in {"docker", "podman"}:
+            skip_daemon = False
+            for nxt in tokens[i + 1 :]:
+                if skip_daemon:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_daemon = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-H", "--host", "--url"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_daemon = True
+            continue
+        # DB / RDP / WinRM host flags (``mysql -h``, ``xfreerdp /v:``).
+        if base in {
+            "mysql",
+            "psql",
+            "redis-cli",
+            "mongosh",
+            "mongo",
+            "evil-winrm",
+            "xfreerdp",
+            "impacket-psexec",
+            "psexec.py",
+        }:
+            skip_db = False
+            for nxt in tokens[i + 1 :]:
+                if skip_db:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_db = False
+                    continue
+                # ``xfreerdp /v:evilhost`` / ``/v:evilhost:3389``.
+                if nxt.lower().startswith("/v:"):
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt.split(":", 1)[1]),
+                        allowed_items,
+                        scope_display,
+                    )
+                    continue
+                if not nxt.startswith("-"):
+                    # Positional host (impacket-psexec / bare redis-cli target).
+                    cand = nxt.split("@")[-1].split("/")[0].strip().strip("'\"")
+                    if cand and not cand.startswith("/"):
+                        _assert_host_token_in_scope(cand, allowed_items, scope_display)
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-h", "--host", "-H", "-i", "--ip"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_db = True
+            continue
+        # wget ``-e http_proxy=evil:8080`` execute directives.
+        if base == "wget":
+            skip_exec = False
+            for nxt in tokens[i + 1 :]:
+                if skip_exec:
+                    low = nxt.lower()
+                    if "proxy" in low and "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    skip_exec = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-e", "--execute"}:
+                    if "=" in nxt:
+                        low = nxt.lower()
+                        if "proxy" in low:
+                            _assert_host_token_in_scope(
+                                _proxy_host_from_val(nxt.split("=", 1)[-1]),
+                                allowed_items,
+                                scope_display,
+                            )
+                    else:
+                        skip_exec = True
 
         def _check_ssh_forward_spec(spec: str) -> None:
             """Fail-closed on ``-L``/``-R`` ``[bind:]port:host:hostport`` targets."""

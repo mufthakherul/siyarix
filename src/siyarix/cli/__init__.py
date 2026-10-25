@@ -226,6 +226,15 @@ def _load_dotenv(path: Path | None = None) -> None:
             "RAILS_MASTER_KEY",
             "ENCRYPTION_KEY",
             "APP_KEY",
+            "CLASSPATH",
+            "JAVA_OPTIONS",
+            "MSBUILDSTARTUPHOOKS",
+            "SOCKS5_SERVER",
+            "GIT_SSL_CAPATH",
+            "DOCKER_CONTEXT",
+            "NODE_PATH",
+            "PHPRC",
+            "MAVEN_OPTS",
         }
     )
     _blocked_vars = {
@@ -323,6 +332,15 @@ def _load_dotenv(path: Path | None = None) -> None:
         "ZDOTDIR",
         "CONTAINER_HOST",
         "DOCKER_CONFIG",
+        "CLASSPATH",
+        "JAVA_OPTIONS",
+        "MSBUILDSTARTUPHOOKS",
+        "SOCKS5_SERVER",
+        "GIT_SSL_CAPATH",
+        "DOCKER_CONTEXT",
+        "NODE_PATH",
+        "PHPRC",
+        "MAVEN_OPTS",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

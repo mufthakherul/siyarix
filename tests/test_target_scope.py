@@ -372,6 +372,42 @@ class TestAssertCommandInScope:
             assert_command_in_scope("rpcclient -U '' evil", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
             assert_command_in_scope('rpcclient -U "" evil', scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "curl --preproxy socks5://evil:1080 http://10.0.0.1/",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "ssh -L 8080:evil:80 10.0.0.1", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "ssh -R 8080:evil:80 10.0.0.1", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "openssl s_client -connect evil:443", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "openssl s_client -proxy evil:8080 -connect 10.0.0.1:443",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="git://"):
+            assert_command_in_scope(
+                "git ls-remote git://evil/repo", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "rpcclient -U foo%bar evil", scope_env=scope
+            )
+        assert_command_in_scope(
+            "ssh -L 8080:10.1.2.3:80 10.1.2.4", scope_env=scope
+        )
+        assert_command_in_scope(
+            "openssl s_client -connect 10.1.2.3:443", scope_env=scope
+        )
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"

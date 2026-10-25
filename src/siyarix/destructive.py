@@ -54,7 +54,7 @@ _PARTITION_RE = re.compile(
 )
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
 _DD_WORD_RE = re.compile(
-    r"\b(?:g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr)\b",
+    r"\b(?:g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|sg_dd)\b",
     re.IGNORECASE,
 )
 
@@ -69,7 +69,8 @@ _BLOCK_DEV_RE = re.compile(
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
     r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install|"
-    r"hdparm|nvme|cryptsetup|sg_format|sg_sanitize|nwipe|scrub|sg_unmap|"
+    r"hdparm|nvme|cryptsetup|integritysetup|veritysetup|"
+    r"sg_format|sg_sanitize|nwipe|scrub|sg_unmap|"
     r"dwipe|mop)\b",
     re.IGNORECASE,
 )
@@ -80,7 +81,7 @@ _OS_SYSTEM_WIPE_RE = re.compile(
     re.IGNORECASE,
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
-    r"\b(?:cp|tee|cat|g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|install|pv|openssl|"
+    r"\b(?:cp|tee|cat|g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|sg_dd|install|pv|openssl|"
     r"tar|badblocks|fio|rsync)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
@@ -537,6 +538,14 @@ def _expand_ansi_c_quotes(text: str) -> str:
                         continue
                     except ValueError:
                         pass
+                # Bash octal ``\nnn`` / ``\0nnn`` (e.g. ``$'\057'`` → ``/``).
+                if nxt in "01234567":
+                    j = i + 1
+                    while j < len(body) and j < i + 4 and body[j] in "01234567":
+                        j += 1
+                    out.append(chr(int(body[i + 1 : j], 8) & 0xFF))
+                    i = j
+                    continue
             out.append(body[i])
             i += 1
         return "".join(out)
@@ -555,19 +564,19 @@ def _scrub_ifs(text: str) -> str:
 def _expand_brace_paths(text: str) -> str:
     """Expand absolute brace paths so system-root checks see each alt.
 
-    Handles ``/{etc,var}``, mid-segment ``/et{c,}`` → ``/etc``, and
-    ``/usr{,/local}`` → ``/usr /usr/local``.
+    Handles ``/{etc,var}``, mid-segment ``/et{c,}`` → ``/etc``,
+    suffix forms ``/{e,}tc`` → ``/etc``, and ``/usr{,/local}`` → ``/usr /usr/local``.
     """
 
     def _repl(match: re.Match[str]) -> str:
-        prefix, body = match.group(1), match.group(2)
+        prefix, body, suffix = match.group(1), match.group(2), match.group(3)
         # Keep empty alts (``/et{c,}`` → ``/etc`` + ``/et``).
-        return " ".join(prefix + part for part in body.split(","))
+        return " ".join(prefix + part + suffix for part in body.split(","))
 
-    # Absolute path prefix up to ``{alts}``.
+    # Absolute path with optional suffix after ``}`` (``/{e,}tc``, ``/de{v,}/sda``).
     expanded = text
     for _ in range(4):  # nested / multi-brace safety bound
-        nxt = re.sub(r"((?:^|\s)/[^\s{]*)\{([^{}]+)\}", _repl, expanded)
+        nxt = re.sub(r"(?<![\w{])(/[^\s{]*)\{([^{}]+)\}([^\s]*)", _repl, expanded)
         if nxt == expanded:
             break
         expanded = nxt

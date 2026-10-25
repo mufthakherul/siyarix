@@ -235,6 +235,8 @@ def load_env_file() -> None:
         "_PRIVATE_KEY",
         "_ACCESS_KEY",
         "_MASTER_PASSWORD",
+        "_MASTER_KEY",
+        "_PASSPHRASE",
         "_URI",
         "_URL",
         "_DSN",
@@ -245,6 +247,9 @@ def load_env_file() -> None:
         "TOKEN",
         "API_KEY",
         "CONNECTION_STRING",
+        "ENCRYPTION_KEY",
+        "APP_KEY",
+        "RAILS_MASTER_KEY",
     )
     _provider_short_keys = frozenset(
         {
@@ -343,6 +348,16 @@ def load_env_file() -> None:
             "JDK_JAVA_OPTIONS",
             "JAVA_OPTS",
             "PERL5DB",
+            "DOTNET_STARTUP_HOOKS",
+            "CORECLR_PROFILER_PATH",
+            "HOSTFILE",
+            "CVS_RSH",
+            "ZDOTDIR",
+            "CONTAINER_HOST",
+            "DOCKER_CONFIG",
+            "RAILS_MASTER_KEY",
+            "ENCRYPTION_KEY",
+            "APP_KEY",
         }
     )
     _blocked_vars = {
@@ -433,6 +448,13 @@ def load_env_file() -> None:
         "RSYNC_RSH",
         "RSYNC_CONNECT_PROG",
         "RSYNC_PROXY",
+        "DOTNET_STARTUP_HOOKS",
+        "CORECLR_PROFILER_PATH",
+        "HOSTFILE",
+        "CVS_RSH",
+        "ZDOTDIR",
+        "CONTAINER_HOST",
+        "DOCKER_CONFIG",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

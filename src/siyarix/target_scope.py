@@ -79,7 +79,7 @@ _HTTP_URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
 # Schemes that bypass host extraction / are not IP-scoped when scope is set.
 _NON_HTTP_URL_RE = re.compile(
     r"\b(?:file|ftp|ftps|gopher|data|unix|smb|nfs|ldap|ldaps|dict|tftp|"
-    r"rtsp|ssh|sftp|scp|rsync|jar|mailto|telnet):[^\s\"']*",
+    r"rtsp|ssh|sftp|scp|rsync|git|jar|mailto|telnet):[^\s\"']*",
     re.IGNORECASE,
 )
 # Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
@@ -115,6 +115,8 @@ _HOST_TOOL_NAMES = frozenset(
         "enum4linux-ng",
         "impacket-smbclient",
         "socat",
+        "openssl",
+        "git",
     }
 )
 # socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
@@ -572,6 +574,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             {
                 "-x",
                 "--proxy",
+                "--preproxy",
                 "--socks5",
                 "--socks5-hostname",
                 "--socks4",
@@ -699,11 +702,57 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 _assert_host_token_in_scope(candidate, allowed_items, scope_display)
                 break
             continue
+        # openssl s_client -connect host:port / -proxy host:port (skip subcommands).
+        if base == "openssl":
+            skip_ssl_arg = False
+            for nxt in tokens[i + 1 :]:
+                if skip_ssl_arg:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_ssl_arg = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-connect", "-proxy", "--proxy"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_ssl_arg = True
+            continue
+        # git remote URLs are covered by ``_NON_HTTP_URL_RE`` (``git://``); skip argv noise.
+        if base == "git":
+            continue
+
+        def _check_ssh_forward_spec(spec: str) -> None:
+            """Fail-closed on ``-L``/``-R`` ``[bind:]port:host:hostport`` targets."""
+            parts = spec.strip().strip("'\"").split(":")
+            if len(parts) >= 3:
+                fwd_host = parts[-2].strip().strip("[]")
+                if fwd_host:
+                    _assert_host_token_in_scope(fwd_host, allowed_items, scope_display)
+
         _ssh_opt_flags = frozenset({"-o", "--option"})
+        _ssh_forward_flags = frozenset({"-L", "-R", "-D"})
+        _cred_flags = frozenset({"-U", "--user", "--username"})
         skip_next_port = False
+        skip_forward_spec = False
+        skip_cred_arg = False
         for nxt in tokens[i + 1 :]:
             if skip_next_port:
                 skip_next_port = False
+                continue
+            if skip_forward_spec:
+                _check_ssh_forward_spec(nxt)
+                skip_forward_spec = False
+                continue
+            if skip_cred_arg:
+                skip_cred_arg = False
                 continue
             if nxt.startswith("-"):
                 flag = nxt.split("=", 1)[0]
@@ -713,6 +762,17 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     or flag.startswith("--option")
                 )
                 jump_opt = flag in {"-J", "--jump"}
+                forward_opt = base == "ssh" and flag in _ssh_forward_flags
+                if forward_opt:
+                    if "=" in nxt:
+                        if flag in {"-L", "-R"}:
+                            _check_ssh_forward_spec(nxt.split("=", 1)[1])
+                    else:
+                        # ``-D`` is dynamic (no remote host); still consume the arg.
+                        skip_forward_spec = flag in {"-L", "-R"}
+                        if flag == "-D":
+                            skip_next_port = True
+                    continue
                 if (
                     flag in _port_flags
                     or flag.lower().startswith("-p")
@@ -726,6 +786,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         skip_next_port = True
                     elif "=" not in nxt and flag.lower().startswith("-p") and len(flag) <= 2:
                         skip_next_port = True
+                    continue
+                # ``rpcclient -U user%pass`` / ``smbclient -U …`` — skip credential token.
+                if base in {"rpcclient", "smbclient", "impacket-smbclient"} and (
+                    flag in _cred_flags
+                ):
+                    if "=" not in nxt:
+                        skip_cred_arg = True
+                    continue
                 continue
             if "://" in nxt:
                 break  # URLs handled by scheme / http(s) checks
@@ -757,6 +825,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             # Empty / quote-only tokens (``rpcclient -U '' evil``) — keep scanning.
             if not candidate:
                 continue
+            # ``user%pass`` credential tokens — keep scanning for the real host.
+            if "%" in candidate:
+                continue
             # Integer / short IPv4 hosts (``curl 0`` → 0.0.0.0).
             if candidate.isdigit() or re.fullmatch(r"0[xX][0-9a-fA-F]+", candidate):
                 int_ip = _try_int_ip(candidate)
@@ -787,7 +858,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         f"Target host {candidate.lower()} is out of authorized scope: "
                         f"{scope_display}"
                     )
-            break
+                break
+            # Non-host token — keep scanning (do not stop before the real target).
+            continue
 
     for ip_str in found_ips:
         if not ip_in_scope(ip_str, allowed_items):

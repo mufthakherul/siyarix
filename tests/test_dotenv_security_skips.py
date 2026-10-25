@@ -34,6 +34,16 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "OPENSSL_ENGINES=/tmp/evil",
                 "WGETRC=/tmp/wgetrc",
                 "KUBE_CONFIG=/tmp/evil.kube",
+                "DOTNET_STARTUP_HOOKS=/tmp/evil",
+                "CORECLR_PROFILER_PATH=/tmp/evil",
+                "HOSTFILE=/tmp/hosts",
+                "CVS_RSH=ssh -o ProxyCommand=evil",
+                "ZDOTDIR=/tmp/zdot",
+                "CONTAINER_HOST=tcp://evil:2375",
+                "DOCKER_CONFIG=/tmp/docker",
+                "RAILS_MASTER_KEY=secret",
+                "ENCRYPTION_KEY=secret",
+                "APP_KEY=secret",
                 "HTTPS_PROXY=http://evil",
                 "PROMPT_COMMAND=evil",
                 "PRIVATE_KEY=pk",
@@ -117,6 +127,16 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "OPENSSL_ENGINES",
         "WGETRC",
         "KUBE_CONFIG",
+        "DOTNET_STARTUP_HOOKS",
+        "CORECLR_PROFILER_PATH",
+        "HOSTFILE",
+        "CVS_RSH",
+        "ZDOTDIR",
+        "CONTAINER_HOST",
+        "DOCKER_CONFIG",
+        "RAILS_MASTER_KEY",
+        "ENCRYPTION_KEY",
+        "APP_KEY",
         "HTTPS_PROXY",
         "PROMPT_COMMAND",
         "PRIVATE_KEY",
@@ -201,6 +221,16 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "OPENSSL_ENGINES" not in os.environ
     assert "WGETRC" not in os.environ
     assert "KUBE_CONFIG" not in os.environ
+    assert "DOTNET_STARTUP_HOOKS" not in os.environ
+    assert "CORECLR_PROFILER_PATH" not in os.environ
+    assert "HOSTFILE" not in os.environ
+    assert "CVS_RSH" not in os.environ
+    assert "ZDOTDIR" not in os.environ
+    assert "CONTAINER_HOST" not in os.environ
+    assert "DOCKER_CONFIG" not in os.environ
+    assert "RAILS_MASTER_KEY" not in os.environ
+    assert "ENCRYPTION_KEY" not in os.environ
+    assert "APP_KEY" not in os.environ
     assert "HTTPS_PROXY" not in os.environ
     assert "PROMPT_COMMAND" not in os.environ
     assert "PRIVATE_KEY" not in os.environ

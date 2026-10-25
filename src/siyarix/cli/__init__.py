@@ -101,6 +101,8 @@ def _load_dotenv(path: Path | None = None) -> None:
         "_PRIVATE_KEY",
         "_ACCESS_KEY",
         "_MASTER_PASSWORD",
+        "_MASTER_KEY",
+        "_PASSPHRASE",
         "_URI",
         "_URL",
         "_DSN",
@@ -111,6 +113,9 @@ def _load_dotenv(path: Path | None = None) -> None:
         "TOKEN",
         "API_KEY",
         "CONNECTION_STRING",
+        "ENCRYPTION_KEY",
+        "APP_KEY",
+        "RAILS_MASTER_KEY",
     )
     # Short provider key aliases (not matched by ``_API_KEY``); keep ``VALID_KEY`` loadable.
     _provider_short_keys = frozenset(
@@ -211,6 +216,16 @@ def _load_dotenv(path: Path | None = None) -> None:
             "JDK_JAVA_OPTIONS",
             "JAVA_OPTS",
             "PERL5DB",
+            "DOTNET_STARTUP_HOOKS",
+            "CORECLR_PROFILER_PATH",
+            "HOSTFILE",
+            "CVS_RSH",
+            "ZDOTDIR",
+            "CONTAINER_HOST",
+            "DOCKER_CONFIG",
+            "RAILS_MASTER_KEY",
+            "ENCRYPTION_KEY",
+            "APP_KEY",
         }
     )
     _blocked_vars = {
@@ -301,6 +316,13 @@ def _load_dotenv(path: Path | None = None) -> None:
         "RSYNC_RSH",
         "RSYNC_CONNECT_PROG",
         "RSYNC_PROXY",
+        "DOTNET_STARTUP_HOOKS",
+        "CORECLR_PROFILER_PATH",
+        "HOSTFILE",
+        "CVS_RSH",
+        "ZDOTDIR",
+        "CONTAINER_HOST",
+        "DOCKER_CONFIG",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

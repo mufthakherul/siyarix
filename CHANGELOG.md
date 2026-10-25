@@ -99,6 +99,9 @@ All notable changes to this project will be documented in this file.
 - Scope: comma-hop `-J evil,other` / glued `-Jevil,other` via ProxyJump splitter; `rpcclient -U '' evil` keeps scanning.
 - Hard-block `zstd`/`xz`/`split`/`socat OPEN|CREATE|APPEND` onto auth files.
 - `.env` skips `_JAVA_OPTIONS`/`JDK_JAVA_OPTIONS`/`JAVA_OPTS`/`PERL5DB`/`SOCKS5_PROXY`/`OPENSSL_MODULES`/`OPENSSL_ENGINES`/`WGETRC`/`KUBE_CONFIG`.
+- Brace suffix expand (`/{e,}tc`); ANSI-C octal `$'\057'`; hard-block `sg_dd`/`integritysetup`/`veritysetup`.
+- Scope: `--preproxy`, ssh `-L`/`-R` forward hosts, `openssl -connect`/`-proxy`, `git://`, `rpcclient -U user%pass`.
+- `.env` skips `DOTNET_STARTUP_HOOKS`/`CORECLR_PROFILER_PATH`/`HOSTFILE`/`CVS_RSH`/`ZDOTDIR`/`CONTAINER_HOST`/`DOCKER_CONFIG`/`RAILS_MASTER_KEY`/`ENCRYPTION_KEY`/`APP_KEY`.
 - `.env` skips `GCONV_PATH`/`HOSTALIASES`.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.

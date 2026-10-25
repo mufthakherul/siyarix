@@ -526,6 +526,9 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "echo x > /etc/netplan/01-net.yaml",
         "echo x >> /root/.bashrc",
         "echo x > /etc/sudo.conf",
+        # RH-51 — ownership pivot on system binaries
+        "chown root:root /bin/bash",
+        "chgrp root /usr/bin/python3",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

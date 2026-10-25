@@ -629,3 +629,24 @@ def test_should_skip_rh50_dotenv_keys() -> None:
         "KAFKA_BOOTSTRAP_SERVERS",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh51_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "FRPC_SERVER_ADDR",
+        "FRPC_SERVER_PORT",
+        "FRP_SERVER",
+        "NPS_HOST",
+        "NPS_VKEY",
+        "SSH_CONFIG",
+        "OPENSSH_CONFIG",
+        "ANSIBLE_HOST",
+        "FABRIC_HOST",
+        "PSCP_HOST",
+        "CLOUDFLARED_TUNNEL",
+        "LOCALTUNNEL_HOST",
+        "AWS_EXECUTION_ENV",
+    ):
+        assert should_skip_dotenv_key(key), key

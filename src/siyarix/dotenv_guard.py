@@ -561,7 +561,12 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "RCLONE_CONFIG",
         "KUBE_API_SERVER",
         "FRPC_CONFIG",
+        "FRPC_SERVER_ADDR",
+        "FRPC_SERVER_PORT",
+        "FRP_SERVER",
         "NPS_SERVER",
+        "NPS_HOST",
+        "NPS_VKEY",
         "VALKEY_HOST",
         "OPENCONNECT_SERVER",
         "HBBS_RELAY",
@@ -586,6 +591,14 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "RUSTDESK_SERVER",
         "TSH_PROXY",
         "TELEPORT_PROXY",
+        "SSH_CONFIG",
+        "OPENSSH_CONFIG",
+        "ANSIBLE_HOST",
+        "FABRIC_HOST",
+        "PSCP_HOST",
+        "CLOUDFLARED_TUNNEL",
+        "LOCALTUNNEL_HOST",
+        "AWS_EXECUTION_ENV",
     }
 )
 
@@ -734,7 +747,12 @@ def should_skip_dotenv_key(key: str) -> bool:
         "RCLONE_CONFIG",
         "KUBE_API_SERVER",
         "FRPC_CONFIG",
+        "FRPC_SERVER_ADDR",
+        "FRPC_SERVER_PORT",
+        "FRP_SERVER",
         "NPS_SERVER",
+        "NPS_HOST",
+        "NPS_VKEY",
         "VALKEY_HOST",
         "OPENCONNECT_SERVER",
         "HBBS_RELAY",
@@ -759,6 +777,14 @@ def should_skip_dotenv_key(key: str) -> bool:
         "RUSTDESK_SERVER",
         "TSH_PROXY",
         "TELEPORT_PROXY",
+        "SSH_CONFIG",
+        "OPENSSH_CONFIG",
+        "ANSIBLE_HOST",
+        "FABRIC_HOST",
+        "PSCP_HOST",
+        "CLOUDFLARED_TUNNEL",
+        "LOCALTUNNEL_HOST",
+        "AWS_EXECUTION_ENV",
     }:
         return True
     if key_upper.startswith("TAILSCALE_") or key_upper.startswith("WIREGUARD_"):
@@ -806,8 +832,24 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper.startswith("HBBS_") or key_upper.startswith("CHISEL_"):
         return True
-    if key_upper in {"FRPC_CONFIG", "NPS_SERVER", "VALKEY_HOST", "OPENCONNECT_SERVER",
-                     "NEO4J_HOST", "KAFKA_BOOTSTRAP_SERVERS"}:
+    if key_upper.startswith("FRPC_") or key_upper.startswith("FRP_"):
+        return True
+    if key_upper.startswith("NPS_"):
+        return True
+    if key_upper in {
+        "VALKEY_HOST",
+        "OPENCONNECT_SERVER",
+        "NEO4J_HOST",
+        "KAFKA_BOOTSTRAP_SERVERS",
+        "SSH_CONFIG",
+        "OPENSSH_CONFIG",
+        "ANSIBLE_HOST",
+        "FABRIC_HOST",
+        "PSCP_HOST",
+        "CLOUDFLARED_TUNNEL",
+        "LOCALTUNNEL_HOST",
+        "AWS_EXECUTION_ENV",
+    }:
         return True
     if key_upper.startswith("N2N_") or key_upper.startswith("NETMAKER_"):
         return True

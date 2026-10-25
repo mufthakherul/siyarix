@@ -625,21 +625,31 @@ _CHMOD_AUTH_RE = re.compile(
     + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
+# System binary trees — setuid / ownership pivots (RH-51).
+_SYSTEM_BIN_PATH = r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
 _SETUID_SYSTEM_RE = re.compile(
-    r"(?:"
-    # Setuid (4) / setgid (2) / combined (6,7) / sticky+set* (3,5) — not sticky-only (1).
-    r"\bchmod\b[\s\S]{0,100}"
-    r"(?:[ug]*\+s|\+s|[0-7]*[2-7][0-7]{3})\b[\s\S]{0,100}"
-    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    # Glued ``-m4755`` / ``ginstall`` as well as spaced/``=`` forms.
-    r"|\bg?install\b[\s\S]{0,120}"
-    r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
-    r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    # ``setcap`` dangerous capabilities on system binaries (RH-27).
-    r"|\bsetcap\b[\s\S]{0,120}"
-    r"cap_(?:set(?:uid|gid)|sys_admin|sys_rawio|sys_module|dac_override|dac_read_search)"
-    r"\b[\s\S]{0,80}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    r")",
+    (
+        r"(?:"
+        # Setuid (4) / setgid (2) / combined (6,7) / sticky+set* (3,5) — not sticky-only (1).
+        r"\bchmod\b[\s\S]{0,100}"
+        r"(?:[ug]*\+s|\+s|[0-7]*[2-7][0-7]{3})\b[\s\S]{0,100}"
+        + _SYSTEM_BIN_PATH
+        # Glued ``-m4755`` / ``ginstall`` as well as spaced/``=`` forms.
+        + r"|\bg?install\b[\s\S]{0,120}"
+        r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
+        r"[\s\S]{0,160}"
+        + _SYSTEM_BIN_PATH
+        # ``setcap`` dangerous capabilities on system binaries (RH-27).
+        + r"|\bsetcap\b[\s\S]{0,120}"
+        r"cap_(?:set(?:uid|gid)|sys_admin|sys_rawio|sys_module|dac_override|dac_read_search)"
+        r"\b[\s\S]{0,80}"
+        + _SYSTEM_BIN_PATH
+        + r")"
+    ),
+    re.IGNORECASE,
+)
+_CHOWN_SYSTEM_BIN_RE = re.compile(
+    r"\b(?:chown|chgrp)\b[\s\S]{0,120}" + _SYSTEM_BIN_PATH,
     re.IGNORECASE,
 )
 _DD_OF_AUTH_RE = re.compile(
@@ -1165,6 +1175,11 @@ def assert_command_not_destructive(command: str) -> None:
     if _SETUID_SYSTEM_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Setuid on system binaries is blocked."
+        )
+
+    if _CHOWN_SYSTEM_BIN_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: chown/chgrp on system binaries is blocked."
         )
 
     if _CHMOD_CHOWN_CMD_RE.search(cmd_clean) and _RECURSE_FLAG_RE.search(cmd_clean):

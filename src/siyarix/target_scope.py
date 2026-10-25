@@ -1180,12 +1180,34 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 f"Proxy/tunnel tool {base!r} is not allowed under authorized scope "
                 f"(authorized scope: {scope_display})"
             )
-    # RH-44: ``rclone mount`` remotes are opaque egress pivots under engagement scope.
+    # RH-44/51: ``rclone`` remotes are opaque egress pivots under engagement scope.
     if re.search(r"\brclone\b", decoded_early, re.IGNORECASE) and re.search(
-        r"(?:^|\s)mount(?:\s|$)", decoded_early, re.IGNORECASE
+        r"(?:^|\s)(?:mount|copy|sync|move|bisync|copyto|moveto)(?:\s|$)",
+        decoded_early,
+        re.IGNORECASE,
     ):
         raise PermissionDeniedError(
-            f"rclone mount is not allowed under authorized scope "
+            f"rclone remote transfer/mount is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-51: megatools / cloud object sync without an extractable in-scope host.
+    if re.search(r"\bmegatools?\b", decoded_early, re.IGNORECASE):
+        raise PermissionDeniedError(
+            f"megatools cloud transfer is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    if re.search(r"\baws\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)s3(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"aws s3 transfer is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    if re.search(r"\baz\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)storage(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"az storage transfer is not allowed under authorized scope "
             f"(authorized scope: {scope_display})"
         )
     # RH-45: ``ip tuntap`` / ``ip tunnel`` create out-of-engagement L3 pivots.
@@ -1647,7 +1669,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             rest_lower = [t.lower().strip().strip("'\"") for t in rest]
             for j, low in enumerate(rest_lower):
                 # Local API/port pivots hide the real cluster egress (RH-42).
-                if low in {"proxy", "port-forward", "port_forward"}:
+                if low in {"proxy", "port-forward", "port_forward", "cp"}:
                     raise PermissionDeniedError(
                         f"{base} {low} is not allowed under authorized scope "
                         f"(authorized scope: {scope_display})"

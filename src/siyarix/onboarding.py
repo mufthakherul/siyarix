@@ -3022,18 +3022,32 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                         fh.write(chunk)
             self._console.print("  [green]\u2713 Downloaded[/green]")
 
-            # Extract
+            # Extract (resolve final paths under bin_dir to block zip/tar slip)
             self._console.print("  Extracting...")
+            bin_resolved = bin_dir.resolve()
+
+            def _safe_under_bin(member_name: str) -> bool:
+                candidate = (bin_dir / member_name).resolve()
+                try:
+                    candidate.relative_to(bin_resolved)
+                    return True
+                except ValueError:
+                    return False
+
             if asset_name.endswith(".zip"):
                 with zipfile.ZipFile(archive_path, "r") as zf:
                     for zinfo in zf.infolist():
                         if zinfo.filename.startswith("/") or ".." in zinfo.filename:
+                            continue
+                        if not _safe_under_bin(zinfo.filename):
                             continue
                         zf.extract(zinfo, bin_dir)
             else:
                 with tarfile.open(archive_path, "r:gz") as tf:
                     for tinfo in tf.getmembers():
                         if tinfo.name.startswith("/") or ".." in tinfo.name:
+                            continue
+                        if not _safe_under_bin(tinfo.name):
                             continue
                         if sys.version_info >= (3, 12):
                             tf.extract(tinfo, bin_dir, filter="data")

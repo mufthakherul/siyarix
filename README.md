@@ -237,6 +237,9 @@ siyarix --mode offline run "scan example.com"
 
 # Check your system health and tool dependencies anytime
 siyarix health
+
+# Pre-flight production readiness (shell-review, webhook policy, vault, health)
+siyarix production-check
 ```
 
 ---
@@ -249,6 +252,7 @@ Want to dive much deeper into what makes Siyarix tick? We have written extensive
 |---------|-------------|
 | 🚀 [Getting Started](docs/getting-started/installation.md) | Step-by-step installation, initial setup, and troubleshooting common issues. |
 | 📖 [User Guide](docs/user/cli-commands.md) | Full CLI reference, daily operational workflows, and advanced scanning methodologies. |
+| 🏭 [Production Readiness](docs/PRODUCTION_READINESS.md) | SX audit remediation status, gates (`mypy` / `pytest` / `production-check`), and residual notes. |
 | 🧠 [AI Internals](docs/ai/agent-reasoning.md) | Fascinating details on how the AI thinks, reasons, corrects itself, and routes your requests. |
 | 🏗️ [Architecture](docs/architecture/overview.md) | System design, our secure execution engine, and how the Knowledge Graph works. |
 | 🛡️ [Security & Ethics](docs/security/ethical-hacking-policy.md) | Our strict ethical use policies, OPSEC configurations, and system safety measures. |

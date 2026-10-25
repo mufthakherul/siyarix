@@ -24,7 +24,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-029 | CI security gates | `scripts/ci_security_gate.py` |
 | SX-030 | Hanging subagent test | `tests/test_core.py` |
 | SX-032 | AnyIO advisories | `uv.lock` / `poetry.lock` → 4.15.1 |
-| SX-012 | Webhook SSRF destination policy | `_validate_url` + notification path; `tests/test_sx012_webhook_ssrf.py` |
+| SX-012 | Webhook SSRF destination policy | Literal IP + DNS→private reject; notification path; `tests/test_sx012_webhook_ssrf.py` |
 | SX-020 | Hatchling / Twine metadata | `hatchling>=1.21.1,<1.27`; `twine check` passes |
 | SX-026 | Rust parser adapters | `siyarix_rust_parsers` function exports via Python adapters |
 | SX-031 | mypy consolidation | `.mypy.ini` ↔ `[tool.mypy]`; `mypy src/siyarix` clean; CI runs project mypy |

@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 - Threat-intel IP/CVE lookups validate inputs and refuse redirects.
 - Local-provider URL checks reject link-local and IPv4-mapped metadata addresses.
 - Workflow soft `status=error` results mark FAILED and skip dependents.
+- Always fold `target`/`args`/`flags` into `SIYARIX_ALLOWED_SCOPE` checks (even when `command` is set).
+- Compliance local probes for PermissionGate (`A.12.1`) and webhook SSRF policy (`Req-1.1`).
+- Webhook/notification dispatch re-validates destinations immediately before connect.
 - Fail closed on non-interactive command review unless `SIYARIX_PREAUTHORIZED=1` (SX-001).
 - Execute permission-gate edits and revalidate them before handlers run (SX-002).
 - Enforce permission checks and dependency-aware scheduling in the autonomous executor (SX-003, SX-010).

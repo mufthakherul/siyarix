@@ -48,7 +48,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (256 files)**; pytest **5993 passed, 6 skipped, 62 deselected** (`-m "not e2e"`, stress ignored).
+Latest local checks on this branch: **mypy clean (256 files)**; pytest **5997 passed, 6 skipped, 62 deselected** (`-m "not e2e"`, stress ignored).
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln

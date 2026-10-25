@@ -290,8 +290,18 @@ class CredentialStore:
             try:
                 fernet_key = self._normalize_fernet_key(key_material)
                 raw_key = base64.urlsafe_b64decode(fernet_key)
-            except ValueError:
-                logger.warning("Invalid credential store key detected; regenerating a new key")
+            except ValueError as err:
+                # Never silently rotate when encrypted credentials already exist —
+                # that permanently orphans the vault ciphertext.
+                if self._creds_file.exists() and self._creds_file.stat().st_size > 0:
+                    raise RuntimeError(
+                        "Credential store key is invalid/corrupt but credentials.enc "
+                        "already exists. Restore the original key or recover via an "
+                        "explicit vault reset — refusing automatic key regeneration."
+                    ) from err
+                logger.warning(
+                    "Invalid credential store key detected with empty vault; generating a new key"
+                )
                 raw_key = os.urandom(_AES_KEY_SIZE)
         else:
             raw_key = os.urandom(_AES_KEY_SIZE)

@@ -189,6 +189,11 @@ class DeepScanEngine:
         persist: bool = True,
     ) -> dict[str, Any]:
         """Run a deep scan against the given target."""
+        from .target_scope import assert_command_in_scope
+
+        # Enforce SIYARIX_ALLOWED_SCOPE even when deep scan bypasses the planner.
+        assert_command_in_scope(f"scan {target}")
+
         passes = [p for p in _DEEP_SCAN_PASSES if profiles is None or p.name in profiles]
         if not passes:
             passes = _DEEP_SCAN_PASSES

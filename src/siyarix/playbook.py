@@ -39,7 +39,8 @@ _ENV_PREFIX_ALLOW: frozenset[str] = frozenset({"SIYARIX_"})
 _ENV_SECRET_RE = re.compile(
     r"(?i)(password|passwd|secret|token|api[_-]?key|credential|webhook|"
     r"private[_-]?key|sudo|auth|bearer|cookie|session|authorization|"
-    r"(?:^|_)(?:key|pass|pwd|cred)(?:_|$)|ssh|openai|anthropic|groq|gemini)"
+    r"(?:^|_)(?:key|pass|pwd|cred)(?:_|$)|ssh|openai|anthropic|groq|gemini|"
+    r"database|dsn|connection|sslkeylog|(?:^|_)(?:url|uri)(?:_|$))"
 )
 
 

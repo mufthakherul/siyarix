@@ -57,6 +57,11 @@ All notable changes to this project will be documented in this file.
 - `find -exec unlink`; `.env` skips `PRIVATE_KEY`/`SSLKEYLOGFILE`/`GIT_ASKPASS`/`SIYARIX_CONFIG`.
 - Normalize list-argv commas so `subprocess.call(['rm','-rf','/'])` hard-blocks; `hdiutil`/`wmic format`.
 - Parallel scan completion rollup: ok/fail counts, findings total, elapsed ms.
+- Cover `/dev/mmcblk*`/`md*`/`zram*` (+ flash/RAID/virt nodes); `bsdtar -C /` and `7z -o/` extract-to-root.
+- `.env` skips `*_URL`/`*_DSN`/`DATABASE_URL`/`SSLKEYLOGFILE` (incl. `SIYARIX_DATABASE_URL`).
+- Playbook `env.*` redacts database/DSN/URL/connection/sslkeylog names.
+- SecretRedactor/DLP redact full PEM private-key bodies (RSA/EC/OPENSSH BEGIN…END).
+- `SIYARIX_ALLOWED_SCOPE` fails closed on `file:`/`ftp:`/`data:`/`gopher:`/`unix:` URLs.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

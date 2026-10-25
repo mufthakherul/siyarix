@@ -131,6 +131,27 @@ def test_resolve_vars_redacts_provider_and_ssh_keys(playbook_engine: PlaybookEng
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_SSH_PASS }}", {}) == "[REDACTED]"
 
 
+def test_resolve_vars_redacts_database_dsn_and_url(playbook_engine: PlaybookEngine) -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "SIYARIX_DATABASE_URL": "postgres://u:p@h/db",
+            "SIYARIX_DSN": "user:pass@host/db",
+            "SIYARIX_CONNECTION_STRING": "Server=h;Pwd=x",
+            "SIYARIX_SSLKEYLOG": "/tmp/ssl.log",
+            "SIYARIX_REPORT_URL": "https://hooks.example/report",
+        },
+        clear=False,
+    ):
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_DATABASE_URL }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_DSN }}", {}) == "[REDACTED]"
+        assert (
+            playbook_engine._resolve_vars("{{ env.SIYARIX_CONNECTION_STRING }}", {}) == "[REDACTED]"
+        )
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SSLKEYLOG }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_REPORT_URL }}", {}) == "[REDACTED]"
+
+
 def test_resolve_vars_missing_var(playbook_engine: PlaybookEngine) -> None:
     result = playbook_engine._resolve_vars("{{ missing }}", {})
     assert result == "{{ missing }}"

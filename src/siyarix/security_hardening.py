@@ -295,7 +295,15 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # the final userinfo delimiter.
     ("url_password", re.compile(r"(://[^:/?#]+:)(.{3,})(?=@)")),
     # ── Private key markers ──────────────────────────────────────────────
-    ("private_key", re.compile(r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----")),
+    (
+        "private_key",
+        re.compile(
+            r"-----BEGIN\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----"
+            r"[\s\S]+?"
+            r"-----END\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----",
+            re.IGNORECASE,
+        ),
+    ),
     # ── Generic secret-like key=value ────────────────────────────────────
     (
         "secret_kv",

@@ -45,11 +45,13 @@ _DD_WORD_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Block-device node paths (Linux + macOS disk/rdisk + SCSI/NBD).
+# Block-device node paths (Linux + macOS + RAID/flash/virt).
 _BLOCK_DEV_RE = re.compile(
     r"/dev/(?:sd[a-z]\d*|nvme\d+n\d+(?:p\d+)?|vd[a-z]\d*|xvd[a-z]\d*|hd[a-z]\d*"
     r"|loop\d+|dm-\d+|mapper/\S+|disk/\S+|disk\d+(?:s\d+)?|rdisk\d+(?:s\d+)?"
-    r"|block/\S+|root\b|sg\d+|nbd\d+)",
+    r"|block/\S+|root\b|sg\d+|nbd\d+|mmcblk\d+(?:p\d+)?|md\d+|md/\S+"
+    r"|zram\d+|ram\d+|fd\d+|mtdblock\d+|mtd\d+|pmem\d+|drbd\d+|rbd\d+"
+    r"|dasd[a-z]\d*|cciss/\S+)",
     re.IGNORECASE,
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
@@ -98,17 +100,17 @@ _INTERPRETER_WIPE_RE = re.compile(
 )
 _INTERPRETER_DEV_WRITE_RE = re.compile(
     r"(?:"
-    r"open\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|File\.write\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|IO\.write\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|writeFile(?:Sync)?\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|file_put_contents\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|urlretrieve\s*\([^)]*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"|Path\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    r"|pathlib\s*\.\s*Path\s*\(\s*/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)"
-    r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    r")",
+    r"open\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|File\.write\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|IO\.write\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|writeFile(?:Sync)?\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|file_put_contents\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|urlretrieve\s*\([^)]*" + _BLOCK_DEV_RE.pattern
+    + r"|Path\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
+    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
+    + r")",
     re.IGNORECASE,
 )
 _GPG_OPENSSL_OUT_BLOCK_RE = re.compile(
@@ -122,8 +124,9 @@ _OPENSSL_OUT_AUTH_RE = re.compile(
 )
 _EXTRACT_TO_ROOT_RE = re.compile(
     r"(?:"
-    r"\btar\b[\s\S]{0,120}(?:-C|--directory)\s+/(?:\s|$)"
+    r"\b(?:tar|bsdtar)\b[\s\S]{0,120}(?:-C|--directory)\s+/(?:\s|$)"
     r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)\s+/(?:\s|$)"
+    r"|\b7z(?:a|r)?\b[\s\S]{0,80}-o/(?:\s|$|[a-z])"
     r")",
     re.IGNORECASE,
 )

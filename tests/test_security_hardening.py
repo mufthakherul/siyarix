@@ -406,9 +406,26 @@ class TestSecretRedactorRedact:
         assert "OPENAI_API_KEY" in openai
 
     def test_private_key_marker(self) -> None:
-        text = "-----BEGIN RSA PRIVATE KEY-----"
+        text = (
+            "-----BEGIN RSA PRIVATE KEY-----\n"
+            "MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF6PZGFwoda2N4s\n"
+            "-----END RSA PRIVATE KEY-----"
+        )
         result = self.r.redact(text)
         assert "[REDACTED]" in result
+        assert "MIIEowIBAAKCAQEA" not in result
+        ec = (
+            "-----BEGIN EC PRIVATE KEY-----\n"
+            "MHQCAQEEIOleakbody\n"
+            "-----END EC PRIVATE KEY-----"
+        )
+        assert "MHQCAQEEIOleakbody" not in self.r.redact(ec)
+        openssh = (
+            "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+            "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n"
+            "-----END OPENSSH PRIVATE KEY-----"
+        )
+        assert "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=" not in self.r.redact(openssh)
 
     def test_secret_kv_redacted(self) -> None:
         text = "password = super_secret_123"

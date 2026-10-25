@@ -31,6 +31,9 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SSLKEYLOGFILE=/tmp/ssl.log",
                 "GIT_ASKPASS=/tmp/ask",
                 "SIYARIX_CONFIG=/tmp/evil.toml",
+                "SIYARIX_DATABASE_URL=postgres://u:p@h/db",
+                "SIYARIX_REDIS_URL=redis://u:p@h/0",
+                "DATABASE_URL=postgres://u:p@h/db",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -50,6 +53,9 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SSLKEYLOGFILE",
         "GIT_ASKPASS",
         "SIYARIX_CONFIG",
+        "SIYARIX_DATABASE_URL",
+        "SIYARIX_REDIS_URL",
+        "DATABASE_URL",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -70,4 +76,7 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SSLKEYLOGFILE" not in os.environ
     assert "GIT_ASKPASS" not in os.environ
     assert "SIYARIX_CONFIG" not in os.environ
+    assert "SIYARIX_DATABASE_URL" not in os.environ
+    assert "SIYARIX_REDIS_URL" not in os.environ
+    assert "DATABASE_URL" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

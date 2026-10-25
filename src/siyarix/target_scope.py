@@ -76,6 +76,11 @@ _DOMAIN_RE = re.compile(
 
 # http(s) URLs — used to fail-closed when the host cannot be extracted.
 _HTTP_URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
+# Local / non-remote schemes that bypass host extraction when scope is set.
+_NON_HTTP_URL_RE = re.compile(
+    r"\b(?:file|ftp|ftps|gopher|data|unix):[^\s\"']*",
+    re.IGNORECASE,
+)
 
 # Scope entry that is purely an IP or CIDR (not a domain / wildcard).
 _IP_OR_CIDR_RE = re.compile(
@@ -379,6 +384,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         scope_env if scope_env is not None else os.environ.get("SIYARIX_ALLOWED_SCOPE", "")
     )
     found_ips, found_domains = extract_targets(command)
+
+    decoded_early = _decode_for_extract(command)
+    for url in _NON_HTTP_URL_RE.findall(decoded_early):
+        raise PermissionDeniedError(
+            f"URL scheme not allowed under authorized scope: {url!r} "
+            f"(authorized scope: {scope_display})"
+        )
 
     for ip_str in found_ips:
         if not ip_in_scope(ip_str, allowed_items):

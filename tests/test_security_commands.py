@@ -429,6 +429,24 @@ class TestDLPEngine:
         assert "wJalrXUtnFEMI" not in aws_secret
         assert "[REDACTED AWS_SECRET_KEY]" in aws_secret
 
+    def test_redact_pem_private_key_body(self):
+        engine = DLPEngine(redact_secrets=True, redact_pii=False)
+        pem = (
+            "-----BEGIN RSA PRIVATE KEY-----\n"
+            "MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF6PZGFwoda2N4s\n"
+            "-----END RSA PRIVATE KEY-----"
+        )
+        result = engine.redact(pem)
+        assert "MIIEowIBAAKCAQEA" not in result
+        assert "[REDACTED PRIVATE_KEY]" in result
+        openssh = (
+            "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+            "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n"
+            "-----END OPENSSH PRIVATE KEY-----"
+        )
+        assert "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=" not in engine.redact(openssh)
+        assert "[REDACTED PRIVATE_KEY]" in engine.redact(openssh)
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 2. chat/platform_utils.py (37% - missing 124-131, 139, 152-167, 180-201)

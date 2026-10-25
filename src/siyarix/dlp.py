@@ -46,10 +46,10 @@ SECRET_PATTERNS = {
         r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+"
     ),
     "PRIVATE_KEY": re.compile(
-        r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----"
-        r"[a-zA-Z0-9+/=\s]*?"
-        r"(?:-----END\s+(?:RSA\s+)?PRIVATE\s+KEY-----)?",
-        re.DOTALL,
+        r"-----BEGIN\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----"
+        r"[\s\S]+?"
+        r"-----END\s+(?:RSA\s+|EC\s+|OPENSSH\s+)?PRIVATE\s+KEY-----",
+        re.IGNORECASE,
     ),
 }
 

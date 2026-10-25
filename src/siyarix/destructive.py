@@ -124,8 +124,9 @@ _OPENSSL_OUT_AUTH_RE = re.compile(
 )
 _EXTRACT_TO_ROOT_RE = re.compile(
     r"(?:"
-    r"\b(?:tar|bsdtar)\b[\s\S]{0,120}(?:-C|--directory)\s+/(?:\s|$)"
-    r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)\s+/(?:\s|$)"
+    # Optional space so ``tar -C/`` / ``unzip -d/`` match (GNU accepts glued forms).
+    r"\b(?:tar|bsdtar)\b[\s\S]{0,120}(?:-C|--directory)\s*/(?:\s|$)"
+    r"|\bunzip\b[\s\S]{0,80}(?:-d|--directory)\s*/(?:\s|$)"
     r"|\b7z(?:a|r)?\b[\s\S]{0,80}-o/(?:\s|$|[a-z])"
     r")",
     re.IGNORECASE,
@@ -151,7 +152,7 @@ _RECURSE_FLAG_RE = re.compile(
 )
 _DOWNLOAD_TO_BLOCK_RE = re.compile(
     r"(?:"
-    r"\b(?:curl|wget|busybox|fetch|aria2c|axel|http|httpie|yt-dlp|youtube-dl)\b"
+    r"\b(?:curl|wget|busybox|fetch|aria2c|axel|http|httpie|yt-dlp|youtube-dl|lftp)\b"
     r"[\s\S]{0,220}"
     r"(?:-o|--output(?:-document)?|--out|--index-out|-O)(?:=|\s*)(?:\d+=)?"
     + _BLOCK_DEV_RE.pattern
@@ -160,6 +161,11 @@ _DOWNLOAD_TO_BLOCK_RE = re.compile(
     + r"|\brclone\b[\s\S]{0,200}"
     + _BLOCK_DEV_RE.pattern
     + r")",
+    re.IGNORECASE,
+)
+_CMAKE_COPY_BLOCK_RE = re.compile(
+    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 # curl/wget/aria2c writing under /dev via separate --dir / -o filename.
@@ -178,6 +184,7 @@ _WINDOWS_WIPE_RE = re.compile(
     r"|\bof=\\\\\.\\physicaldrive"
     r"|\bformat\s+[a-z]\s*:"
     r"|\bclear-disk\b"
+    r"|\bclear-partition\b"
     r"|\bformat-volume\b"
     r"|\binitialize-disk\b"
     r"|\bremove-partition\b"
@@ -382,6 +389,7 @@ def assert_command_not_destructive(command: str) -> None:
         _QEMU_IMG_BLOCK_RE.search(cmd_clean)
         or _DOWNLOAD_TO_BLOCK_RE.search(cmd_clean)
         or _DOWNLOAD_DIR_DEV_RE.search(cmd_clean)
+        or _CMAKE_COPY_BLOCK_RE.search(cmd_clean)
         or _GPG_OPENSSL_OUT_BLOCK_RE.search(cmd_clean)
         or _SOCAT_BLOCK_RE.search(cmd_clean)
         or _DISKUTIL_WIPE_RE.search(cmd_clean)

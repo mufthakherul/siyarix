@@ -136,7 +136,7 @@ class PluginManifest:
         content = path.read_text(encoding="utf-8")
         if path.suffix in (".yaml", ".yml"):
             try:
-                import yaml  # type: ignore[import-untyped]
+                import yaml
 
                 data = yaml.safe_load(content) or {}
             except ImportError:

@@ -313,24 +313,29 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 if _orig_tstp:
                     _orig_tstp(signum, frame)
 
-            _orig_tstp = _signal.getsignal(_sig_tstp)  # type: ignore[union-attr]
-            _signal.signal(_sig_tstp, _tstp_handler)  # type: ignore[union-attr]
+            _orig_tstp = _signal.getsignal(_sig_tstp)
+            _signal.signal(_sig_tstp, _tstp_handler)
 
-        # Start connectivity monitor background check
+        # Connectivity probes hit public endpoints; skip them entirely in offline mode
+        # so air-gapped / network-off sessions stay network-off (SX-024).
         async def _run_all() -> None:
-            try:
-                await self.connectivity_monitor.start()
-            except Exception:
-                logger.debug("Connectivity monitor not available", exc_info=True)
+            monitor_started = False
+            if self._mode != "offline":
+                try:
+                    await self.connectivity_monitor.start()
+                    monitor_started = True
+                except Exception:
+                    logger.debug("Connectivity monitor not available", exc_info=True)
             try:
                 await self._repl_loop()
             finally:
                 if _orig_tstp and _sig_tstp is not None and _signal is not None:
                     _signal.signal(_sig_tstp, _orig_tstp)
-                try:
-                    await self.connectivity_monitor.stop()
-                except Exception:
-                    pass
+                if monitor_started:
+                    try:
+                        await self.connectivity_monitor.stop()
+                    except Exception:
+                        pass
 
         try:
             asyncio.run(_run_all())
@@ -450,9 +455,12 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             return False
         if _plat_is_windows():
             try:
-                from prompt_toolkit.output.win32 import Win32Output
+                from prompt_toolkit.output import win32 as _pt_win32
 
-                out = Win32Output(sys.stdout)
+                win32_output_cls = getattr(_pt_win32, "Win32Output", None)
+                if win32_output_cls is None:
+                    return False
+                out = win32_output_cls(sys.stdout)
                 out.get_win32_screen_buffer_info()
                 return True
             except Exception:

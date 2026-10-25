@@ -72,7 +72,7 @@ class AwsParser:
 
         return findings
 
-    def _walk(self, prefix: str, node, findings: list[dict[str, Any]]) -> None:  # type: ignore
+    def _walk(self, prefix: str, node, findings: list[dict[str, Any]]) -> None:
         if isinstance(node, dict):
             for k, v in node.items():
                 path = f"{prefix}.{k}" if prefix else k

@@ -4,6 +4,34 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Fail closed on non-interactive command review unless `SIYARIX_PREAUTHORIZED=1` (SX-001).
+- Execute permission-gate edits and revalidate them before handlers run (SX-002).
+- Enforce permission checks and dependency-aware scheduling in the autonomous executor (SX-003, SX-010).
+- Harden target scope validation for IPv6/CIDR/domain boundaries without public-domain exemptions (SX-004).
+- Autoescape HTML reports with CSP and contrasting severity badges (SX-005, SX-023).
+- Commit offline-queue SQLite writes; version credential envelopes; canonicalize audit hashes before chaining (SX-006–SX-009).
+- Correct CVSS 3.1 Roundup / PR-by-scope weights; stop inventing critical scores for informational findings (SX-011).
+- Make Redis compose opt-in with auth and loopback bind; upgrade AnyIO past 4.14.1 advisories (SX-027, SX-032).
+- Reject IP/metadata/loopback webhook destinations (SX-012 SSRF).
+
+### Fixed
+
+- Honor `--config` TOML/JSON/YAML overrides on the live settings store (SX-013).
+- Emit machine-parseable JSON/YAML/CSV on stdout; nonzero exits for failed scan/run (SX-014–SX-017).
+- Allow `siyarix run --resume latest` without a positional command; package built-in playbooks (SX-018, SX-019).
+- Fix Rich Tree rendering (`Tree.add`) and Docker production target / entrypoint settings detection (SX-021, SX-028).
+- Repair hanging `execute_subagent` test isolation (SX-030).
+- Enforce Bandit/pip-audit report gates in CI instead of silently continuing (SX-029).
+- Pin hatchling so release Twine validation accepts wheel metadata; ship built-in playbooks in the wheel (SX-020).
+- Discover `siyarix_rust_parsers` function exports via Python adapters (SX-026).
+- Skip public connectivity probes in offline REPL mode; label compliance as mapping scaffold (SX-024/025).
+- Fix webhook `_validate_url` so IP/metadata destinations are rejected (SX-012 SSRF).
+- Consolidate mypy config (`.mypy.ini` + `[tool.mypy]`), clear `src/siyarix` type errors, and run project mypy in CI (SX-031).
+- Default HTML reports to offline system fonts; widen CSP only when CDN fonts are explicitly enabled (SX-024).
+- Add `siyarix production-check` readiness command for production gates.
+
 ### Release
 
 - Prepare release metadata and automation for v1.1.0.

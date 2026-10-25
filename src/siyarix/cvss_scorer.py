@@ -4,16 +4,20 @@
 
 Automatically calculates CVSS scores based on finding characteristics
 and vulnerability metadata as described in Chapter 18.2.
+
+Base Score calculation follows the FIRST CVSS v3.1 specification,
+including Roundup and scope-dependent Privileges Required weights.
 """
 
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-# CVSS 3.1 metric groups
+# CVSS 3.1 metric groups (FIRST specification)
 METRIC_GROUPS = {
     "attack_vector": {
         "network": 0.85,
@@ -25,6 +29,18 @@ METRIC_GROUPS = {
         "low": 0.77,
         "high": 0.44,
     },
+    # PR weights depend on Scope — see privileges_required_unchanged / _changed
+    "privileges_required_unchanged": {
+        "none": 0.85,
+        "low": 0.62,
+        "high": 0.27,
+    },
+    "privileges_required_changed": {
+        "none": 0.85,
+        "low": 0.68,
+        "high": 0.50,
+    },
+    # Legacy alias kept for callers that look up METRIC_GROUPS["privileges_required"]
     "privileges_required": {
         "none": 0.85,
         "low": 0.62,
@@ -55,6 +71,19 @@ METRIC_GROUPS = {
     },
 }
 
+_IMPACT_METRICS = frozenset({"confidentiality", "integrity", "availability"})
+_INFO_SEVERITIES = frozenset({"info", "informational", "none", "unknown", ""})
+
+
+def roundup(value: float) -> float:
+    """CVSS 3.1 Roundup: smallest number to one decimal place ≥ *value*.
+
+    Spec: Roundup(x) = ceil(x * 10) / 10, with an epsilon guard against
+    floating-point representations that are infinitesimally below an exact
+    tenth (e.g. 0.1 * n stored as slightly less than the true value).
+    """
+    return math.ceil(value * 10.0 - 1e-10) / 10.0
+
 
 class Severity(str, Enum):
     NONE = "none"
@@ -62,6 +91,7 @@ class Severity(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -97,12 +127,14 @@ class CVSSVector:
 class CVSSResult:
     """Result of CVSS scoring."""
 
-    score: float = 0.0
+    score: float | None = 0.0
     severity: Severity = Severity.NONE
     vector: CVSSVector = field(default_factory=CVSSVector)
     vector_string: str = ""
     metrics: dict[str, str] = field(default_factory=dict)
     confidence: float = 1.0
+    inferred: bool = False
+    unknown: bool = False
 
 
 class CVSSScorer:
@@ -121,7 +153,7 @@ class CVSSScorer:
         "remote": ("attack_vector", "network"),
         "sqli": ("confidentiality", "high"),
         "xss": ("confidentiality", "low"),
-        "csrf": ("integrity", "medium"),
+        "csrf": ("integrity", "low"),
         "dos": ("availability", "high"),
         "auth": ("privileges_required", "none"),
         "local": ("attack_vector", "local"),
@@ -150,26 +182,32 @@ class CVSSScorer:
         else:
             impact = 7.52 * (iss - 0.029) - 3.25 * ((iss - 0.02) ** 15)
 
+        # Privileges Required weight depends on Scope (CVSS 3.1)
+        if vector.scope == "changed":
+            pr_table = METRIC_GROUPS["privileges_required_changed"]
+        else:
+            pr_table = METRIC_GROUPS["privileges_required_unchanged"]
+        pr = pr_table.get(vector.privileges_required, 0.85)
+
         # Exploitability
         exploitability = (
             8.22
             * METRIC_GROUPS["attack_vector"].get(vector.attack_vector, 0.85)
             * METRIC_GROUPS["attack_complexity"].get(vector.attack_complexity, 0.77)
-            * METRIC_GROUPS["privileges_required"].get(vector.privileges_required, 0.85)
+            * pr
             * METRIC_GROUPS["user_interaction"].get(vector.user_interaction, 0.85)
         )
 
         # Base Score
         if impact <= 0:
             base = 0.0
+        elif vector.scope == "unchanged":
+            base = min(impact + exploitability, 10.0)
         else:
-            if vector.scope == "unchanged":
-                base = min(impact + exploitability, 10.0)
-            else:
-                base = min(1.08 * (impact + exploitability), 10.0)
+            base = min(1.08 * (impact + exploitability), 10.0)
 
-        # Round to 1 decimal
-        score = round(base * 10) / 10.0
+        # FIRST Roundup — not banker's / half-up round
+        score = roundup(base) if impact > 0 else 0.0
 
         return CVSSResult(
             score=score,
@@ -186,11 +224,30 @@ class CVSSScorer:
                 "integrity": vector.integrity,
                 "availability": vector.availability,
             },
+            inferred=False,
+            unknown=False,
         )
 
     def score_from_finding(self, finding: dict[str, Any]) -> CVSSResult:
         title = (finding.get("title", "") + " " + finding.get("description", "")).lower()
-        severity = finding.get("severity", "medium").lower()
+        severity = str(finding.get("severity", "") or "").lower().strip()
+
+        # Informational / unknown findings must not invent critical scores.
+        if severity in _INFO_SEVERITIES:
+            return CVSSResult(
+                score=None,
+                severity=Severity.UNKNOWN,
+                vector=CVSSVector(
+                    confidentiality="none",
+                    integrity="none",
+                    availability="none",
+                ),
+                vector_string="",
+                metrics={},
+                confidence=0.0,
+                inferred=False,
+                unknown=True,
+            )
 
         # Auto-infer CVSS metrics from text
         inferred: dict[str, str] = {}
@@ -217,8 +274,28 @@ class CVSSScorer:
             inferred.setdefault("confidentiality", "none")
             inferred.setdefault("integrity", "none")
             inferred.setdefault("availability", "none")
+        else:
+            # Unrecognized severity without enough impact metrics → unknown
+            if not any(m in inferred for m in _IMPACT_METRICS):
+                return CVSSResult(
+                    score=None,
+                    severity=Severity.UNKNOWN,
+                    vector=CVSSVector(
+                        confidentiality="none",
+                        integrity="none",
+                        availability="none",
+                    ),
+                    vector_string="",
+                    metrics=dict(inferred),
+                    confidence=0.0,
+                    inferred=bool(inferred),
+                    unknown=True,
+                )
 
-        return self.score(**inferred)  # type: ignore[arg-type]
+        result = self.score(**inferred)  # type: ignore[arg-type]
+        result.inferred = True
+        result.confidence = 0.6 if inferred else 0.4
+        return result
 
     def score_from_cve(self, cve_id: str, description: str = "") -> CVSSResult:
         text = description.lower() if description else cve_id.lower()
@@ -229,7 +306,10 @@ class CVSSScorer:
             if keyword in text:
                 inferred[metric] = value
 
-        return self.score(**inferred)  # type: ignore[arg-type]
+        result = self.score(**inferred)  # type: ignore[arg-type]
+        result.inferred = True
+        result.confidence = 0.5
+        return result
 
     def parse_vector_string(self, vector_string: str) -> CVSSVector:
         vector = CVSSVector()
@@ -254,6 +334,7 @@ class CVSSScorer:
                 "L": "local",
                 "P": "physical",
             },
+            "attack_complexity": {"L": "low", "H": "high"},
             "privileges_required": {"N": "none", "L": "low", "H": "high"},
             "user_interaction": {"N": "none", "R": "required"},
             "scope": {"U": "unchanged", "C": "changed"},
@@ -300,11 +381,13 @@ class CVSSScorer:
 
         return vector
 
-    def _severity_from_score(self, score: float) -> Severity:
+    def _severity_from_score(self, score: float | None) -> Severity:
+        if score is None:
+            return Severity.UNKNOWN
         for severity, threshold in self.SEVERITY_THRESHOLDS:
             if score >= threshold:
                 return severity
         return Severity.NONE
 
 
-__all__ = ["CVSSScorer", "CVSSResult", "CVSSVector", "Severity"]
+__all__ = ["CVSSScorer", "CVSSResult", "CVSSVector", "Severity", "roundup", "METRIC_GROUPS"]

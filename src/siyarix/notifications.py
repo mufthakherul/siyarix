@@ -51,6 +51,9 @@ class NotificationDispatcher:
             payload = {"text": message}
 
         try:
+            from siyarix.webhooks import _validate_url
+
+            _validate_url(self.webhook_url, allow_ip=False)
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.post(self.webhook_url, json=payload)
                 response.raise_for_status()

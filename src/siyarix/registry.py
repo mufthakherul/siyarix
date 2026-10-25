@@ -376,6 +376,13 @@ class ToolRegistry:
                     reviewed = review_and_confirm(command, name, gate_result.reason)
                     if reviewed is None:
                         raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+                    if reviewed != command:
+                        # The edited text is what runs, so it has to clear the gate on its own
+                        # merits — previously the edit was collected and then discarded.
+                        recheck = self._permission_gate.check(reviewed, tool=name)
+                        if not recheck.allowed:
+                            raise PermissionDeniedError(recheck.reason)
+                        kwargs["command"] = reviewed
 
         start = time.monotonic()
         try:

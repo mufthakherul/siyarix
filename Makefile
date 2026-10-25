@@ -109,8 +109,8 @@ build-all: clean build build-deb build-installers ## Build all package formats
 docker-build: ## Build Docker development image
 	docker compose build
 
-docker-build-production: ## Build Docker production image directly
-	docker build --target production -t siyarix:latest .
+docker-build-production: ## Build Docker production image (python target)
+	docker build --target python -t siyarix:latest .
 
 docker-up: ## Start all Docker services
 	docker compose up -d

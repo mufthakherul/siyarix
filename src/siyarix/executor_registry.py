@@ -177,7 +177,7 @@ class RegistryExecutor(BaseExecutor):
                         s, executor_fn, cmd_states.get(s.id) if cmd_states else None
                     )
                     if self._budget.is_exhausted:
-                        break  # type: ignore[unreachable]
+                        break
 
             completed = sum(1 for s in plan.steps if s.is_terminal)
             pct = (completed / total_steps * 100.0) if total_steps else 100.0

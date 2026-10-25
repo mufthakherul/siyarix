@@ -3148,16 +3148,16 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _restore_tty() -> None:
         """Restore TTY to cooked mode if it was put in raw mode (e.g. by prompt_toolkit)."""
         try:
-            import termios  # type: ignore[import-not-found]
-            import tty  # type: ignore[import-not-found]
+            import termios
+            import tty
 
             fd = sys.stdin.fileno()
-            attrs = termios.tcgetattr(fd)  # type: ignore[attr-defined]
+            attrs = termios.tcgetattr(fd)
             # Only restore if currently in raw mode
-            if attrs[3] & (termios.ECHO | termios.ICANON) == 0:  # type: ignore[attr-defined]
-                tty.setcbreak(fd)  # type: ignore[attr-defined]
-                attrs[3] |= termios.ECHO | termios.ICANON  # type: ignore[attr-defined]
-                termios.tcsetattr(fd, termios.TCSANOW, attrs)  # type: ignore[attr-defined]
+            if attrs[3] & (termios.ECHO | termios.ICANON) == 0:
+                tty.setcbreak(fd)
+                attrs[3] |= termios.ECHO | termios.ICANON
+                termios.tcsetattr(fd, termios.TCSANOW, attrs)
         except Exception:
             pass
 

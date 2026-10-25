@@ -91,12 +91,21 @@ class ComplianceCheck:
         self.target = target
 
     async def run(self) -> ComplianceResult:
-        # Stub check implementation — no real evaluation performed yet
+        # Scaffold only: frameworks/controls are mapped for reporting, but
+        # automated evidence evaluation is not implemented yet. Callers must
+        # treat NOT_EVALUATED as insufficient evidence — never as a pass.
         return ComplianceResult(
             check_id=self.check_id,
             status="NOT_EVALUATED",
-            evidence_data={"target": self.target},
-            message="Control mapped; awaiting automated telemetry collection.",
+            evidence_data={
+                "target": self.target,
+                "capability": "mapping_scaffold",
+                "evaluated": False,
+            },
+            message=(
+                "Control mapped only — automated evaluation is not implemented. "
+                "Status is NOT_EVALUATED (insufficient evidence), not a pass/fail result."
+            ),
         )
 
 

@@ -34,11 +34,16 @@ from typing import Any
 
 from .security_hardening import redactor
 
+tomllib: Any
 try:
-    import tomllib
+    import tomllib as _tomllib
+
+    tomllib = _tomllib
 except ImportError:
     try:
-        import tomli as tomllib
+        import tomli as _tomli
+
+        tomllib = _tomli
     except ImportError:
         tomllib = None
 
@@ -106,9 +111,31 @@ _SEVERITY_COLORS: dict[str, str] = {
 }
 
 
+def _canonicalize_details(details: dict[str, Any] | None) -> dict[str, Any]:
+    """Redact then round-trip through sorted JSON for a stable representation.
+
+    The same canonical dict is hashed, persisted, and re-verified on reload.
+    """
+    if not details:
+        return {}
+    redacted = redactor.redact_dict(details)
+    # Round-trip through JSON so float/datetime edge cases match disk form.
+    return json.loads(json.dumps(redacted, sort_keys=True, default=str))
+
+
+def _canonicalize_user(user: str) -> str:
+    if user in ("system", ""):
+        return user
+    return redactor.redact(user)
+
+
 @dataclass
 class AuditEvent:
-    """Structured audit event"""
+    """Structured audit event.
+
+    ``user`` and ``details`` MUST already be redacted/canonicalized before
+    ``compute_hash`` — hashing and persistence share that single representation.
+    """
 
     event_id: str
     timestamp: datetime
@@ -125,11 +152,11 @@ class AuditEvent:
     hash_current: str | None = None
 
     def compute_hash(self, prev_hash: str | None = None) -> str:
-        """Compute tamper-evident SHA-256 hash (first 16 hex chars)."""
-        try:
-            details_str = json.dumps(self.details, sort_keys=True, default=str)
-        except Exception:
-            details_str = str(self.details)
+        """Compute tamper-evident SHA-256 hash (first 16 hex chars).
+
+        Hashes the exact canonical representation that ``to_dict`` persists.
+        """
+        details_str = json.dumps(self.details, sort_keys=True, separators=(",", ":"), default=str)
         data = (
             f"{self.timestamp.isoformat()}{self.event_type}{self.severity}"
             f"{self.user}{self.session_id}{self.source_ip}{self.target}"
@@ -138,30 +165,32 @@ class AuditEvent:
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
     def to_dict(self) -> dict[str, Any]:
+        # Fields are already redacted/canonicalized at log time — do not
+        # re-redact (that would diverge from the hashed representation).
         return {
             "event_id": self.event_id,
             "timestamp": self.timestamp.isoformat(),
             "event_type": self.event_type,
             "severity": self.severity,
-            "user": redactor.redact(self.user) if self.user not in ("system", "") else self.user,
+            "user": self.user,
             "session_id": self.session_id,
             "source_ip": self.source_ip,
             "target": self.target,
             "action": self.action,
             "result": self.result,
-            "details": self._redact_details(),
+            "details": self.details,
             "hash_prev": self.hash_prev,
             "hash_current": self.hash_current,
         }
 
     def _redact_details(self) -> dict[str, Any]:
-        """Redact sensitive values in details dict."""
+        """Return stored details (already redacted at log time)."""
         if not self.details:
             return {}
-        return redactor.redact_dict(self.details)
+        return self.details
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"), default=str)
 
     def __repr__(self) -> str:
         return (
@@ -373,7 +402,14 @@ class AuditLogger:
         session_id: str = "",
         details: dict[str, Any] | None = None,
     ) -> AuditEvent:
-        """Log audit event."""
+        """Log audit event.
+
+        Redacts and canonicalizes user/details once before hashing so the
+        persisted JSONL record verifies identically after reload.
+        """
+        safe_user = _canonicalize_user(user)
+        safe_details = _canonicalize_details(details)
+
         with self._lock:
             prev_hash = self._events[-1].hash_current if self._events else None
 
@@ -382,13 +418,13 @@ class AuditLogger:
                 timestamp=datetime.now(timezone.utc),
                 event_type=event_type,
                 severity=severity,
-                user=user,
+                user=safe_user,
                 session_id=session_id,
                 source_ip=self._get_source_ip(),
                 target=target,
                 action=action,
                 result=result,
-                details=details or {},
+                details=safe_details,
             )
 
             event.hash_prev = prev_hash

@@ -8,8 +8,10 @@ from unittest.mock import MagicMock, patch
 
 
 from siyarix.shell_review import (
+    PREAUTHORIZED_ENV_VAR,
     ReviewDecision,
     ReviewResult,
+    is_preauthorized,
     review_and_confirm,
     review_command,
 )
@@ -171,3 +173,35 @@ class TestReviewAndConfirm:
         )
         result = review_and_confirm("rm -rf /", "shell", "destructive")
         assert result == "rm -rf /"
+
+    @patch("siyarix.shell_review.sys.stdin")
+    @patch("siyarix.shell_review.sys.stdout")
+    def test_noninteractive_fails_closed(
+        self, mock_stdout: MagicMock, mock_stdin: MagicMock, monkeypatch
+    ) -> None:
+        mock_stdin.isatty.return_value = False
+        mock_stdout.isatty.return_value = False
+        monkeypatch.delenv(PREAUTHORIZED_ENV_VAR, raising=False)
+        assert review_and_confirm("echo audit", "shell", "needs review") is None
+        result = review_command("echo audit", "shell", "needs review")
+        assert result.decision == ReviewDecision.CANCEL
+
+    @patch("siyarix.shell_review.sys.stdin")
+    @patch("siyarix.shell_review.sys.stdout")
+    def test_noninteractive_preauthorized_allows(
+        self, mock_stdout: MagicMock, mock_stdin: MagicMock, monkeypatch
+    ) -> None:
+        mock_stdin.isatty.return_value = False
+        mock_stdout.isatty.return_value = False
+        monkeypatch.setenv(PREAUTHORIZED_ENV_VAR, "1")
+        assert review_and_confirm("echo audit", "shell", "needs review") == "echo audit"
+        result = review_command("echo audit", "shell", "needs review")
+        assert result.decision == ReviewDecision.RUN
+
+    def test_is_preauthorized_reads_env(self, monkeypatch) -> None:
+        monkeypatch.setenv(PREAUTHORIZED_ENV_VAR, "true")
+        assert is_preauthorized() is True
+        monkeypatch.setenv(PREAUTHORIZED_ENV_VAR, "0")
+        assert is_preauthorized() is False
+        monkeypatch.delenv(PREAUTHORIZED_ENV_VAR, raising=False)
+        assert is_preauthorized() is False

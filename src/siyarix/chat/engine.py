@@ -287,10 +287,10 @@ class LLMEngineMixin:
                 console.print(
                     Panel(
                         "\n".join(
-                            f"[{'red' if f.severity in ('critical', 'high') else 'yellow'}]"
-                            f"{'🔴' if f.severity == 'critical' else '⚠'} "
-                            f"[{f.severity.upper()}] {f.message}[/]\n"
-                            f"  [dim]Suggestion: {f.suggestion}[/dim]"
+                            f"[{'red' if f.severity in (AdversarialSeverity.CRITICAL, AdversarialSeverity.HIGH) else 'yellow'}]"
+                            f"{'!' if f.severity == AdversarialSeverity.CRITICAL else '*'} "
+                            f"[{f.severity.value.upper()}] {f.message}[/]\n"
+                            f"  [dim]Suggestion: {f.suggestion or 'Review this step carefully.'}[/dim]"
                             for f in findings[:5]
                         )
                         + (
@@ -298,7 +298,7 @@ class LLMEngineMixin:
                             if len(findings) > 5
                             else ""
                         ),
-                        title=f"[bold {'red' if critical else 'yellow'}]🔍 Adversarial Review ({len(findings)} findings)"
+                        title=f"[bold {'red' if critical else 'yellow'}]Adversarial Review ({len(findings)} findings)"
                         f"{' — ' + str(len(critical)) + ' critical' if critical else ''}"
                         f"{' — ' + str(len(high)) + ' high' if high else ''}[/bold {'red' if critical else 'yellow'}]",
                         border_style="red" if critical else "yellow",
@@ -1900,7 +1900,7 @@ class LLMEngineMixin:
                             async for text in stream_ctx.text_stream:
                                 yield text
 
-                    return _gen()  # type: ignore[no-any-return]
+                    return _gen()
                 hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
                 msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
                 msg = await anthropic_client.messages.create(

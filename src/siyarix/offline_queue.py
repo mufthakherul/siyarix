@@ -7,10 +7,11 @@ import sqlite3
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, Callable, Generator, cast
 
 from siyarix.config import get_config_dir
 
@@ -58,33 +59,54 @@ class OfflineCommandQueue:
 
     def _conn(self) -> sqlite3.Connection:
         if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self._db_path, timeout=30, check_same_thread=False)
+            # isolation_level=None → autocommit; explicit BEGIN/COMMIT via _transaction.
+            self._local.conn = sqlite3.connect(
+                self._db_path, timeout=30, check_same_thread=False, isolation_level=None
+            )
             self._local.conn.row_factory = sqlite3.Row
             self._local.conn.execute("PRAGMA journal_mode=WAL")
             self._local.conn.execute("PRAGMA busy_timeout=30000")
             self._local.conn.execute("PRAGMA synchronous=NORMAL")
         return cast(sqlite3.Connection, self._local.conn)
 
-    def _init_db(self) -> None:
+    @contextmanager
+    def _transaction(self) -> Generator[sqlite3.Connection, None, None]:
+        """Explicit SQLite transaction: COMMIT on success, ROLLBACK on error."""
         conn = self._conn()
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS queued_commands (
-                id TEXT PRIMARY KEY,
-                instruction TEXT NOT NULL,
-                target TEXT DEFAULT '',
-                mode TEXT DEFAULT 'offline',
-                status TEXT DEFAULT 'pending',
-                created_at TEXT DEFAULT (datetime('now')),
-                attempts INTEGER DEFAULT 0,
-                max_attempts INTEGER DEFAULT 3,
-                last_error TEXT DEFAULT '',
-                result_summary TEXT DEFAULT '',
-                dependencies TEXT DEFAULT '[]'
-            );
-            CREATE INDEX IF NOT EXISTS idx_queue_status ON queued_commands(status);
-            CREATE INDEX IF NOT EXISTS idx_queue_created ON queued_commands(created_at);
-        """)
-        conn.commit()
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield conn
+            conn.execute("COMMIT")
+        except Exception:
+            try:
+                conn.execute("ROLLBACK")
+            except sqlite3.Error:
+                logger.debug("ROLLBACK failed after transaction error", exc_info=True)
+            raise
+
+    def _init_db(self) -> None:
+        with self._transaction() as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS queued_commands (
+                    id TEXT PRIMARY KEY,
+                    instruction TEXT NOT NULL,
+                    target TEXT DEFAULT '',
+                    mode TEXT DEFAULT 'offline',
+                    status TEXT DEFAULT 'pending',
+                    created_at TEXT DEFAULT (datetime('now')),
+                    attempts INTEGER DEFAULT 0,
+                    max_attempts INTEGER DEFAULT 3,
+                    last_error TEXT DEFAULT '',
+                    result_summary TEXT DEFAULT '',
+                    dependencies TEXT DEFAULT '[]'
+                )
+            """)
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_queue_status ON queued_commands(status)"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_queue_created ON queued_commands(created_at)"
+            )
 
     def enqueue(
         self,
@@ -97,20 +119,21 @@ class OfflineCommandQueue:
         cmd_id = uuid.uuid4().hex
         now = datetime.now(timezone.utc).isoformat()
         with self._lock:
-            conn = self._conn()
-            conn.execute(
-                "INSERT INTO queued_commands (id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
-                "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
-                (
-                    cmd_id,
-                    instruction,
-                    target,
-                    mode,
-                    now,
-                    max_attempts,
-                    json.dumps(dependencies or []),
-                ),
-            )
+            with self._transaction() as conn:
+                conn.execute(
+                    "INSERT INTO queued_commands "
+                    "(id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
+                    "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
+                    (
+                        cmd_id,
+                        instruction,
+                        target,
+                        mode,
+                        now,
+                        max_attempts,
+                        json.dumps(dependencies or []),
+                    ),
+                )
         logger.info("Queued command %s: %s", cmd_id, instruction[:60])
         return cmd_id
 
@@ -118,7 +141,8 @@ class OfflineCommandQueue:
         with self._lock:
             conn = self._conn()
             rows = conn.execute(
-                "SELECT * FROM queued_commands WHERE status = 'pending' ORDER BY created_at ASC LIMIT ?",
+                "SELECT * FROM queued_commands WHERE status = 'pending' "
+                "ORDER BY created_at ASC LIMIT ?",
                 (batch_size,),
             ).fetchall()
             result = []
@@ -141,36 +165,38 @@ class OfflineCommandQueue:
 
     def mark_processing(self, cmd_id: str) -> None:
         with self._lock:
-            conn = self._conn()
-            conn.execute(
-                "UPDATE queued_commands SET status = 'processing', attempts = attempts + 1 WHERE id = ?",
-                (cmd_id,),
-            )
+            with self._transaction() as conn:
+                conn.execute(
+                    "UPDATE queued_commands SET status = 'processing', "
+                    "attempts = attempts + 1 WHERE id = ?",
+                    (cmd_id,),
+                )
 
     def mark_completed(self, cmd_id: str, summary: str = "") -> None:
         with self._lock:
-            conn = self._conn()
-            conn.execute(
-                "UPDATE queued_commands SET status = 'completed', result_summary = ? WHERE id = ?",
-                (summary, cmd_id),
-            )
+            with self._transaction() as conn:
+                conn.execute(
+                    "UPDATE queued_commands SET status = 'completed', result_summary = ? WHERE id = ?",
+                    (summary, cmd_id),
+                )
 
     def mark_failed(self, cmd_id: str, error: str) -> None:
         with self._lock:
-            conn = self._conn()
-            row = conn.execute(
-                "SELECT attempts, max_attempts FROM queued_commands WHERE id = ?", (cmd_id,)
-            ).fetchone()
-            if row and row["attempts"] >= row["max_attempts"]:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'failed', last_error = ? WHERE id = ?",
-                    (error, cmd_id),
-                )
-            else:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'pending', last_error = ? WHERE id = ?",
-                    (error, cmd_id),
-                )
+            with self._transaction() as conn:
+                row = conn.execute(
+                    "SELECT attempts, max_attempts FROM queued_commands WHERE id = ?",
+                    (cmd_id,),
+                ).fetchone()
+                if row and row["attempts"] >= row["max_attempts"]:
+                    conn.execute(
+                        "UPDATE queued_commands SET status = 'failed', last_error = ? WHERE id = ?",
+                        (error, cmd_id),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE queued_commands SET status = 'pending', last_error = ? WHERE id = ?",
+                        (error, cmd_id),
+                    )
 
     def get_pending_count(self) -> int:
         conn = self._conn()
@@ -218,22 +244,33 @@ class OfflineCommandQueue:
 
     def retry_failed(self, max_items: int = 10) -> int:
         with self._lock:
-            conn = self._conn()
-            conn.execute(
-                "UPDATE queued_commands SET status = 'pending', attempts = 0 WHERE status = 'failed' LIMIT ?",
-                (max_items,),
-            )
-            count = conn.total_changes
-            return count
+            with self._transaction() as conn:
+                # SQLite UPDATE…LIMIT is not portable; select then update.
+                rows = conn.execute(
+                    "SELECT id FROM queued_commands WHERE status = 'failed' "
+                    "ORDER BY created_at ASC LIMIT ?",
+                    (max_items,),
+                ).fetchall()
+                ids = [row["id"] for row in rows]
+                if not ids:
+                    return 0
+                placeholders = ",".join("?" * len(ids))
+                conn.execute(
+                    f"UPDATE queued_commands SET status = 'pending', attempts = 0 "
+                    f"WHERE id IN ({placeholders})",
+                    ids,
+                )
+                return len(ids)
 
     def clear_completed(self, older_than_days: int = 7) -> int:
         with self._lock:
-            conn = self._conn()
-            conn.execute(
-                "DELETE FROM queued_commands WHERE status = 'completed' AND created_at < datetime('now', ?)",
-                (f"-{older_than_days} days",),
-            )
-            return conn.total_changes
+            with self._transaction() as conn:
+                cur = conn.execute(
+                    "DELETE FROM queued_commands WHERE status = 'completed' "
+                    "AND created_at < datetime('now', ?)",
+                    (f"-{older_than_days} days",),
+                )
+                return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 
     def stats(self) -> dict[str, int]:
         self._conn()

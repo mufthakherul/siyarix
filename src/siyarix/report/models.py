@@ -45,6 +45,8 @@ class ReportConfig:
     include_appendix: bool = True
     cvss_scoring: bool = True
     template_name: str = "default"
+    # Default True: air-gapped / production reports avoid CDN font fetches.
+    offline: bool = True
 
 
 @dataclass

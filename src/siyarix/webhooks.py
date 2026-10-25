@@ -21,17 +21,48 @@ from siyarix.events import get_event_bus, Event, EventType
 logger = logging.getLogger(__name__)
 
 
+_BLOCKED_WEBHOOK_HOSTS = frozenset(
+    {
+        "localhost",
+        "metadata.google.internal",
+        "metadata.goog",
+        "instance-data",
+    }
+)
+
+
 def _validate_url(url: str, *, allow_ip: bool = False) -> None:
-    """Validate URL has allowed scheme and (optionally) non-IP hostname."""
+    """Validate webhook destination URL (scheme + anti-SSRF host checks).
+
+    Rejects IP literals by default (including private/link-local/metadata),
+    loopback hostnames, and well-known cloud metadata DNS names.
+    """
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise ValueError(f"URL scheme must be http or https, got: {parsed.scheme!r}")
-    if not allow_ip and parsed.hostname:
-        try:
-            ipaddress.ip_address(parsed.hostname)
-            raise ValueError(f"IP address hostname not allowed: {parsed.hostname}")
-        except ValueError:
-            pass
+    host = (parsed.hostname or "").strip().lower()
+    if not host:
+        raise ValueError("URL must include a hostname")
+    if host in _BLOCKED_WEBHOOK_HOSTS or host.endswith(".localhost"):
+        raise ValueError(f"Blocked webhook hostname: {host}")
+
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        ip = None
+
+    if ip is not None:
+        if not allow_ip:
+            raise ValueError(f"IP address hostname not allowed: {host}")
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            raise ValueError(f"Blocked destination IP range: {host}")
 
 
 class WebhookDispatcher:

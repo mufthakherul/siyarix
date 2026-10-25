@@ -97,19 +97,30 @@ services:
           cpus: '0.5'
           memory: 256M
 
-  # ----  Redis (optional, enables caching)  ---------------------------------
+  # ----  Redis (opt-in via --profile redis; never published by default)  ----
+  # Bind only to loopback when a host port is required. Prefer the internal
+  # network DNS name ``redis:6379`` from sibling services. Set REDIS_PASSWORD
+  # (required) so the instance is never an open cache on the compose network.
   redis:
     image: redis:7-alpine
     container_name: siyarix-redis
     restart: unless-stopped
+    profiles:
+      - redis
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?Set REDIS_PASSWORD when enabling the redis profile}
+      - --protected-mode
+      - "yes"
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     networks:
       - siyarix_net
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       start_period: 5s

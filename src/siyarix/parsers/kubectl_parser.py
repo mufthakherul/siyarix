@@ -47,7 +47,7 @@ class KubectlParser:
             pass
         return findings
 
-    def _parse_items(self, data, findings: list[dict[str, Any]]) -> None:  # type: ignore
+    def _parse_items(self, data, findings: list[dict[str, Any]]) -> None:
         if isinstance(data, dict):
             kind = data.get("kind", "Unknown")
             name = data.get("metadata", {}).get("name", "unknown")

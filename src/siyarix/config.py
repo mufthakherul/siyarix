@@ -100,7 +100,16 @@ def get_config_dir() -> Path:
 
 
 def get_settings_file() -> Path:
-    """Return the canonical settings.toml file path."""
+    """Return the active settings file path.
+
+    Prefer an explicit ``SIYARIX_CONFIG`` file (TOML/JSON/YAML) when set;
+    otherwise use ``<config-dir>/settings.toml``.
+    """
+    override = os.getenv("SIYARIX_CONFIG")
+    if override:
+        candidate = Path(override).expanduser().resolve()
+        if candidate.is_file():
+            return candidate
     return get_config_dir() / "settings.toml"
 
 
@@ -504,6 +513,26 @@ def _flatten_dict(d: dict[str, Any], parent_key: str = "") -> dict[str, Any]:
     return items
 
 
+def _try_load_settings(path: Path) -> dict[str, Any]:
+    """Load a settings file (TOML, JSON, or YAML); empty dict on error/missing."""
+    if not path.exists() or not path.is_file():
+        return {}
+    suffix = path.suffix.lower()
+    try:
+        if suffix == ".json":
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            return _flatten_dict(raw) if isinstance(raw, dict) else {}
+        if suffix in {".yaml", ".yml"}:
+            import yaml
+
+            raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+            return _flatten_dict(raw) if isinstance(raw, dict) else {}
+    except Exception as exc:
+        logger.exception("Failed to parse settings file %s: %s", path, exc)
+        return {}
+    return _try_load_toml(path)
+
+
 def _try_load_toml(path: Path) -> dict[str, Any]:
     """Load TOML file; returns empty dict on any error."""
     if not path.exists():
@@ -625,9 +654,21 @@ class SettingsStore:
         self._lock = threading.RLock()
         with self._lock:
             self._path = path or get_settings_file()
-            self._data: dict[str, Any] = {**DEFAULTS, **_try_load_toml(self._path)}
+            self._data: dict[str, Any] = {**DEFAULTS, **_try_load_settings(self._path)}
             self._apply_env_overrides()
             self._initialized = True
+
+    def reload(self, path: Path | None = None) -> None:
+        """Reload settings from *path* (or the current path) into this store.
+
+        Used by ``siyarix --config`` so a one-shot override replaces the
+        import-time singleton without rewriting the user's default file.
+        """
+        with self._lock:
+            if path is not None:
+                self._path = Path(path).expanduser().resolve()
+            self._data = {**DEFAULTS, **_try_load_settings(self._path)}
+            self._apply_env_overrides()
 
     def _apply_env_overrides(self) -> None:
         for env_key, config_key in _ENV_TO_CONFIG.items():
@@ -1099,7 +1140,7 @@ class SettingsStore:
                 return json.dumps(export_data, indent=2)
             if fmt == "yaml":
                 try:
-                    import yaml  # type: ignore[import-untyped]
+                    import yaml
 
                     return str(yaml.dump(export_data, default_flow_style=False, sort_keys=True))
                 except ImportError:

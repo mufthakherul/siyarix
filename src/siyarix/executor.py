@@ -310,91 +310,18 @@ class BaseExecutor:
     async def _apply_dlp(self, result: dict[str, Any]) -> dict[str, Any]:
         dlp = _get_dlp_engine()
         if dlp is not None and isinstance(result, dict):
-            return dlp.redact_dict(result)  # type: ignore[no-any-return]
+            return dlp.redact_dict(result)
         return result
 
     def check_scope(self, command: str) -> None:
-        """Enforce authorized targets check against SIYARIX_ALLOWED_SCOPE."""
-        import os
-        import ipaddress
-        import re
+        """Enforce authorized targets check against SIYARIX_ALLOWED_SCOPE.
 
-        scope_env = os.environ.get("SIYARIX_ALLOWED_SCOPE", "")
-        if not scope_env:
-            return
+        Delegates to :mod:`siyarix.target_scope` (IPv4/IPv6, no public-domain
+        exemptions, fail-closed for domains under CIDR-only scopes).
+        """
+        from .target_scope import assert_command_in_scope
 
-        allowed_items = [item.strip().lower() for item in scope_env.split(",") if item.strip()]
-        if not allowed_items:
-            return
-
-        ipv4_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
-        domain_pattern = r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b"
-
-        found_ips = re.findall(ipv4_pattern, command)
-        found_domains = [d.lower() for d in re.findall(domain_pattern, command)]
-
-        whitelist = {
-            "github.com",
-            "python.org",
-            "pypi.org",
-            "google.com",
-            "microsoft.com",
-            "ubuntu.com",
-            "debian.org",
-            "apple.com",
-            "crt.sh",
-            "localhost",
-        }
-
-        # Verify IPs
-        for ip_str in found_ips:
-            if ip_str == "127.0.0.1":
-                continue
-            is_allowed = False
-            try:
-                ip = ipaddress.ip_address(ip_str)
-                for allowed in allowed_items:
-                    if "/" in allowed:
-                        net = ipaddress.ip_network(allowed, strict=False)
-                        if ip in net:
-                            is_allowed = True
-                            break
-                    else:
-                        try:
-                            allowed_ip = ipaddress.ip_address(allowed)
-                            if ip == allowed_ip:
-                                is_allowed = True
-                                break
-                        except ValueError:
-                            pass
-            except ValueError:
-                continue
-
-            if not is_allowed:
-                raise PermissionDeniedError(
-                    f"Target IP {ip_str} is out of authorized scope: {scope_env}"
-                )
-
-        # Verify Domains
-        for domain in found_domains:
-            if domain in whitelist or domain.endswith(".local") or domain == "localhost":
-                continue
-            is_allowed = False
-            for allowed in allowed_items:
-                if allowed.startswith("*."):
-                    suffix = allowed[1:]
-                    if domain.endswith(suffix) or domain == allowed[2:]:
-                        is_allowed = True
-                        break
-                elif domain == allowed:
-                    is_allowed = True
-                    break
-
-            has_domain_in_scope = any(not re.match(r"^[\d./]+$", x) for x in allowed_items)
-            if not is_allowed and has_domain_in_scope:
-                raise PermissionDeniedError(
-                    f"Target domain {domain} is out of authorized scope: {scope_env}"
-                )
+        assert_command_in_scope(command)
 
     def check_destructive(self, command: str) -> None:
         """Block fork bombs, block device overwrites, system dir deletions, and partitioning."""

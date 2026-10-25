@@ -3297,7 +3297,7 @@ class CommandHandlersMixin:
         path = self._alias_store_path()
         if path.exists():
             try:
-                return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+                return json.loads(path.read_text(encoding="utf-8"))
             except Exception:
                 pass
         return {}
@@ -3961,7 +3961,7 @@ class CommandHandlersMixin:
                 console.print(f"[red]Playbook not found: {name}[/red]")
                 return
             try:
-                import yaml  # type: ignore[import-untyped]
+                import yaml
 
                 playbook = yaml.safe_load(pb_path.read_text(encoding="utf-8"))
                 steps = playbook.get("steps", []) if isinstance(playbook, dict) else []

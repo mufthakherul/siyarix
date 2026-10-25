@@ -435,16 +435,24 @@ class TestCoreExecution:
         assert sub._knowledge_graph is core._knowledge_graph
 
     def test_execute_subagent(self):
-        core = AgentCore()
-        with patch.object(core, "start") as mock_start:
-            with patch.object(core, "execute_goal") as mock_exec:
-                mock_exec.return_value = AgentResult(goal="test")
-                import asyncio
+        """Subagent execution must use the created child, not parent start/execute."""
+        import asyncio
 
-                try:
-                    result = asyncio.run(core.execute_subagent("analyst", "test goal"))
-                except Exception:
-                    pass
+        core = AgentCore()
+        mock_child = MagicMock()
+        mock_child.start = AsyncMock()
+        mock_child.shutdown = AsyncMock()
+        mock_child.execute_goal = AsyncMock(return_value=AgentResult(goal="test goal", success=True))
+
+        with patch.object(core, "create_subagent", return_value=mock_child) as mock_create:
+            result = asyncio.run(core.execute_subagent("analyst", "test goal"))
+
+        mock_create.assert_called_once_with("analyst")
+        mock_child.start.assert_awaited()
+        mock_child.execute_goal.assert_awaited()
+        mock_child.shutdown.assert_awaited()
+        assert result.success is True
+        assert result.goal == "test goal"
 
 
 # ═══════════════════════════════════════════════════════════════════

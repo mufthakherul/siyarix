@@ -200,7 +200,9 @@ def make_prompt_bar(
         mode, provider, session_id, msg_count, uptime_seconds, theme, persona or ""
     )
     bottom = make_prompt_bottom(show_hint)
-    return Text.assemble(top, "\n", bottom)
+    top_text = top if isinstance(top, Text) else Text.from_markup(str(top))
+    bottom_text = bottom if isinstance(bottom, Text) else Text.from_markup(str(bottom))
+    return Text.assemble(top_text, "\n", bottom_text)
 
 
 def _pt_mode_color(mode: str) -> str:

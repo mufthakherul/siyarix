@@ -17,8 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+winreg: Any
 try:
-    import winreg
+    import winreg as _winreg
+
+    winreg = _winreg
 except ImportError:
     from unittest.mock import MagicMock as _MagicMock
 

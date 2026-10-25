@@ -383,7 +383,7 @@ def repair_plan_payload(raw: Any) -> dict[str, Any] | None:
 
     # 3. Try YAML parsing if available
     try:
-        import yaml  # type: ignore[import-untyped]
+        import yaml
 
         cleaned_fence = re.sub(r"^```(?:yaml)?\s*", "", text.strip(), flags=re.IGNORECASE)
         cleaned_fence = re.sub(r"\s*```$", "", cleaned_fence).strip()

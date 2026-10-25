@@ -288,7 +288,7 @@ def resolve_model(
     else:
         raw_model = default_model
     if provider_manager and hasattr(provider_manager, "resolve_model_id"):
-        return provider_manager.resolve_model_id(provider, raw_model)  # type: ignore[no-any-return]
+        return provider_manager.resolve_model_id(provider, raw_model)
     return raw_model or default_model or provider
 
 

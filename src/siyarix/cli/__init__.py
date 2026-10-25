@@ -514,8 +514,8 @@ async def _run_onboarding() -> None:
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
-    config: str = typer.Option(
-        None, "--config", "-c", help="Path to custom config file (YAML/JSON)"
+    config_file: str = typer.Option(
+        None, "--config", "-c", help="Path to custom config file (TOML/JSON/YAML)"
     ),
     batch: str = typer.Option(None, "--batch", "-b", help="Path to batch script file to execute"),
     mode: str = typer.Option(
@@ -529,18 +529,6 @@ def main_callback(
     resume: bool = typer.Option(False, "--resume", help="Resume an existing session"),
     version: bool = typer.Option(False, "--version", help="Show version information"),
 ) -> None:
-    if version:
-        _show_version()
-        raise typer.Exit()
-
-    mode_val: Any = mode
-    if mode_val is None:
-        try:
-            from siyarix.config import SettingsStore
-
-            mode = SettingsStore().get("default_mode") or "integrated"
-        except Exception:
-            mode = "integrated"
     """Siyarix CLI — unified entry point.
 
     Usage:
@@ -548,15 +536,36 @@ def main_callback(
       echo "<cmd>" | siyarix         — Pipe commands via stdin
       siyarix                        — Launch interactive chat
     """
-    if config:
-        resolved = Path(config).expanduser().resolve()
-        if resolved.exists():
+    global _active_theme
+
+    if version:
+        _show_version()
+        raise typer.Exit()
+
+    if config_file:
+        resolved = Path(config_file).expanduser().resolve()
+        if resolved.is_file():
+            # Point the settings loader at this file for this process only.
+            # Do NOT rewrite SIYARIX_CONFIG_DIR — that would make subsequent
+            # lookups invent a sibling settings.toml and ignore the selection.
             os.environ["SIYARIX_CONFIG"] = str(resolved)
-            os.environ["SIYARIX_CONFIG_DIR"] = str(resolved.parent)
+            try:
+                config.reload(resolved)  # module-level SettingsStore singleton
+            except Exception as exc:
+                console.print(f"[red]Failed to load config {resolved}: {exc}[/red]")
+                raise typer.Exit(1)
+            _active_theme = str(config.get("color_theme") or "default")
             console.print(f"[dim]Loaded config: {resolved}[/dim]")
         else:
             console.print(f"[red]Config file not found: {resolved}[/red]")
             raise typer.Exit(1)
+
+    mode_val: Any = mode
+    if mode_val is None:
+        try:
+            mode = str(config.get("default_mode") or "integrated")
+        except Exception:
+            mode = "integrated"
 
     # --batch file mode (file-based, non-interactive)
     if batch:
@@ -1545,7 +1554,7 @@ def scan(
         parent_params = ctx.parent.params if ctx.parent else {}
         mode = str(parent_params.get("mode", "integrated"))
 
-    _execute_scan_core(
+    result = _execute_scan_core(
         targets,
         tool=tool,
         mode=mode,
@@ -1558,6 +1567,8 @@ def scan(
         parallel=_parallel,
         notify=_notify,
     )
+    if result is not None and not getattr(result, "success", True):
+        raise typer.Exit(1)
 
 
 def _execute_scan_core(
@@ -1645,23 +1656,37 @@ def _execute_scan_core(
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
         return result
-    if result.all_findings:
-        if output in ("json", "yaml", "csv"):
+    if output == "quiet":
+        pass
+    elif result.all_findings:
+        if output in ("json", "yaml", "csv", "html"):
             try:
                 from ..output import OutputEngine
 
                 output_engine = OutputEngine(output_format=output)
+
+                def _as_dict(finding: Any) -> dict[str, Any]:
+                    if isinstance(finding, dict):
+                        return finding
+                    if hasattr(finding, "to_dict"):
+                        return finding.to_dict()
+                    try:
+                        return vars(finding)
+                    except TypeError:
+                        return {"value": finding}
+
+                findings_dicts = [_as_dict(f) for f in result.all_findings]
                 if output == "json":
-                    output_engine.print_json(result.all_findings)
+                    output_engine.print_json(findings_dicts)
                 elif output == "yaml":
-                    output_engine.print_yaml(result.all_findings)
+                    output_engine.print_yaml(findings_dicts)
                 elif output == "csv":
-                    if result.all_findings:
-                        findings_dicts = [
-                            f.to_dict() if hasattr(f, "to_dict") else vars(f)
-                            for f in result.all_findings
-                        ]
-                        output_engine.print_csv(findings_dicts)
+                    output_engine.print_csv(findings_dicts)
+                elif output == "html":
+                    if hasattr(output_engine, "print_html"):
+                        output_engine.print_html(findings_dicts)
+                    else:
+                        output_engine.print_json(findings_dicts)
             except ImportError:
                 _display_findings_table(result.all_findings)
         else:
@@ -1849,7 +1874,9 @@ def discover(
 @app.command()
 def run(
     ctx: typer.Context,
-    command: str = typer.Argument(help="Natural language command or tool name"),
+    command: str | None = typer.Argument(
+        None, help="Natural language command or tool name (optional with --resume)"
+    ),
     target: str = typer.Option("", "--target", "-t", help="Target for the command"),
     mode: str = typer.Option(
         None,
@@ -1895,8 +1922,16 @@ def run(
                 raise typer.Exit(1)
         engine = _get_engine(mode)
         console.print(f"[cyan]Resuming plan: {resolved_id}[/cyan]")
-        run_async(engine.resume(resolved_id, interactive=True))
+        resume_result = run_async(engine.resume(resolved_id, interactive=True))
+        if resume_result is not None and not getattr(resume_result, "success", True):
+            raise typer.Exit(1)
         return
+
+    if not command:
+        console.print(
+            "[red]Missing command. Pass an instruction, or use --resume <id|latest>.[/red]"
+        )
+        raise typer.Exit(2)
 
     instruction = command
     if target:
@@ -1996,6 +2031,8 @@ def run(
         artifact=result.plan_id or "",
     )
     session_kernel.save(session)
+    if not result.success:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -2157,6 +2194,102 @@ def ci_gate(
             raise typer.Exit(3)
 
     console.print("[green]✓ CI gate passed[/green]")
+
+
+@app.command("production-check")
+def production_check(
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
+    strict: bool = typer.Option(
+        False, "--strict", help="Exit nonzero when any check is warn/fail"
+    ),
+) -> None:
+    """Production readiness checklist (security gates, offline posture, config)."""
+    import os as _os
+
+    from ..shell_review import is_preauthorized
+    from ..webhooks import _validate_url
+
+    checks: list[dict[str, str]] = []
+
+    def _add(name: str, status: str, detail: str) -> None:
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    _add(
+        "python",
+        "pass" if sys.version_info >= (3, 11) else "fail",
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+    )
+
+    preauth = is_preauthorized()
+    _add(
+        "shell_review",
+        "warn" if preauth else "pass",
+        "SIYARIX_PREAUTHORIZED=1 (non-interactive auto-approve)"
+        if preauth
+        else "fail-closed unless preauthorized",
+    )
+
+    offline = _os.environ.get("SIYARIX_OFFLINE", "").strip().lower() in {"1", "true", "yes"}
+    _add(
+        "offline_mode",
+        "pass" if offline else "info",
+        "SIYARIX_OFFLINE enabled" if offline else "online (CDN fonts optional in reports)",
+    )
+
+    webhook = _os.environ.get("SIYARIX_WEBHOOK_URL", "").strip()
+    if not webhook:
+        _add("webhook", "info", "SIYARIX_WEBHOOK_URL unset")
+    else:
+        try:
+            _validate_url(webhook, allow_ip=False)
+            _add("webhook", "pass", "destination URL policy ok")
+        except ValueError as exc:
+            _add("webhook", "fail", str(exc))
+
+    redis_url = _os.environ.get("REDIS_URL") or _os.environ.get("SIYARIX_REDIS_URL")
+    _add(
+        "redis",
+        "info" if not redis_url else "pass",
+        "not configured (compose profile optional)" if not redis_url else "REDIS_URL set",
+    )
+
+    try:
+        from ..credential_store import CredentialStore
+
+        store = CredentialStore()
+        backend = type(store).__name__
+        _add("credentials", "pass", f"store={backend}")
+    except Exception as exc:  # pragma: no cover - defensive
+        _add("credentials", "warn", f"unavailable: {exc}")
+
+    health = run_async(get_health().check_all())
+    _add("health", health.state.value, f"{len(health.components)} components checked")
+
+    fails = sum(1 for c in checks if c["status"] in {"fail", "unhealthy"})
+    warns = sum(1 for c in checks if c["status"] in {"warn", "degraded"})
+
+    payload = {"checks": checks, "fails": fails, "warns": warns}
+    if output == "json":
+        console.print(json.dumps(payload, indent=2))
+    else:
+        table = Table(title="Siyarix Production Check", header_style="bold cyan")
+        table.add_column("Check", style="cyan")
+        table.add_column("Status", style="magenta")
+        table.add_column("Detail", style="white")
+        for c in checks:
+            table.add_row(c["name"], c["status"], c["detail"])
+        console.print(table)
+        if fails:
+            console.print(f"[red]{fails} failing check(s)[/red]")
+        elif warns:
+            console.print(f"[yellow]{warns} warning(s) — review before production[/yellow]")
+        else:
+            console.print("[green]✓ Production checks look good[/green]")
+
+    if strict and (fails or warns):
+        raise typer.Exit(2)
+    if fails:
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -3011,7 +3144,11 @@ def compliance_run(
     engine = ComplianceEngine()
 
     async def _run() -> None:
-        console.print(f"[green]Starting {framework} compliance assessment for {target}...[/green]")
+        console.print(
+            f"[cyan]Starting {framework} compliance mapping for {target}...[/cyan]\n"
+            "[yellow]Note: checks are a control-mapping scaffold. "
+            "NOT_EVALUATED means insufficient automated evidence — not a pass.[/yellow]"
+        )
         try:
             report = await engine.run_assessment(framework, target)
             table = Table(
@@ -3032,7 +3169,8 @@ def compliance_run(
                 )
             console.print(table)
             console.print(
-                f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]"
+                f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]\n"
+                "[dim](mapping scaffold — NOT_EVALUATED is not a pass)[/dim]"
             )
         except Exception as e:
             console.print(f"[red]Assessment failed: {e}[/red]")
@@ -3096,6 +3234,49 @@ playbook_app = typer.Typer(help="Manage and run YAML playbooks.")
 app.add_typer(playbook_app, name="playbook")
 
 
+def _builtin_playbook_dir() -> Path:
+    """Directory of playbooks shipped inside the installed package."""
+    return Path(__file__).resolve().parents[1] / "data" / "playbooks"
+
+
+def _resolve_playbook_path(path: str, dir_path: str | None = None) -> Path | None:
+    """Resolve a playbook from an explicit path, cwd, or built-in package data."""
+    candidate = Path(path)
+    if candidate.exists():
+        return candidate
+    search_roots = []
+    if dir_path:
+        search_roots.append(Path(dir_path))
+    search_roots.extend([Path("playbooks"), _builtin_playbook_dir()])
+    names = [path, f"{path}.yaml", f"{path}.yml"]
+    for root in search_roots:
+        for name in names:
+            hit = root / name
+            if hit.exists():
+                return hit
+    return None
+
+
+def _iter_playbook_files(dir_path: str | None = None) -> list[Path]:
+    """List playbooks from an explicit dir, else cwd + built-in package data."""
+    roots: list[Path] = []
+    if dir_path and dir_path != "playbooks":
+        roots.append(Path(dir_path))
+    else:
+        roots.extend([Path("playbooks"), _builtin_playbook_dir()])
+    files: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for pattern in ("*.yaml", "*.yml"):
+            for f in sorted(root.glob(pattern)):
+                if f.name not in seen:
+                    files.append(f)
+                    seen.add(f.name)
+    return files
+
+
 @playbook_app.command("run")
 def playbook_run(
     path: str = typer.Argument(..., help="Path to playbook YAML file"),
@@ -3114,16 +3295,10 @@ def playbook_run(
             k, val = v.split("=", 1)
             variables[k] = val
 
-    p = Path(path)
-    if not p.exists():
-        for candidate in (
-            Path("playbooks") / path,
-            Path("playbooks") / f"{path}.yaml",
-            Path("playbooks") / f"{path}.yml",
-        ):
-            if candidate.exists():
-                p = candidate
-                break
+    p = _resolve_playbook_path(path)
+    if p is None:
+        console.print(f"[red]Playbook '{path}' not found (checked cwd and built-in package).[/red]")
+        raise typer.Exit(1)
 
     engine = PlaybookEngine(WorkflowEngine())
     core = AgentCore()
@@ -3140,26 +3315,34 @@ def playbook_run(
 
 @playbook_app.command("list")
 def playbook_list(
-    dir_path: str = typer.Option("playbooks", "--dir", "-d", help="Directory containing playbooks"),
+    dir_path: str = typer.Option(
+        "playbooks",
+        "--dir",
+        "-d",
+        help="Directory containing playbooks (also searches built-in package data)",
+    ),
 ) -> None:
     """List available playbooks."""
-    p = Path(dir_path)
-    if not p.exists() or not p.is_dir():
-        console.print(f"[yellow]Directory '{dir_path}' not found.[/yellow]")
-        return
-    files = sorted(set(list(p.glob("*.yaml")) + list(p.glob("*.yml"))))
+    files = _iter_playbook_files(dir_path)
     if not files:
-        console.print(f"[yellow]No playbooks found in '{dir_path}'.[/yellow]")
+        if dir_path and dir_path != "playbooks" and not Path(dir_path).is_dir():
+            console.print(f"[yellow]Directory '{dir_path}' not found.[/yellow]")
+        else:
+            console.print(
+                f"[yellow]No playbooks found in '{dir_path}' or built-in package data.[/yellow]"
+            )
         return
 
-    import yaml  # type: ignore[import-untyped]
+    import yaml
 
-    table = Table(title=f"Available Playbooks ({dir_path})", header_style="bold cyan")
+    table = Table(title="Available Playbooks", header_style="bold cyan")
     table.add_column("File", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")
     table.add_column("Description", style="dim")
     table.add_column("Steps", justify="right", style="green")
+    table.add_column("Source", style="dim")
 
+    builtin = _builtin_playbook_dir()
     for f in files:
         name = f.stem
         desc = "—"
@@ -3172,7 +3355,8 @@ def playbook_list(
                 steps_count = str(len(data.get("steps", [])))
         except Exception:
             pass
-        table.add_row(f.name, name, desc[:60], steps_count)
+        source = "builtin" if builtin in f.parents or f.parent == builtin else str(f.parent)
+        table.add_row(f.name, name, desc[:60], steps_count, source)
 
     console.print(table)
 
@@ -3186,17 +3370,8 @@ def playbook_show(
     """Show detailed structure and execution DAG of a playbook."""
     import yaml
 
-    p = Path(name)
-    if not p.exists():
-        candidate = Path(dir_path) / name
-        if candidate.exists():
-            p = candidate
-        elif (Path(dir_path) / f"{name}.yaml").exists():
-            p = Path(dir_path) / f"{name}.yaml"
-        elif (Path(dir_path) / f"{name}.yml").exists():
-            p = Path(dir_path) / f"{name}.yml"
-
-    if not p.exists() or not p.is_file():
+    p = _resolve_playbook_path(name, dir_path)
+    if p is None or not p.is_file():
         console.print(f"[red]Playbook '{name}' not found.[/red]")
         raise typer.Exit(1)
 
@@ -3256,16 +3431,10 @@ def playbook_validate(
     from siyarix.playbook import PlaybookEngine
     from siyarix.workflow import WorkflowEngine
 
-    p = Path(path)
-    if not p.exists():
-        for candidate in (
-            Path("playbooks") / path,
-            Path("playbooks") / f"{path}.yaml",
-            Path("playbooks") / f"{path}.yml",
-        ):
-            if candidate.exists():
-                p = candidate
-                break
+    p = _resolve_playbook_path(path)
+    if p is None:
+        console.print(f"[red]Playbook '{path}' not found.[/red]")
+        raise typer.Exit(1)
 
     engine = PlaybookEngine(WorkflowEngine())
     try:

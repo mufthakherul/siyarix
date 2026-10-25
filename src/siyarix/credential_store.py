@@ -4,6 +4,23 @@
 
 Encrypted credential storage using Fernet / AES-256-GCM with optional
 KMS envelope encryption and OS keyring integration.
+
+Ciphertext envelopes (value and on-disk blobs)::
+
+    v1:fernet:<token>   — Fernet (AES-128-CBC + HMAC)
+    v2:aesgcm:<b64>     — AES-256-GCM (nonce || ciphertext||tag)
+
+Vault unlock modes
+------------------
+* **Password mode** — pass ``master_password`` or set
+  ``SIYARIX_MASTER_PASSWORD``. The master key is derived via PBKDF2 from
+  the password and a persistent salt (``.cred_store_salt``). The raw key
+  is **never** written to disk or the OS keyring; a wrong password cannot
+  open the vault before or after restart.
+* **File-key mode** — when no password is configured, a random 32-byte
+  key is persisted at ``.cred_store_key`` (mode ``0o600``) and optionally
+  mirrored to the OS keyring. Suitable for local/dev non-password vaults.
+  Anyone with filesystem access to the key file can unlock the vault.
 """
 
 from __future__ import annotations
@@ -53,6 +70,12 @@ if not CRYPTO_AVAILABLE:
 _AES_KEY_SIZE = 32  # 256 bits
 _AES_NONCE_SIZE = 12  # 96 bits recommended for GCM
 _AES_ITERATIONS = 600000  # OWASP recommended PBKDF2 iterations
+
+_ENVELOPE_V1 = "v1:fernet:"
+_ENVELOPE_V2 = "v2:aesgcm:"
+_VAULT_MODE_PASSWORD = "password"
+_VAULT_MODE_FILE_KEY = "file_key"
+_AES_AAD = b"siyarix-credential"
 
 
 class CredentialType(StrEnum):
@@ -126,13 +149,16 @@ class CredentialStore:
         self._creds_file = self._config_dir / "credentials.enc"
         self._key_file = self._config_dir / ".cred_store_key"
         self._salt_file = self._config_dir / ".cred_store_salt"
+        self._meta_file = self._config_dir / ".cred_store_meta"
         self._credentials: dict[str, Credential] = {}
         self._master_key: bytes | None = None
         self._fernet: Any = None
+        self._vault_mode: str = _VAULT_MODE_FILE_KEY
         self._nonce_counter = int(time.time() * 1000) & 0xFFFFFFFF
         self._nonce_lock = threading.Lock()
         self._kms_data_key: bytes | None = None
         self._kms_encrypted_key: str | None = None
+        self._io_lock = threading.Lock()
 
         # Enforce cryptography for secure credential handling. Fail fast if missing.
         if not CRYPTO_AVAILABLE:
@@ -188,18 +214,61 @@ class CredentialStore:
         return self.get_by_name(name, cred_type=cred_type)
 
     def _init_encryption(self, password: str | None) -> None:
-        """Initialize encryption"""
+        """Initialize encryption in password or file-key mode.
+
+        Password mode derives the AES/Fernet master key from the password and
+        a persistent salt only — no unprotected key material is left on disk.
+        File-key mode persists a random key for non-password local vaults.
+        """
         if not CRYPTO_AVAILABLE:
             return
         password = password or os.getenv("SIYARIX_MASTER_PASSWORD")
+        self._config_dir.mkdir(parents=True, exist_ok=True)
 
-        # Prefer OS keyring when available and enabled. Falls back to local keyfile.
-        use_keyring = os.getenv("SIYARIX_USE_KEYRING", "1").strip() not in {
+        if password:
+            self._vault_mode = _VAULT_MODE_PASSWORD
+            raw_key = self._derive_password_key(password)
+            # Never leave an unprotected key that would unlock with a wrong password.
+            self._remove_unprotected_key_material()
+        else:
+            self._vault_mode = _VAULT_MODE_FILE_KEY
+            raw_key = self._load_or_create_file_key()
+
+        self._master_key = raw_key
+        self._fernet = Fernet(base64.urlsafe_b64encode(raw_key))
+        self._write_vault_meta()
+
+    def _derive_password_key(self, password: str) -> bytes:
+        """Derive a 32-byte master key from password + persistent salt."""
+        if self._salt_file.exists():
+            salt = self._salt_file.read_bytes()
+        else:
+            salt = os.urandom(16)
+            self._salt_file.write_bytes(salt)
+            _safe_chmod(self._salt_file, 0o600)
+
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=_AES_KEY_SIZE,
+            salt=salt,
+            iterations=_AES_ITERATIONS,
+        )
+        return kdf.derive(password.encode())
+
+    def _load_or_create_file_key(self) -> bytes:
+        """Load or create a persisted file key for non-password vaults.
+
+        File-key mode is intentional for local/dev use when no master password
+        is configured. The raw key is stored at ``.cred_store_key`` (0o600) and
+        optionally mirrored to the OS keyring when ``SIYARIX_USE_KEYRING`` is on.
+        """
+        use_keyring = os.getenv("SIYARIX_USE_KEYRING", "1").strip().lower() not in {
             "0",
             "false",
             "no",
         }
-        key_material = None
+        key_material: bytes | None = None
+
         if use_keyring:
             try:
                 import keyring
@@ -210,7 +279,6 @@ class CredentialStore:
             except Exception:
                 logger.debug("Keyring unavailable or failed; falling back to file-based key")
 
-        # If no key material from keyring, try local key file
         if key_material is None and self._key_file.exists():
             try:
                 key_material = self._key_file.read_bytes()
@@ -218,30 +286,57 @@ class CredentialStore:
                 logger.debug("Failed to read key file %s: %s", self._key_file, exc)
                 key_material = None
 
-        # Normalize or generate
         if key_material is not None:
             try:
-                key = self._normalize_fernet_key(key_material)
+                fernet_key = self._normalize_fernet_key(key_material)
+                raw_key = base64.urlsafe_b64decode(fernet_key)
             except ValueError:
                 logger.warning("Invalid credential store key detected; regenerating a new key")
-                key = self._generate_fernet_key(password)
+                raw_key = os.urandom(_AES_KEY_SIZE)
         else:
-            key = self._generate_fernet_key(password)
+            raw_key = os.urandom(_AES_KEY_SIZE)
 
-        # Persist the key to keyring if available
+        self._key_file.write_bytes(raw_key)
+        _safe_chmod(self._key_file, 0o600)
+
         if use_keyring:
             try:
                 import keyring
 
-                key_b64 = key.decode() if isinstance(key, bytes) else str(key)
-                # store base64 key material in keyring (best-effort)
-                keyring.set_password("siyarix", "cred_store_key", key_b64)
+                keyring.set_password(
+                    "siyarix", "cred_store_key", base64.urlsafe_b64encode(raw_key).decode()
+                )
             except Exception:
                 logger.debug(
-                    "Failed to persist credential store key to keyring; key stored locally if permitted"
+                    "Failed to persist credential store key to keyring; key stored locally"
                 )
 
-        self._fernet = Fernet(key)
+        return raw_key
+
+    def _remove_unprotected_key_material(self) -> None:
+        """Delete file-key / keyring material so password mode cannot be bypassed."""
+        try:
+            if self._key_file.exists():
+                self._key_file.unlink()
+        except OSError as exc:
+            logger.warning("Failed to remove unprotected key file: %s", exc)
+        try:
+            import keyring
+
+            keyring.delete_password("siyarix", "cred_store_key")
+        except Exception:
+            pass
+
+    def _write_vault_meta(self) -> None:
+        meta = {
+            "mode": self._vault_mode,
+            "envelope": "v2" if HAS_AESGCM else "v1",
+        }
+        try:
+            self._meta_file.write_text(json.dumps(meta))
+            _safe_chmod(self._meta_file, 0o600)
+        except OSError as exc:
+            logger.debug("Failed to write vault meta: %s", exc)
 
     def _kms_available(self) -> bool:
         """Return True if a KMS provider is configured and boto3 is available."""
@@ -256,32 +351,19 @@ class CredentialStore:
             return False
 
     def _generate_fernet_key(self, password: str | None) -> bytes:
-        """Create a valid Fernet key and persist the raw material."""
+        """Create a valid Fernet key from password or a new random file key.
+
+        Prefer calling ``_init_encryption``. Kept for callers/tests that expect
+        a Fernet-encoded key return value.
+        """
         if password:
-            self._config_dir.mkdir(parents=True, exist_ok=True)
-
-            # Use persistent salt (C-01)
-            if self._salt_file.exists():
-                salt = self._salt_file.read_bytes()
-            else:
-                salt = os.urandom(16)
-                self._salt_file.write_bytes(salt)
-
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=salt,
-                iterations=_AES_ITERATIONS,  # C-02: Unify iterations
-            )
-            raw_key = kdf.derive(password.encode())
+            raw_key = self._derive_password_key(password)
+            self._vault_mode = _VAULT_MODE_PASSWORD
+            self._remove_unprotected_key_material()
         else:
-            # Keep startup working in local/dev environments when no password is configured.
-            raw_key = os.urandom(32)
-
-        self._config_dir.mkdir(parents=True, exist_ok=True)
-        # write raw key material and protect file permissions on POSIX systems
-        self._key_file.write_bytes(raw_key)
-        _safe_chmod(self._key_file, 0o600)
+            raw_key = self._load_or_create_file_key()
+            self._vault_mode = _VAULT_MODE_FILE_KEY
+        self._master_key = raw_key
         return base64.urlsafe_b64encode(raw_key)
 
     @staticmethod
@@ -300,131 +382,236 @@ class CredentialStore:
 
         raise ValueError("unsupported key length")
 
+    def _aesgcm_key(self) -> bytes:
+        """Return a 32-byte AES-GCM key derived from the master key if needed."""
+        if not self._master_key:
+            raise RuntimeError("master key not initialized")
+        key = self._master_key
+        if len(key) == _AES_KEY_SIZE:
+            return key
+        from cryptography.hazmat.primitives import hashes as hash_mod
+        from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
+
+        hkdf = HKDFExpand(
+            algorithm=hash_mod.SHA256(),
+            length=_AES_KEY_SIZE,
+            info=b"siyarix-aes-gcm-key",
+        )
+        return hkdf.derive(key)
+
     def _encrypt_aesgcm(self, data: str) -> str:
-        """Encrypt using AES-256-GCM as documented in Chapter 5.4."""
+        """Encrypt using AES-256-GCM; returns a ``v2:aesgcm:`` envelope."""
         if not HAS_AESGCM or not self._master_key:
             return self._encrypt(data)
         with self._nonce_lock:
             self._nonce_counter = (self._nonce_counter + 1) & 0xFFFFFFFF
             counter_bytes = self._nonce_counter.to_bytes(4, "big")
         nonce = os.urandom(8) + counter_bytes
-        key = self._master_key
-        if len(key) != _AES_KEY_SIZE:
-            from cryptography.hazmat.primitives import hashes as hash_mod
-            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
-
-            hkdf = HKDFExpand(
-                algorithm=hash_mod.SHA256(),
-                length=_AES_KEY_SIZE,
-                info=b"siyarix-aes-gcm-key",
-            )
-            key = hkdf.derive(key)
-        ct = AESGCM(key).encrypt(nonce, data.encode(), b"siyarix-credential")
-        return base64.b64encode(nonce + ct).decode()
+        ct = AESGCM(self._aesgcm_key()).encrypt(nonce, data.encode(), _AES_AAD)
+        return _ENVELOPE_V2 + base64.b64encode(nonce + ct).decode()
 
     def _decrypt_aesgcm(self, encrypted: str) -> str:
-        """Decrypt using AES-256-GCM."""
+        """Decrypt a ``v2:aesgcm:`` envelope or legacy bare AES-GCM blob."""
         if not HAS_AESGCM or not self._master_key:
             return self._decrypt(encrypted)
-        raw = base64.b64decode(encrypted)
+        payload = encrypted
+        if payload.startswith(_ENVELOPE_V2):
+            payload = payload[len(_ENVELOPE_V2) :]
+        raw = base64.b64decode(payload)
         nonce = raw[:_AES_NONCE_SIZE]
         ct = raw[_AES_NONCE_SIZE:]
-        key = self._master_key
-        if len(key) != _AES_KEY_SIZE:
-            from cryptography.hazmat.primitives import hashes as hash_mod
-            from cryptography.hazmat.primitives.kdf.hkdf import HKDFExpand
-
-            hkdf = HKDFExpand(
-                algorithm=hash_mod.SHA256(),
-                length=_AES_KEY_SIZE,
-                info=b"siyarix-aes-gcm-key",
-            )
-            key = hkdf.derive(key)
-        return AESGCM(key).decrypt(nonce, ct, b"siyarix-credential").decode()
+        return AESGCM(self._aesgcm_key()).decrypt(nonce, ct, _AES_AAD).decode()
 
     def _encrypt(self, data: str) -> str:
-        """Encrypt data using Fernet (backward compatible)."""
+        """Encrypt data; prefer AES-GCM ``v2:`` envelopes, else Fernet ``v1:``."""
+        if HAS_AESGCM and self._master_key is not None:
+            return self._encrypt_aesgcm(data)
         if not self._fernet:
             raise RuntimeError("encryption not initialized")
-        return self._fernet.encrypt(data.encode()).decode()
+        return _ENVELOPE_V1 + self._fernet.encrypt(data.encode()).decode()
 
     def _decrypt(self, encrypted: str) -> str:
-        """Decrypt data using Fernet (backward compatible)."""
+        """Decrypt versioned envelopes (and legacy unprefixed Fernet tokens)."""
+        if encrypted.startswith(_ENVELOPE_V2):
+            return self._decrypt_aesgcm(encrypted)
+        if encrypted.startswith(_ENVELOPE_V1):
+            if not self._fernet:
+                raise RuntimeError("encryption not initialized")
+            return self._fernet.decrypt(encrypted[len(_ENVELOPE_V1) :].encode()).decode()
+        # Legacy bare Fernet token (pre-envelope)
         if not self._fernet:
             raise RuntimeError("encryption not initialized")
-        return self._fernet.decrypt(encrypted.encode()).decode()
+        try:
+            return self._fernet.decrypt(encrypted.encode()).decode()
+        except InvalidToken as err:
+            # Legacy bare AES-GCM blob produced by older migrate_to_aesgcm
+            if HAS_AESGCM and self._master_key:
+                try:
+                    return self._decrypt_aesgcm(encrypted)
+                except Exception:
+                    pass
+            raise err
 
     def migrate_to_aesgcm(self) -> bool:
-        """Migrate all credentials from Fernet to AES-256-GCM encryption."""
+        """Migrate all credential values to ``v2:aesgcm:`` envelopes.
+
+        Transactional and recoverable: snapshots ciphertext files first; on
+        any failure restores the snapshot and rolls back in-memory state.
+        """
         if not HAS_AESGCM:
             logger.warning("AES-256-GCM not available; skipping migration")
             return False
         if not self._master_key:
-            self._master_key = os.urandom(_AES_KEY_SIZE)
-        migrated = 0
-        for cred in self._credentials.values():
+            raise RuntimeError(
+                "AES master key is not initialized; reopen the vault with the "
+                "correct password or file key before migrating"
+            )
+
+        backup_dir = self._config_dir / ".cred_migrate_backup"
+        marker = self._config_dir / ".cred_migrate_in_progress"
+        snapshot = {
+            cid: Credential(
+                cred_id=c.cred_id,
+                name=c.name,
+                cred_type=c.cred_type,
+                environment=c.environment,
+                value_encrypted=c.value_encrypted,
+                created_at=c.created_at,
+                expires_at=c.expires_at,
+                last_used=c.last_used,
+                usage_count=c.usage_count,
+                rotated=c.rotated,
+                tags=list(c.tags),
+                shared_with=list(c.shared_with),
+            )
+            for cid, c in self._credentials.items()
+        }
+
+        with self._io_lock:
             try:
-                plaintext = self._decrypt(cred.value_encrypted)
-                cred.value_encrypted = self._encrypt_aesgcm(plaintext)
-                migrated += 1
+                if backup_dir.exists():
+                    import shutil
+
+                    shutil.rmtree(backup_dir)
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                for filepath in self._creds_dir.glob("*.enc"):
+                    (backup_dir / filepath.name).write_bytes(filepath.read_bytes())
+                marker.write_text("in_progress")
+
+                migrated = 0
+                for cred in self._credentials.values():
+                    if cred.value_encrypted.startswith(_ENVELOPE_V2):
+                        continue
+                    plaintext = self._decrypt(cred.value_encrypted)
+                    cred.value_encrypted = self._encrypt_aesgcm(plaintext)
+                    migrated += 1
+
+                if migrated > 0:
+                    self._save()
+                marker.unlink(missing_ok=True)
+                import shutil
+
+                shutil.rmtree(backup_dir, ignore_errors=True)
+                logger.info("Migrated %d credentials to AES-256-GCM", migrated)
+                return migrated > 0
             except Exception as exc:
-                logger.warning("Failed to migrate credential %s: %s", cred.cred_id, exc)
-        if migrated > 0:
-            self._save()
-            logger.info("Migrated %d credentials to AES-256-GCM", migrated)
-        return migrated > 0
+                logger.error("AES-GCM migration failed, restoring backup: %s", exc)
+                self._credentials = snapshot
+                try:
+                    if backup_dir.exists():
+                        for filepath in backup_dir.glob("*.enc"):
+                            target = self._creds_dir / filepath.name
+                            target.write_bytes(filepath.read_bytes())
+                        # Remove files created during failed migration
+                        backed = {p.name for p in backup_dir.glob("*.enc")}
+                        for filepath in list(self._creds_dir.glob("*.enc")):
+                            if filepath.name not in backed:
+                                filepath.unlink(missing_ok=True)
+                except Exception:
+                    logger.exception("Failed to restore credential backup after migration error")
+                marker.unlink(missing_ok=True)
+                return False
 
     def rotate_key(self, new_master_password: str | None = None) -> bool:
         """Rotate master encryption key (Chapter 5.4 key rotation)."""
         if not HAS_AESGCM:
             logger.warning("AES-256-GCM not available for key rotation")
             return False
+        if not self._master_key:
+            logger.warning("Cannot rotate: master key not initialized")
+            return False
 
-        # C-03: Atomic rotation - snapshot credentials
-        snapshot = {k: Credential(**v.to_dict()) for k, v in self._credentials.items()}
-
-        old_master_key = self._master_key
-        self._master_key = os.urandom(_AES_KEY_SIZE)
-        if new_master_password:
-            # For new master passwords, generate a new salt
-            new_salt = os.urandom(16)
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=_AES_KEY_SIZE,
-                salt=new_salt,
-                iterations=_AES_ITERATIONS,
+        snapshot = {
+            cid: Credential(
+                cred_id=c.cred_id,
+                name=c.name,
+                cred_type=c.cred_type,
+                environment=c.environment,
+                value_encrypted=c.value_encrypted,
+                created_at=c.created_at,
+                expires_at=c.expires_at,
+                last_used=c.last_used,
+                usage_count=c.usage_count,
+                rotated=c.rotated,
+                tags=list(c.tags),
+                shared_with=list(c.shared_with),
             )
-            self._master_key = kdf.derive(new_master_password.encode())
-            self._salt_file.write_bytes(new_salt)
+            for cid, c in self._credentials.items()
+        }
+        old_master_key = self._master_key
+        old_fernet = self._fernet
+        old_mode = self._vault_mode
+        old_salt = self._salt_file.read_bytes() if self._salt_file.exists() else None
 
-        # Re-encrypt all credentials with new key
+        # Decrypt all values with the OLD key before swapping material.
+        plaintexts: dict[str, str] = {}
         try:
+            for cred_id, cred in self._credentials.items():
+                plaintexts[cred_id] = self._decrypt(cred.value_encrypted)
+        except Exception as exc:
+            logger.error("Key rotation aborted; failed to decrypt existing credentials: %s", exc)
+            return False
+
+        try:
+            if new_master_password:
+                new_salt = os.urandom(16)
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=_AES_KEY_SIZE,
+                    salt=new_salt,
+                    iterations=_AES_ITERATIONS,
+                )
+                self._master_key = kdf.derive(new_master_password.encode())
+                self._salt_file.write_bytes(new_salt)
+                _safe_chmod(self._salt_file, 0o600)
+                self._vault_mode = _VAULT_MODE_PASSWORD
+                self._remove_unprotected_key_material()
+            else:
+                self._master_key = os.urandom(_AES_KEY_SIZE)
+                if self._vault_mode == _VAULT_MODE_FILE_KEY:
+                    self._key_file.write_bytes(self._master_key)
+                    _safe_chmod(self._key_file, 0o600)
+
+            self._fernet = Fernet(base64.urlsafe_b64encode(self._master_key))
+
             for cred in self._credentials.values():
-                try:
-                    plaintext = (
-                        self._decrypt_aesgcm(cred.value_encrypted)
-                        if HAS_AESGCM
-                        else self._decrypt(cred.value_encrypted)
-                    )
-                    cred.value_encrypted = self._encrypt_aesgcm(plaintext)
-                    cred.rotated = True
-                except Exception as exc:
-                    logger.debug(
-                        "AESGCM decrypt failed for %s, falling back to Fernet: %s",
-                        cred.cred_id,
-                        exc,
-                    )
-                    plaintext = self._decrypt(cred.value_encrypted)
-                    cred.value_encrypted = self._encrypt_aesgcm(plaintext)
-                    cred.rotated = True
+                cred.value_encrypted = self._encrypt_aesgcm(plaintexts[cred.cred_id])
+                cred.rotated = True
 
             self._save()
+            self._write_vault_meta()
             logger.info("Master key rotated successfully")
             return True
         except Exception as exc:
-            # Rollback on partial failure
             self._credentials = snapshot
             self._master_key = old_master_key
+            self._fernet = old_fernet
+            self._vault_mode = old_mode
+            if old_salt is not None:
+                try:
+                    self._salt_file.write_bytes(old_salt)
+                except OSError:
+                    pass
             logger.error("Key rotation failed, rolling back. Error: %s", exc)
             return False
 
@@ -507,6 +694,7 @@ class CredentialStore:
             except Exception:
                 logger.exception("Failed to load legacy credentials")
 
+        decrypt_failures = 0
         if self._creds_dir.exists():
             for filepath in self._creds_dir.glob("*.enc"):
                 try:
@@ -574,13 +762,29 @@ class CredentialStore:
                         shared_with=data.get("shared_with", []),
                     )
                     self._credentials[cred.cred_id] = cred
+                except InvalidToken:
+                    # Wrong password / wrong key — never delete vault files.
+                    decrypt_failures += 1
+                    logger.debug(
+                        "Failed to decrypt credential %s (wrong key or password?)", filepath
+                    )
                 except Exception as exc:
+                    # Authentication-like AEAD failures also must not wipe the vault.
+                    err_name = type(exc).__name__
+                    if err_name in {"InvalidTag", "InvalidToken"} or "Invalid" in err_name:
+                        decrypt_failures += 1
+                        logger.debug(
+                            "Failed to decrypt credential %s (wrong key or password?): %s",
+                            filepath,
+                            exc,
+                        )
+                        continue
                     logger.debug("Failed to load credential %s: %s", filepath, exc)
-                    # Remove corrupted credential files to prevent repeated errors
-                    try:
-                        filepath.unlink(missing_ok=True)
-                    except Exception:
-                        pass
+            if decrypt_failures and not self._credentials:
+                raise RuntimeError(
+                    "Failed to unlock credential vault: wrong password or key "
+                    f"({decrypt_failures} file(s) could not be decrypted)"
+                )
 
         if legacy_loaded:
             self._save()

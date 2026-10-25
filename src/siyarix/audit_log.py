@@ -317,6 +317,13 @@ class AuditLogger:
                 from siyarix.opsec import opsec_manager
 
                 if opsec_manager.status.memory_only:
+                    # Intentional OPSEC drop — accountability trail is not persisted
+                    # (SX-A09). Operators must treat this as non-attestatable.
+                    logger.warning(
+                        "OPSEC memory_only active: discarding %d unflushed audit "
+                        "event(s); tamper-evident chain is not persisted",
+                        len(self._unflushed_events),
+                    )
                     self._unflushed_events.clear()
                     self._dirty = False
                     return

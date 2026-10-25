@@ -333,6 +333,11 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "rm -rf /{etc,var,usr}",
         "rm -rf $'/'",
         "bomb(){ bomb|bomb &};bomb",
+        "tar -xPf a.tar",
+        "tar -xPvf evil.tar",
+        "gawk -iinplace '{print}' /etc/passwd",
+        "install -m 4755 /tmp/sh /bin/bash",
+        "install --mode=4755 /tmp/x /usr/bin/id",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

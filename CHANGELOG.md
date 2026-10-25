@@ -90,6 +90,9 @@ All notable changes to this project will be documented in this file.
 - Fix `python -m zipfile|tarfile -e archive /home` dest capture; block `os).symlink` / `symlinkSync` onto auth.
 - Expand ANSI-C `$ '/'` and `/{etc,var}` before rm system-path checks; recursive `fn(){ fn|fn &}` fork bombs.
 - Scope: unwrap `bash/sh -c` payloads; socat `SOCKS4A/PROXY:proxy:dest` checks dest host.
+- Scope: glued `-oProxyJump=`/`-xIP`/`-Jhost`, quoted `-o'ProxyJump=…'`; socat SOCKS proxy hop.
+- Hard-block clustered `tar -xPf`; `gawk -iinplace`; `install -m 4xxx` setuid onto system bins.
+- `.env` skips `GIT_HTTP(S)_PROXY`/`FTP_PROXY`/`SOCKS_PROXY`/`KUBE_CONFIG_PATH`/`GIT_EXEC_PATH`.
 - `.env` skips `GCONV_PATH`/`HOSTALIASES`.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.

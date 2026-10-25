@@ -122,11 +122,18 @@ _SOCAT_ADDR_RE = re.compile(
     r"(?i)^(?:TCP(?:[46])?|UDP(?:[46])?|OPENSSL|SSL):"
     r"(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
 )
-# socat SOCKS/PROXY: ``SOCKS4A:proxy:dest:port`` / ``PROXY:proxy:dest:port`` —
-# destination host is the second host field (not the proxy).
+# socat SOCKS/PROXY: ``SOCKS4A:proxy:dest:port`` — check proxy AND dest.
 _SOCAT_SOCKS_RE = re.compile(
     r"(?i)^(?:SOCKS4A?|PROXY):"
-    r"(?:[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
+    r"(?P<proxy>[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
+)
+# Glued ssh ``-oProxyJump=evil`` / ``-o'ProxyJump=evil'`` / ``-oProxyCommand=…``.
+_GLUED_SSH_O_RE = re.compile(
+    r"(?i)^(?:-o|--option)['\"]?(?P<key>proxyjump|proxycommand)=(?P<val>.+?)['\"]?$"
+)
+# Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
+_GLUED_PROXY_SHORT_RE = re.compile(
+    r"^(?P<flag>-[xJ])(?P<val>.+)$"
 )
 _SHELL_WRAPPERS = frozenset(
     {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox"}
@@ -573,70 +580,73 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 "--jump",
             }
         )
+
+        def _proxy_host_from_val(raw: str) -> str:
+            proxy_host = raw.strip().strip("'\"")
+            if "://" in proxy_host:
+                parsed = urllib.parse.urlparse(proxy_host)
+                return (parsed.hostname or "").strip()
+            return proxy_host.split("@")[-1].split("/")[0].split(":")[0]
+
+        def _check_proxyjump_val(jump: str) -> None:
+            for hop in jump.split(","):
+                hop_host = hop.split("@")[-1].split("/")[0].split(":")[0].strip().strip("'\"")
+                _assert_host_token_in_scope(hop_host, allowed_items, scope_display)
+
         skip_proxy_arg = False
         for nxt in tokens[i + 1 :]:
             if skip_proxy_arg:
-                # Bare proxy/jump host after ``-x`` / ``-J``.
-                proxy_host = nxt
-                if "://" in proxy_host:
-                    parsed = urllib.parse.urlparse(proxy_host)
-                    proxy_host = (parsed.hostname or "").strip()
-                else:
-                    proxy_host = (
-                        proxy_host.split("@")[-1].split("/")[0].split(":")[0]
-                    )
-                _assert_host_token_in_scope(proxy_host, allowed_items, scope_display)
+                _assert_host_token_in_scope(
+                    _proxy_host_from_val(nxt), allowed_items, scope_display
+                )
                 skip_proxy_arg = False
                 continue
             if not nxt.startswith("-"):
                 continue
+            # Glued ``-oProxyJump=evil`` / ``-o'ProxyJump=evil'``.
+            glued_o = _GLUED_SSH_O_RE.match(nxt.strip("'\"")) or _GLUED_SSH_O_RE.match(nxt)
+            if glued_o is None:
+                # Also try after stripping quotes around the whole token.
+                glued_o = _GLUED_SSH_O_RE.match(nxt.replace("'", "").replace('"', ""))
+            if glued_o is not None:
+                key = glued_o.group("key").lower()
+                val = glued_o.group("val").strip().strip("'\"")
+                if key == "proxycommand":
+                    raise PermissionDeniedError(
+                        f"ProxyCommand is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+                _check_proxyjump_val(val)
+                continue
+            # Glued ``-x11.1.1.1:8080`` / ``-Jbastion`` (not ``-X POST``).
+            glued_short = _GLUED_PROXY_SHORT_RE.match(nxt)
+            if glued_short is not None and not nxt.startswith("--"):
+                flag_ch = glued_short.group("flag")
+                # ``-x`` proxy / ``-J`` jump only (reject ``-X`` method via case).
+                if flag_ch in {"-x", "-J"} and glued_short.group("val")[:1] not in {"", "-"}:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued_short.group("val")),
+                        allowed_items,
+                        scope_display,
+                    )
+                    continue
             flag = nxt.split("=", 1)[0]
-            # ``-o ProxyJump=bastion`` / ``-oProxyJump=bastion`` / ``ProxyCommand=``.
-            opt_body = nxt
-            if flag in {"-o", "--option"} and "=" not in nxt:
-                continue  # value is next token — handled below via joined scan
-            if flag.startswith("-o") or flag.startswith("--option"):
-                opt_body = nxt.split("=", 1)[-1] if "=" in nxt else nxt
-                # Strip leading ``-o`` / ``--option`` when glued without ``=``.
-                if opt_body.lower().startswith("proxyjump=") or opt_body.lower().startswith(
-                    "proxycommand="
-                ):
-                    pass
-                elif "=" in nxt:
-                    opt_body = nxt.split("=", 1)[-1]
-            low = opt_body.lower()
-            if "proxycommand=" in low or low.startswith("proxycommand"):
-                raise PermissionDeniedError(
-                    f"ProxyCommand is not allowed under authorized scope "
-                    f"(authorized scope: {scope_display})"
-                )
-            if "proxyjump=" in low:
-                jump = opt_body.split("=", 1)[-1]
-                # ProxyJump may be comma-separated hop list.
-                for hop in jump.split(","):
-                    hop_host = hop.split("@")[-1].split("/")[0].split(":")[0].strip()
-                    _assert_host_token_in_scope(hop_host, allowed_items, scope_display)
             if flag in _proxy_flags or any(
                 flag.startswith(p) and p.startswith("--") for p in _proxy_flags
             ):
                 if "=" in nxt:
-                    proxy_host = nxt.split("=", 1)[1]
-                    if "://" in proxy_host:
-                        parsed = urllib.parse.urlparse(proxy_host)
-                        proxy_host = (parsed.hostname or "").strip()
-                    else:
-                        proxy_host = (
-                            proxy_host.split("@")[-1].split("/")[0].split(":")[0]
-                        )
                     _assert_host_token_in_scope(
-                        proxy_host, allowed_items, scope_display
+                        _proxy_host_from_val(nxt.split("=", 1)[1]),
+                        allowed_items,
+                        scope_display,
                     )
                 else:
                     skip_proxy_arg = True
-        # Also catch ``-o ProxyJump=bastion`` as two tokens.
+                continue
+        # ``-o ProxyJump=bastion`` as two tokens (value may be quoted).
         for j, tok2 in enumerate(tokens[i + 1 :]):
             if tok2 in {"-o", "--option"} and j + 1 < len(tokens[i + 1 :]):
-                val = tokens[i + 1 :][j + 1]
+                val = tokens[i + 1 :][j + 1].strip().strip("'\"")
                 low = val.lower()
                 if low.startswith("proxycommand="):
                     raise PermissionDeniedError(
@@ -644,12 +654,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         f"(authorized scope: {scope_display})"
                     )
                 if low.startswith("proxyjump="):
-                    jump = val.split("=", 1)[-1]
-                    for hop in jump.split(","):
-                        hop_host = hop.split("@")[-1].split("/")[0].split(":")[0].strip()
-                        _assert_host_token_in_scope(
-                            hop_host, allowed_items, scope_display
-                        )
+                    _check_proxyjump_val(val.split("=", 1)[-1])
         # scp/sftp/rsync: ``[user@]host:path`` / ``host::module``; sftp also bare host.
         if base in {"scp", "sftp", "rsync"}:
             skip_jump = False
@@ -715,6 +720,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             socks_m = _SOCAT_SOCKS_RE.match(nxt_norm)
             socat_m = None if socks_m else _SOCAT_ADDR_RE.match(nxt_norm)
             if socks_m:
+                # Fail-closed on both proxy hop and destination.
+                _assert_host_token_in_scope(
+                    (socks_m.group("proxy") or "").strip(),
+                    allowed_items,
+                    scope_display,
+                )
                 raw_host = (socks_m.group("v6") or socks_m.group("host") or "").strip()
             elif socat_m:
                 raw_host = (socat_m.group("v6") or socat_m.group("host") or "").strip()

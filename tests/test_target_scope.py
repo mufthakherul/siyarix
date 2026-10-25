@@ -324,11 +324,35 @@ class TestAssertCommandInScope:
             assert_command_in_scope("bash -c 'nmap evil-host'", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
             assert_command_in_scope("sh -c 'ssh bastion'", scope_env=scope)
-        with pytest.raises(PermissionDeniedError, match="evil-host"):
+        with pytest.raises(PermissionDeniedError, match="evil-host|proxy"):
             assert_command_in_scope(
                 "socat SOCKS4A:proxy:evil-host:80 -", scope_env=scope
             )
         assert_command_in_scope("bash -c 'nmap 10.1.2.3'", scope_env=scope)
         assert_command_in_scope(
             "socat SOCKS4A:10.1.2.3:10.1.2.4:80 -", scope_env=scope
+        )
+
+    def test_glued_proxy_jump_and_quoted_ssh_o_under_scope(self) -> None:
+        scope = "10.0.0.0/8,example.com"
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope("ssh -oProxyJump=evil 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="ProxyCommand"):
+            assert_command_in_scope(
+                "ssh -oProxyCommand=/bin/nc 10.0.0.1", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="11.1.1.1"):
+            assert_command_in_scope(
+                "curl -x11.1.1.1:8080 http://10.0.0.1/", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="11.1.1.1"):
+            assert_command_in_scope("ssh -J11.1.1.1 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope("ssh -o'ProxyJump=evil' 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-proxy"):
+            assert_command_in_scope(
+                "socat SOCKS4:evil-proxy:10.0.0.1:80 -", scope_env=scope
+            )
+        assert_command_in_scope(
+            "ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope
         )

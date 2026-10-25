@@ -192,6 +192,13 @@ def _load_dotenv(path: Path | None = None) -> None:
             "SUDO_ASKPASS",
             "GCONV_PATH",
             "HOSTALIASES",
+            "GIT_HTTP_PROXY",
+            "GIT_HTTPS_PROXY",
+            "FTP_PROXY",
+            "SOCKS_PROXY",
+            "ALL_PROXY",
+            "KUBE_CONFIG_PATH",
+            "GIT_EXEC_PATH",
         }
     )
     _blocked_vars = {
@@ -261,6 +268,14 @@ def _load_dotenv(path: Path | None = None) -> None:
         "SUDO_ASKPASS",
         "GCONV_PATH",
         "HOSTALIASES",
+        "GIT_HTTP_PROXY",
+        "GIT_HTTPS_PROXY",
+        "FTP_PROXY",
+        "SOCKS_PROXY",
+        "ftp_proxy",
+        "socks_proxy",
+        "KUBE_CONFIG_PATH",
+        "GIT_EXEC_PATH",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

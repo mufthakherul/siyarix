@@ -77,6 +77,12 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SUDO_ASKPASS=/tmp/pwn",
                 "GCONV_PATH=/tmp",
                 "HOSTALIASES=/tmp/hosts",
+                "GIT_HTTP_PROXY=http://evil",
+                "GIT_HTTPS_PROXY=http://evil",
+                "FTP_PROXY=http://evil",
+                "SOCKS_PROXY=socks5://evil",
+                "KUBE_CONFIG_PATH=/tmp/k",
+                "GIT_EXEC_PATH=/tmp/pwn",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -142,6 +148,12 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SUDO_ASKPASS",
         "GCONV_PATH",
         "HOSTALIASES",
+        "GIT_HTTP_PROXY",
+        "GIT_HTTPS_PROXY",
+        "FTP_PROXY",
+        "SOCKS_PROXY",
+        "KUBE_CONFIG_PATH",
+        "GIT_EXEC_PATH",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -208,4 +220,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SUDO_ASKPASS" not in os.environ
     assert "GCONV_PATH" not in os.environ
     assert "HOSTALIASES" not in os.environ
+    assert "GIT_HTTP_PROXY" not in os.environ
+    assert "GIT_HTTPS_PROXY" not in os.environ
+    assert "FTP_PROXY" not in os.environ
+    assert "SOCKS_PROXY" not in os.environ
+    assert "KUBE_CONFIG_PATH" not in os.environ
+    assert "GIT_EXEC_PATH" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

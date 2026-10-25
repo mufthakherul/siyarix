@@ -360,7 +360,9 @@ _MOUNT_BIND_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _TAR_ABSOLUTE_NAMES_RE = re.compile(
-    r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}(?:--absolute-names\b|-P\b)",
+    # ``-P``, clustered ``-xPf`` / ``-xPvf``, or ``--absolute-names``.
+    r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}"
+    r"(?:--absolute-names\b|-[a-zA-Z]*P[a-zA-Z]*\b)",
     re.IGNORECASE,
 )
 _SHUF_OUT_AUTH_RE = re.compile(
@@ -405,7 +407,8 @@ _INPLACE_AUTH_RE = re.compile(
     r"(?:"
     r"\b(?:sed|perl|ruby)\b[\s\S]{0,100}-i\S*[\s\S]{0,160}"
     + _AUTH_FILE_RE.pattern
-    + r"|\b(?:g?awk)\b[\s\S]{0,80}-i(?:nplace)?\b[\s\S]{0,160}"
+    # ``-i``, ``-inplace``, glued ``-iinplace``.
+    + r"|\b(?:g?awk)\b[\s\S]{0,80}(?:-iinplace\b|-i(?:nplace)?\b)[\s\S]{0,160}"
     + _AUTH_FILE_RE.pattern
     + r"|\bsponge\b\s+"
     + _AUTH_FILE_RE.pattern
@@ -417,9 +420,14 @@ _CHMOD_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _SETUID_SYSTEM_RE = re.compile(
+    r"(?:"
     r"\bchmod\b[\s\S]{0,100}"
     r"(?:[ug]*\+s|\+s|[0-7]*[4567][0-7]{3})\b[\s\S]{0,100}"
-    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*",
+    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
+    r"|\binstall\b[\s\S]{0,120}"
+    r"(?:-m|--mode)(?:=|\s+)(?:[0-7]*[4567][0-7]{3}|[ug]*\+s|\+s)\b"
+    r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
+    r")",
     re.IGNORECASE,
 )
 _DD_OF_AUTH_RE = re.compile(

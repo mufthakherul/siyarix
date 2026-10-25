@@ -123,19 +123,19 @@ class OfflineCommandQueue:
         dependencies: list[str] | None = None,
     ) -> str:
         cmd_id = uuid.uuid4().hex
-        now = datetime.now(timezone.utc).isoformat()
         with self._lock:
             with self._transaction() as conn:
+                # Use SQLite datetime('now') so age filters (clear/reclaim) compare
+                # against the same timestamp format.
                 conn.execute(
                     "INSERT INTO queued_commands "
                     "(id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
-                    "VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)",
+                    "VALUES (?, ?, ?, ?, 'pending', datetime('now'), ?, ?)",
                     (
                         cmd_id,
                         instruction,
                         target,
                         mode,
-                        now,
                         max_attempts,
                         json.dumps(dependencies or []),
                     ),

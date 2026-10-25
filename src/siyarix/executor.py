@@ -363,7 +363,13 @@ class BaseExecutor:
                 )
 
     async def _check_permissions(self, step: PlanStep) -> None:
-        command = step.command or step.args.get("command", "")
+        command = str(step.command or step.args.get("command") or "").strip()
+        if not command:
+            # RegistryPlanner / kwargs-only steps still need a scope synopsis.
+            target = str(step.args.get("target") or "").strip()
+            tool = str(step.tool or "").strip()
+            command = f"{tool} {target}".strip() if target else tool
+
         if command:
             self.check_destructive(command)
             self.check_scope(command)

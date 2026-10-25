@@ -364,12 +364,18 @@ class ToolRegistry:
                 reasons = "; ".join(d.detail for d in avail.diagnostics)
                 raise ToolNotFoundError(f"Tool {name} unavailable: {reasons}")
 
+        command = str(kwargs.get("command") or "").strip()
+        if not command:
+            # Deep-scan / kwargs-only invocations still need a gate/scope synopsis.
+            target = str(kwargs.get("target") or "").strip()
+            command = f"{name} {target}".strip() if target else name
+
+        # Always enforce SIYARIX_ALLOWED_SCOPE for registry/playbook/deep-scan paths.
+        from .target_scope import assert_command_in_scope
+
+        assert_command_in_scope(command)
+
         if self._permission_gate:
-            command = str(kwargs.get("command") or "").strip()
-            if not command:
-                # Deep-scan / kwargs-only invocations still need a gate synopsis.
-                target = str(kwargs.get("target") or "").strip()
-                command = f"{name} {target}".strip() if target else name
             gate_result = self._permission_gate.check(command, tool=name)
             if not gate_result.allowed:
                 raise PermissionDeniedError(gate_result.reason)
@@ -385,6 +391,7 @@ class ToolRegistry:
                     recheck = self._permission_gate.check(reviewed, tool=name)
                     if not recheck.allowed:
                         raise PermissionDeniedError(recheck.reason)
+                    assert_command_in_scope(reviewed)
                     kwargs["command"] = reviewed
 
         start = time.monotonic()

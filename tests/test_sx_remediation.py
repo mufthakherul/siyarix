@@ -115,6 +115,26 @@ class TestSX004ScopeWiring:
             with pytest.raises(PermissionDeniedError):
                 executor.check_scope("nmap -6 2001:db9::10")
 
+    @pytest.mark.asyncio
+    async def test_check_permissions_kwargs_only_enforces_scope(self) -> None:
+        executor = BaseExecutor()
+        step = PlanStep(tool="nmap", command="", args={"target": "8.8.8.8"})
+        with patch.dict("os.environ", {"SIYARIX_ALLOWED_SCOPE": "10.0.0.0/8"}):
+            with pytest.raises(PermissionDeniedError):
+                await executor._check_permissions(step)
+
+    @pytest.mark.asyncio
+    async def test_registry_execute_enforces_scope_on_kwargs(self) -> None:
+        from siyarix.registry import ToolRegistry
+        from siyarix.tool_models import ToolCapability
+
+        reg = ToolRegistry()
+        tool = ToolCapability(name="nmap", installed=True)
+        reg.register(tool, AsyncMock(return_value={"status": "success"}))
+        with patch.dict("os.environ", {"SIYARIX_ALLOWED_SCOPE": "10.0.0.0/8"}):
+            with pytest.raises(PermissionDeniedError):
+                await reg.execute("nmap", target="8.8.8.8")
+
     def test_check_scope_cidr_only_blocks_domain(self) -> None:
         executor = BaseExecutor()
         with patch.dict("os.environ", {"SIYARIX_ALLOWED_SCOPE": "192.168.0.0/16"}):

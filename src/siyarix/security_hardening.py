@@ -533,7 +533,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (
         re.compile(
-            r"\b(wipefs|sgdisk|blkdiscard|shred|nwipe|scrub|sg_unmap)\b.*/dev/",
+            r"\b(wipefs|sgdisk|blkdiscard|shred|nwipe|scrub|sg_unmap|dwipe|mop)\b.*/dev/",
             re.I,
         ),
         "critical",
@@ -543,6 +543,15 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.I),
         "critical",
         "Secure file wipe utility",
+    ),
+    (
+        re.compile(
+            r"(?:os\s*\.\s*(?:system|popen)|subprocess\s*\.\s*(?:call|run|Popen))"
+            r"\s*\([^)]*(?:\brm\b|\bdd\b|rmtree|/dev/sd)",
+            re.I,
+        ),
+        "critical",
+        "Interpreter os.system/subprocess wipe",
     ),
     (
         re.compile(

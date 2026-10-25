@@ -32,6 +32,10 @@ def test_production_check_json() -> None:
     assert by_name["destructive_guard"]["status"] == "pass"
     assert "hard-blocks" in by_name["destructive_guard"]["detail"]
     assert by_name["command_review"]["status"] in {"pass", "warn"}
+    assert isinstance(payload.get("score"), int)
+    assert 0 <= payload["score"] <= 100
+    assert payload.get("grade") in {"production-ready", "needs-attention", "not-ready"}
+    assert isinstance(payload.get("remediations"), list)
 
 
 def test_production_check_table() -> None:

@@ -48,6 +48,9 @@ All notable changes to this project will be documented in this file.
 - Hard-block aria2c `--out`/`--index-out`, axel, socat `OPEN:`, lwp-download, Windows `PhysicalDrive`/`format`.
 - `.env` skips `SIYARIX_SAFE_MODE`/`PREAUTHORIZED`/`COMMAND_REVIEW`/`ALLOWED_SCOPE` and inject/proxy vars.
 - Playbook `env.*` redacts provider/SSH `*_KEY`/`*_PASS` names.
+- Strip trailing punctuation / backslash escapes so `os.system('rm -rf /')` and `exec(rmtree)` hard-block.
+- Hard-block `rsync --remove-source-files` on system paths; `dwipe`/`mop` wipe tools.
+- `siyarix doctor` reports readiness score/grade plus remediation hints.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

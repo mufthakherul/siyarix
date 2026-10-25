@@ -53,10 +53,16 @@ _BLOCK_DEV_RE = re.compile(
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
     r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install|"
-    r"hdparm|nvme|cryptsetup|sg_format|sg_sanitize|nwipe|scrub|sg_unmap)\b",
+    r"hdparm|nvme|cryptsetup|sg_format|sg_sanitize|nwipe|scrub|sg_unmap|"
+    r"dwipe|mop)\b",
     re.IGNORECASE,
 )
 _FILE_WIPE_TOOLS_RE = re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.IGNORECASE)
+_OS_SYSTEM_WIPE_RE = re.compile(
+    r"(?:os\s*\.\s*(?:system|popen)|subprocess\s*\.\s*(?:call|run|Popen|check_call))"
+    r"\s*\([^)]*(?:\brm\b|\bdd\b|\bmkfs\b|/dev/(?:sd|nvme|disk/)|rmtree)",
+    re.IGNORECASE,
+)
 _CP_TEE_TO_BLOCK_RE = re.compile(
     r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|dcfldd|gddrescue|install|pv|openssl|"
     r"tar|badblocks|fio|rsync)\b"
@@ -120,7 +126,7 @@ _EXTRACT_TO_ROOT_RE = re.compile(
     re.IGNORECASE,
 )
 _RSYNC_DELETE_RE = re.compile(
-    r"\brsync\b[\s\S]{0,200}--delete(?:-\w+)?\b",
+    r"\brsync\b[\s\S]{0,200}(?:--delete(?:-\w+)?|--remove-source-files)\b",
     re.IGNORECASE,
 )
 _QEMU_IMG_BLOCK_RE = re.compile(
@@ -215,6 +221,9 @@ def _strip_shell_quotes(text: str) -> str:
 def _normalize_path_token(tok: str) -> str:
     """Strip quotes, resolve ``..``/``.`` lexically, collapse root equivalents."""
     t = tok.strip().strip("'\"")
+    # Drop trailing shell punctuation glued after quote-strip
+    # (e.g. ``system(rm -rf /)`` → token ``/)``).
+    t = t.rstrip(")]}',\";:")
     # Collapse repeated slashes before segment walk.
     while "//" in t:
         t = t.replace("//", "/")
@@ -270,7 +279,14 @@ def assert_command_not_destructive(command: str) -> None:
     if not raw:
         return
     # Collapse shell quote-splitting evasion (m'k'fs → mkfs) before matching.
-    cmd_clean = _strip_shell_quotes(raw)
+    quoted_clean = _strip_shell_quotes(raw)
+    # Windows device paths use backslashes — probe them before stripping.
+    if _WINDOWS_WIPE_RE.search(quoted_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Overwriting block devices is blocked."
+        )
+    # Strip remaining escapes (``\/`` → ``/``) so ``exec(...rmtree(\"/\")`` matches.
+    cmd_clean = quoted_clean.replace("\\", "")
 
     if any(marker in cmd_clean for marker in _FORK_BOMB_MARKERS):
         raise PermissionDeniedError(
@@ -301,11 +317,6 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Overwriting block devices is blocked."
         )
 
-    if _WINDOWS_WIPE_RE.search(cmd_clean):
-        raise PermissionDeniedError(
-            "Destructive command detected: Overwriting block devices is blocked."
-        )
-
     if _FIND_DELETE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: find -delete on system paths is blocked."
@@ -318,7 +329,7 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Deleting system directory is blocked."
         )
 
-    if _INTERPRETER_WIPE_RE.search(cmd_clean):
+    if _INTERPRETER_WIPE_RE.search(cmd_clean) or _OS_SYSTEM_WIPE_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Interpreter wipe of system paths is blocked."
         )
@@ -345,7 +356,7 @@ def assert_command_not_destructive(command: str) -> None:
 
     if _RSYNC_DELETE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
         raise PermissionDeniedError(
-            "Destructive command detected: rsync --delete on system paths is blocked."
+            "Destructive command detected: rsync delete/remove on system paths is blocked."
         )
 
     mv_match = _MV_SYSTEM_RE.search(cmd_clean)

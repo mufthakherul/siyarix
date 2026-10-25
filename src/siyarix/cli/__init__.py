@@ -2553,6 +2553,9 @@ def production_check(
             "curl -o /dev/sda http://example.com/x",
             "rsync -a --delete /tmp/ /",
             "python -c \"Path('/dev/sda').write_bytes(b'x')\"",
+            "python -c \"__import__('os').system('rm -rf /')\"",
+            "nwipe /dev/sda",
+            "chmod -R 777 /tmp/../",
         )
         for _probe in _probe_blocks:
             try:
@@ -2587,8 +2590,42 @@ def production_check(
 
     fails = sum(1 for c in checks if c["status"] in {"fail", "unhealthy"})
     warns = sum(1 for c in checks if c["status"] in {"warn", "degraded"})
+    # Weighted readiness score: fail=-25, warn=-8, else full credit per check.
+    _n = max(len(checks), 1)
+    _penalties = fails * 25 + warns * 8
+    score = max(0, min(100, int(round(100 - (_penalties * 100 / (_n * 25))))))
+    if fails == 0 and warns == 0:
+        score = 100
+    grade = (
+        "production-ready"
+        if fails == 0 and warns == 0
+        else "needs-attention"
+        if fails == 0
+        else "not-ready"
+    )
+    remediations: list[str] = []
+    _hints = {
+        "allowed_scope": "export SIYARIX_ALLOWED_SCOPE='10.0.0.0/8,*.lab.example'",
+        "permission_gate": "unset SIYARIX_SAFE_MODE (or set to 1) for production",
+        "command_review": "enable command_review in settings / profile",
+        "shell_review": "unset SIYARIX_PREAUTHORIZED for interactive review",
+        "webhook": "use https:// webhook URLs only (SIYARIX_WEBHOOK_URL)",
+        "destructive_guard": "reinstall siyarix — shared hard-block module failed probes",
+    }
+    for c in checks:
+        if c["status"] in {"fail", "unhealthy", "warn", "degraded"}:
+            hint = _hints.get(c["name"])
+            if hint:
+                remediations.append(f"{c['name']}: {hint}")
 
-    payload = {"checks": checks, "fails": fails, "warns": warns}
+    payload = {
+        "checks": checks,
+        "fails": fails,
+        "warns": warns,
+        "score": score,
+        "grade": grade,
+        "remediations": remediations,
+    }
     if output == "json":
         console.print(json.dumps(payload, indent=2))
     else:
@@ -2599,6 +2636,11 @@ def production_check(
         for c in checks:
             table.add_row(c["name"], c["status"], c["detail"])
         console.print(table)
+        console.print(f"[bold]Readiness score:[/bold] {score}/100 ({grade})")
+        if remediations:
+            console.print("[dim]Remediation hints:[/dim]")
+            for tip in remediations:
+                console.print(f"  • {tip}")
         if fails:
             console.print(f"[red]{fails} failing check(s)[/red]")
         elif warns:

@@ -76,6 +76,8 @@ optional-dependencies.all = [
 optional-dependencies.anthropic = [
   "anthropic>=0.40",
 ]
+# Reserved for a future HTTP API (not implemented in-tree yet). Installing this
+# extra does not start a server — see FEAT-02 / docker-compose note.
 optional-dependencies.api = [
   "fastapi>=0.110",
   "pyjwt>=2.8",

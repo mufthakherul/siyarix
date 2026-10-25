@@ -225,6 +225,10 @@ def load_env_file() -> None:
     apply_dotenv_file(get_config_dir() / ".env")
 
 
+class _Shell:
+    def __init__(self, value: str) -> None:
+        self.value = value
+
 
 def normalize_shell(shell: str) -> _Shell:
     return _Shell(shell)

@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - Registry review EDIT re-runs destructive hard-blocks (SX-002 parity with BaseExecutor).
 - `production-check` reports `command_review` + `destructive_guard` status.
 - Webhook SSRF `_is_blocked_ip` unwraps IPv4-mapped IPv6 before private/CGNAT checks.
+- IP-pinned HTTPS (`_https_request_pinned`) refuses HTTP 3xx (no Location chase).
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).
 - Broaden `.env` credential skips (bearer/cookie/session/webhook/auth/…) in CLI and chat loaders.

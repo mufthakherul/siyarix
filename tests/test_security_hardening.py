@@ -379,8 +379,10 @@ class TestSecretRedactorRedact:
     def test_url_password(self) -> None:
         text = "http://user:password123@example.com"
         result = self.r.redact(text)
-        assert "password123" in result
-        assert "http" in result
+        assert "password123" not in result
+        assert "[REDACTED]" in result
+        assert result.startswith("http://user:")
+        assert "@example.com" in result
 
     def test_private_key_marker(self) -> None:
         text = "-----BEGIN RSA PRIVATE KEY-----"

@@ -278,7 +278,9 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     # ── Passwords in URLs ────────────────────────────────────────────────
-    ("url_password", re.compile(r"://[^:]+:([^@]{3,})@")),
+    # Group 1 = `://user:` prefix (preserved). Password is redacted; `@` kept
+    # via lookahead so hosts stay parseable (was wrongly capturing the secret).
+    ("url_password", re.compile(r"(://[^:]+:)[^@]{3,}(?=@)")),
     # ── Private key markers ──────────────────────────────────────────────
     ("private_key", re.compile(r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----")),
     # ── Generic secret-like key=value ────────────────────────────────────

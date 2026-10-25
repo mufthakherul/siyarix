@@ -52,16 +52,18 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (257 files)**; pytest **6022 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: workflow soft-error→FAILED + skip dependents; playbook `if`/`retries` + edge conditions; threat-intel input validation + no-redirect; IPv4-mapped/link-local blocked in local-provider URL checks; unknown deep-scan profiles raise; kwargs/args/flags/`command` honor `SIYARIX_ALLOWED_SCOPE`; onboarding archive extract rejects slip + symlinks; SX-025 PermissionGate + webhook probes.
+Latest local checks on this branch: **mypy clean (257 files)**; pytest **6052 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: workflow soft-error→FAILED + skip dependents; playbook `if`/`retries` + edge conditions; threat-intel input validation + no-redirect; IPv4-mapped/link-local blocked in local-provider URL checks; unknown deep-scan profiles raise; kwargs/args/flags/`command` honor `SIYARIX_ALLOWED_SCOPE`; onboarding archive extract rejects slip + symlinks; SX-025 PermissionGate + webhook probes.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
-audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln
+audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln
 reporting, permission-gate empty-command ordering, injection validator fail-closed,
 adversarial CRITICAL plan abort, deep-scan scope enforcement, vault key refuse-silent-rotate,
 PermissionGate on by default, no sudo secrets in settings.toml, offline enqueue-on-failure only,
 normalized `rm -fr/--recursive` destructive checks, plugin path/entrypoint sandboxing + pip
 fail-closed, learned-skill review preserved, atomic settings.toml writes, cache_invalidate rowcount,
-CLI multi-target `--parallel` concurrency, compliance status exit codes, chat/CLI registry factory.
+CLI multi-target `--parallel` concurrency, compliance status exit codes, chat/CLI registry factory,
+DLP↔SecretRedactor pattern sync, broadened `.env` credential skips, non-TTY review guidance,
+SecretRedactor URL-password redaction (no longer preserves the secret).
 
 Goal status: production gates must stay green (`mypy` + full non-e2e pytest). Absolute “every
 possible bug / most-powerful product forever” is not a finite claim — known SX + hunt P0/P1

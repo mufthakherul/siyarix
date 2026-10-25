@@ -2065,7 +2065,9 @@ class OnboardingWizard:
                         }
                         url = api_urls.get(provider_name, "")
                         if url:
-                            r = httpx.get(url, headers=headers, timeout=10)
+                            r = httpx.get(
+                                url, headers=headers, timeout=10, follow_redirects=False
+                            )
                             ok = r.status_code < 500
                             detail = f"HTTP {r.status_code} ({r.elapsed.total_seconds():.1f}s)"
                         else:

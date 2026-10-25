@@ -497,7 +497,7 @@ async def _gemini_generate(
     if not api_key:
         raise LLMProviderError("Gemini API key is required but not provided")
     url = f"{_GEMINI_API_BASE}/models/{model}:generateContent"
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
         resp = await client.post(url, params={"key": api_key}, json=body)
         resp.raise_for_status()
         data = resp.json()
@@ -546,7 +546,7 @@ async def _gemini_stream(
     if not api_key:
         raise LLMProviderError("Gemini API key is required but not provided")
     url = f"{_GEMINI_API_BASE}/models/{model}:streamGenerateContent"
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
         async with client.stream(
             "POST", url, params={"key": api_key, "alt": "sse"}, json=body
         ) as resp:

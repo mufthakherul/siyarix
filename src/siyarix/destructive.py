@@ -163,8 +163,12 @@ _EXTRACT_DEST_RE = re.compile(
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
-    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg)\b[\s\S]{0,160}?"
-    r"(?:--installroot|--root|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm)\b[\s\S]{0,160}?"
+    r"(?:--installroot|--root|--prefix|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+_GIT_SEPARATE_DIR_RE = re.compile(
+    r"\bgit\b[\s\S]{0,160}--separate-git-dir(?:=|\s+)(\S+)",
     re.IGNORECASE,
 )
 # Alpine apk also uses ``-p`` / ``--root`` for the install root.
@@ -433,6 +437,7 @@ _INTERPRETER_AUTH_WRITE_RE = re.compile(
     + r"|shutil\s*\)?\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
     + r"|os\s*\)?\s*\.\s*(?:rename|replace)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|appendFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
     + r"|extractall\s*\(\s*/"
     + r"|ZipFile\s*\([^)]*\)[\s\S]{0,80}\.extract(?:all)?\s*\(\s*/"
     + r")",
@@ -688,6 +693,13 @@ def assert_command_not_destructive(command: str) -> None:
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."
         )
+
+    for sep_dir in _GIT_SEPARATE_DIR_RE.finditer(cmd_clean):
+        dest = _normalize_path_token(sep_dir.group(1))
+        if _AUTH_FILE_RE.search(dest) or _is_dangerous_extract_dest(dest):
+            raise PermissionDeniedError(
+                "Destructive command detected: Overwriting auth files is blocked."
+            )
 
     for pkg_root in (
         *_PKG_ROOT_RE.finditer(cmd_clean),

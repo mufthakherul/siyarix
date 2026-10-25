@@ -64,6 +64,17 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "NPM_CONFIG_STRICT_SSL=false",
                 "COMPOSER_DISABLE_TLS=1",
                 "UV_INSECURE_HOST=evil.example",
+                "OPENAI_KEY=sk-test",
+                "ANTHROPIC_KEY=ak-test",
+                "XAI_KEY=xai-test",
+                "SIYARIX_OPENAI_KEY=sk-test",
+                "GIT_SSH=/tmp/pwn",
+                "GIT_PROXY_COMMAND=/tmp/pwn",
+                "GIT_CONFIG_KEY_0=core.sshCommand",
+                "GIT_CONFIG_VALUE_0=/tmp/pwn",
+                "NPM_CONFIG_SCRIPT_SHELL=/tmp/pwn",
+                "LESSOPEN=|/tmp/pwn",
+                "SUDO_ASKPASS=/tmp/pwn",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -116,6 +127,17 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "NPM_CONFIG_STRICT_SSL",
         "COMPOSER_DISABLE_TLS",
         "UV_INSECURE_HOST",
+        "OPENAI_KEY",
+        "ANTHROPIC_KEY",
+        "XAI_KEY",
+        "SIYARIX_OPENAI_KEY",
+        "GIT_SSH",
+        "GIT_PROXY_COMMAND",
+        "GIT_CONFIG_KEY_0",
+        "GIT_CONFIG_VALUE_0",
+        "NPM_CONFIG_SCRIPT_SHELL",
+        "LESSOPEN",
+        "SUDO_ASKPASS",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -169,4 +191,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "NPM_CONFIG_STRICT_SSL" not in os.environ
     assert "COMPOSER_DISABLE_TLS" not in os.environ
     assert "UV_INSECURE_HOST" not in os.environ
+    assert "OPENAI_KEY" not in os.environ
+    assert "ANTHROPIC_KEY" not in os.environ
+    assert "XAI_KEY" not in os.environ
+    assert "SIYARIX_OPENAI_KEY" not in os.environ
+    assert "GIT_SSH" not in os.environ
+    assert "GIT_PROXY_COMMAND" not in os.environ
+    assert "GIT_CONFIG_KEY_0" not in os.environ
+    assert "GIT_CONFIG_VALUE_0" not in os.environ
+    assert "NPM_CONFIG_SCRIPT_SHELL" not in os.environ
+    assert "LESSOPEN" not in os.environ
+    assert "SUDO_ASKPASS" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

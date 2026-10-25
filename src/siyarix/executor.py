@@ -331,12 +331,24 @@ class BaseExecutor:
 
     async def _check_permissions(self, step: PlanStep) -> None:
         command = str(step.command or step.args.get("command") or "").strip()
-        # Always fold target/args/flags into scope — a non-empty command must not
-        # short-circuit kwargs hosts that handlers actually execute.
-        parts: list[str] = [command or str(step.tool or "").strip()]
+        # Always fold tool + target/args/flags into scope — a benign ``command``
+        # (e.g. ``ls``) must not hide kwargs hosts or the real tool argv0.
+        # Avoid ``nmap nmap …`` when command already starts with the tool name.
+        parts: list[str] = []
+        tool = str(step.tool or "").strip()
+        tool_base = tool.lstrip("\\").rsplit("/", 1)[-1].lower() if tool else ""
+        cmd_base = (
+            command.split(None, 1)[0].lstrip("\\").rsplit("/", 1)[-1].lower()
+            if command
+            else ""
+        )
+        if tool and cmd_base != tool_base:
+            parts.append(tool)
         target = str(step.args.get("target") or "").strip()
         if target:
             parts.append(target)
+        if command:
+            parts.append(command)
         for key in ("args", "flags", "extra_args"):
             raw = step.args.get(key)
             if raw is None:

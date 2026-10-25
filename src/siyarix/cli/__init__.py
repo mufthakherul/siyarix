@@ -112,6 +112,24 @@ def _load_dotenv(path: Path | None = None) -> None:
         "API_KEY",
         "CONNECTION_STRING",
     )
+    # Short provider key aliases (not matched by ``_API_KEY``); keep ``VALID_KEY`` loadable.
+    _provider_short_keys = frozenset(
+        {
+            "OPENAI_KEY",
+            "ANTHROPIC_KEY",
+            "XAI_KEY",
+            "GROQ_KEY",
+            "GEMINI_KEY",
+            "OPENROUTER_KEY",
+            "TOGETHER_KEY",
+            "COHERE_KEY",
+            "MISTRAL_KEY",
+            "DEEPSEEK_KEY",
+            "PERPLEXITY_KEY",
+            "HUGGINGFACE_KEY",
+            "HF_KEY",
+        }
+    )
     _blocked_exact = frozenset(
         {
             "PGPASSWORD",
@@ -139,6 +157,8 @@ def _load_dotenv(path: Path | None = None) -> None:
             "DOCKER_HOST",
             "KUBECONFIG",
             "GIT_SSH_COMMAND",
+            "GIT_SSH",
+            "GIT_PROXY_COMMAND",
             "PGPASSFILE",
             "MYSQL_HISTFILE",
             "AWS_CONFIG_FILE",
@@ -152,6 +172,7 @@ def _load_dotenv(path: Path | None = None) -> None:
             "GIT_CONFIG_SYSTEM",
             "GIT_EXTERNAL_DIFF",
             "NPM_CONFIG_REGISTRY",
+            "NPM_CONFIG_SCRIPT_SHELL",
             "PGSERVICEFILE",
             "DSN",
             "GIT_SSL_NO_VERIFY",
@@ -167,6 +188,8 @@ def _load_dotenv(path: Path | None = None) -> None:
             "NPM_CONFIG_STRICT_SSL",
             "COMPOSER_DISABLE_TLS",
             "UV_INSECURE_HOST",
+            "LESSOPEN",
+            "SUDO_ASKPASS",
         }
     )
     _blocked_vars = {
@@ -205,6 +228,8 @@ def _load_dotenv(path: Path | None = None) -> None:
         "DOCKER_HOST",
         "KUBECONFIG",
         "GIT_SSH_COMMAND",
+        "GIT_SSH",
+        "GIT_PROXY_COMMAND",
         "PGPASSFILE",
         "NETRC",
         "HOME",
@@ -215,6 +240,7 @@ def _load_dotenv(path: Path | None = None) -> None:
         "GIT_CONFIG_SYSTEM",
         "GIT_EXTERNAL_DIFF",
         "NPM_CONFIG_REGISTRY",
+        "NPM_CONFIG_SCRIPT_SHELL",
         "PGSERVICEFILE",
         "GIT_SSL_NO_VERIFY",
         "PYTHONHTTPSVERIFY",
@@ -229,6 +255,8 @@ def _load_dotenv(path: Path | None = None) -> None:
         "NPM_CONFIG_STRICT_SSL",
         "COMPOSER_DISABLE_TLS",
         "UV_INSECURE_HOST",
+        "LESSOPEN",
+        "SUDO_ASKPASS",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():
@@ -244,7 +272,18 @@ def _load_dotenv(path: Path | None = None) -> None:
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
             key_upper = key.upper()
-            if key_upper in _blocked_exact or any(p in key_upper for p in _api_key_patterns):
+            # GIT_CONFIG_KEY_*/VALUE_* can pivot sshCommand / core.sshCommand.
+            if key_upper.startswith("GIT_CONFIG_"):
+                logger.debug("Skipping %s from .env (git config pivot)", key)
+                continue
+            if key_upper.startswith("SIYARIX_") and key_upper.endswith("_KEY"):
+                logger.debug("Skipping %s from .env (use auth set-key instead)", key)
+                continue
+            if (
+                key_upper in _blocked_exact
+                or key_upper in _provider_short_keys
+                or any(p in key_upper for p in _api_key_patterns)
+            ):
                 logger.debug("Skipping %s from .env (use auth set-key instead)", key)
                 continue
             if key_upper in _blocked_vars:

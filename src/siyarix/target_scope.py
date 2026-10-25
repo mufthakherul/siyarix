@@ -418,6 +418,38 @@ def domain_in_scope(domain: str, allowed_items: Iterable[str]) -> bool:
     return False
 
 
+def _assert_host_token_in_scope(
+    candidate: str, allowed_items: Iterable[str], scope_display: str
+) -> None:
+    """Fail-closed for a single host/IP token under authorized scope."""
+    host = (candidate or "").strip().strip("[]").lower().rstrip(".")
+    if not host:
+        return
+    int_ip = _try_int_ip(host)
+    if int_ip is not None:
+        if not ip_in_scope(int_ip, allowed_items):
+            raise PermissionDeniedError(
+                f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+            )
+        return
+    try:
+        ip = str(ipaddress.ip_address(host))
+    except ValueError:
+        if (
+            _SINGLE_LABEL_RE.match(host)
+            or "." in host
+            or host == "localhost"
+        ) and not domain_in_scope(host, allowed_items):
+            raise PermissionDeniedError(
+                f"Target host {host} is out of authorized scope: {scope_display}"
+            )
+    else:
+        if not ip_in_scope(ip, allowed_items):
+            raise PermissionDeniedError(
+                f"Target IP {ip} is out of authorized scope: {scope_display}"
+            )
+
+
 def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     """Raise :class:`PermissionDeniedError` if any target is outside authorized scope.
 
@@ -491,9 +523,10 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 or flag.startswith("--config")
                 or flag.startswith("-K")
             )
-            wget_in = base == "wget" and (
-                flag in {"-i", "--input-file"}
+            wget_cfg = base == "wget" and (
+                flag in {"-i", "--input-file", "--config"}
                 or flag.startswith("--input-file")
+                or flag.startswith("--config")
                 or re.match(r"^-i/", flag) is not None
             )
             aria_in = base == "aria2c" and (
@@ -501,15 +534,112 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 or flag.startswith("--input-file")
                 or re.match(r"^-i/", flag) is not None
             )
-            if curl_cfg or wget_in or aria_in:
+            if curl_cfg or wget_cfg or aria_in:
                 raise PermissionDeniedError(
                     f"URL/config-from-file is not allowed under authorized scope "
                     f"(authorized scope: {scope_display})"
                 )
+        # Proxy / jump hosts: curl -x, ssh/scp/sftp -J, ProxyJump=, ProxyCommand=.
+        _proxy_flags = frozenset(
+            {
+                "-x",
+                "--proxy",
+                "--socks5",
+                "--socks5-hostname",
+                "--socks4",
+                "--socks4a",
+                "-J",
+                "--jump",
+            }
+        )
+        skip_proxy_arg = False
+        for nxt in tokens[i + 1 :]:
+            if skip_proxy_arg:
+                # Bare proxy/jump host after ``-x`` / ``-J``.
+                proxy_host = nxt
+                if "://" in proxy_host:
+                    parsed = urllib.parse.urlparse(proxy_host)
+                    proxy_host = (parsed.hostname or "").strip()
+                else:
+                    proxy_host = (
+                        proxy_host.split("@")[-1].split("/")[0].split(":")[0]
+                    )
+                _assert_host_token_in_scope(proxy_host, allowed_items, scope_display)
+                skip_proxy_arg = False
+                continue
+            if not nxt.startswith("-"):
+                continue
+            flag = nxt.split("=", 1)[0]
+            # ``-o ProxyJump=bastion`` / ``-oProxyJump=bastion`` / ``ProxyCommand=``.
+            opt_body = nxt
+            if flag in {"-o", "--option"} and "=" not in nxt:
+                continue  # value is next token — handled below via joined scan
+            if flag.startswith("-o") or flag.startswith("--option"):
+                opt_body = nxt.split("=", 1)[-1] if "=" in nxt else nxt
+                # Strip leading ``-o`` / ``--option`` when glued without ``=``.
+                if opt_body.lower().startswith("proxyjump=") or opt_body.lower().startswith(
+                    "proxycommand="
+                ):
+                    pass
+                elif "=" in nxt:
+                    opt_body = nxt.split("=", 1)[-1]
+            low = opt_body.lower()
+            if "proxycommand=" in low or low.startswith("proxycommand"):
+                raise PermissionDeniedError(
+                    f"ProxyCommand is not allowed under authorized scope "
+                    f"(authorized scope: {scope_display})"
+                )
+            if "proxyjump=" in low:
+                jump = opt_body.split("=", 1)[-1]
+                # ProxyJump may be comma-separated hop list.
+                for hop in jump.split(","):
+                    hop_host = hop.split("@")[-1].split("/")[0].split(":")[0].strip()
+                    _assert_host_token_in_scope(hop_host, allowed_items, scope_display)
+            if flag in _proxy_flags or any(
+                flag.startswith(p) and p.startswith("--") for p in _proxy_flags
+            ):
+                if "=" in nxt:
+                    proxy_host = nxt.split("=", 1)[1]
+                    if "://" in proxy_host:
+                        parsed = urllib.parse.urlparse(proxy_host)
+                        proxy_host = (parsed.hostname or "").strip()
+                    else:
+                        proxy_host = (
+                            proxy_host.split("@")[-1].split("/")[0].split(":")[0]
+                        )
+                    _assert_host_token_in_scope(
+                        proxy_host, allowed_items, scope_display
+                    )
+                else:
+                    skip_proxy_arg = True
+        # Also catch ``-o ProxyJump=bastion`` as two tokens.
+        for j, tok2 in enumerate(tokens[i + 1 :]):
+            if tok2 in {"-o", "--option"} and j + 1 < len(tokens[i + 1 :]):
+                val = tokens[i + 1 :][j + 1]
+                low = val.lower()
+                if low.startswith("proxycommand="):
+                    raise PermissionDeniedError(
+                        f"ProxyCommand is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+                if low.startswith("proxyjump="):
+                    jump = val.split("=", 1)[-1]
+                    for hop in jump.split(","):
+                        hop_host = hop.split("@")[-1].split("/")[0].split(":")[0].strip()
+                        _assert_host_token_in_scope(
+                            hop_host, allowed_items, scope_display
+                        )
         # scp/sftp/rsync: ``[user@]host:path`` / ``host::module``; sftp also bare host.
         if base in {"scp", "sftp", "rsync"}:
+            skip_jump = False
             for nxt in tokens[i + 1 :]:
+                if skip_jump:
+                    skip_jump = False
+                    continue
                 if nxt.startswith("-"):
+                    flag = nxt.split("=", 1)[0]
+                    if flag in {"-J", "--jump"} and "=" not in nxt:
+                        skip_jump = True
                     continue
                 scp_m = _SCP_REMOTE_RE.match(nxt)
                 # rsync daemon: ``host::module``
@@ -524,30 +654,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 if not candidate:
                     continue
-                int_ip = _try_int_ip(candidate)
-                if int_ip is not None:
-                    if not ip_in_scope(int_ip, allowed_items):
-                        raise PermissionDeniedError(
-                            f"Target IP {int_ip} is out of authorized scope: {scope_display}"
-                        )
-                    break
-                try:
-                    ip = str(ipaddress.ip_address(candidate))
-                except ValueError:
-                    if (
-                        _SINGLE_LABEL_RE.match(candidate)
-                        or "." in candidate
-                        or candidate.lower() == "localhost"
-                    ) and not domain_in_scope(candidate.lower(), allowed_items):
-                        raise PermissionDeniedError(
-                            f"Target host {candidate.lower()} is out of authorized scope: "
-                            f"{scope_display}"
-                        )
-                else:
-                    if not ip_in_scope(ip, allowed_items):
-                        raise PermissionDeniedError(
-                            f"Target IP {ip} is out of authorized scope: {scope_display}"
-                        )
+                _assert_host_token_in_scope(candidate, allowed_items, scope_display)
                 break
             continue
         _ssh_opt_flags = frozenset({"-o", "--option"})
@@ -563,9 +670,17 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     or flag.startswith("-o")
                     or flag.startswith("--option")
                 )
-                if flag in _port_flags or flag.lower().startswith("-p") or ssh_opt:
-                    # ``-o Key=val``, ``-oKey=val`` (glued), or ``-p 22``.
-                    if "=" not in nxt and flag in _ssh_opt_flags | _port_flags:
+                jump_opt = flag in {"-J", "--jump"}
+                if (
+                    flag in _port_flags
+                    or flag.lower().startswith("-p")
+                    or ssh_opt
+                    or jump_opt
+                ):
+                    # ``-o Key=val``, ``-J bastion``, ``-p 22``.
+                    if "=" not in nxt and (
+                        flag in _ssh_opt_flags | _port_flags | {"-J", "--jump"}
+                    ):
                         skip_next_port = True
                     elif "=" not in nxt and flag.lower().startswith("-p") and len(flag) <= 2:
                         skip_next_port = True

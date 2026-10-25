@@ -83,6 +83,10 @@ All notable changes to this project will be documented in this file.
 - Hard-block apk `-p /`, `debootstrap`/`pacstrap` onto `/`, `mount -B` onto auth, `shuf -o` onto auth.
 - Hard-block glued `cp -t/auth`, `mount -o rw,bind`, `tar -P`/`--absolute-names`, `__import__('shutil').copy` auth, ddrescue→auth.
 - Scope: ssh `-o` options no longer hide the real host; bare `sftp`/`rsync` remotes; aria2c `-i` config-from-file.
+- `.env` skips `*_KEY` provider keys, `GIT_SSH`/`GIT_PROXY_COMMAND`/`GIT_CONFIG_*`, `LESSOPEN`/`SUDO_ASKPASS`/`NPM_CONFIG_SCRIPT_SHELL`.
+- Scope: wget `--config`; curl `-x`/`--proxy` hosts; ssh/scp `-J`/`ProxyJump=` hops; reject `ProxyCommand=`.
+- Executor scope fold always prefixes tool + target (benign `command` cannot hide kwargs hosts).
+- Hard-block `appendFile(Sync)` onto auth; `pip`/`npm --root`/`--prefix` onto `/`; `git --separate-git-dir` onto auth.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.
 - Block procfs hijacks (`core_pattern`/`modprobe`/`hotplug`/`binfmt_misc`); git `--prefix=/`/`--work-tree=/`.

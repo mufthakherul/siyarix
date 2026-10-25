@@ -321,6 +321,11 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "ddrescue /tmp/x /etc/passwd",
         "dd_rescue /tmp/x /etc/passwd",
         "ddr /tmp/x /etc/shadow",
+        "node -e \"require('fs').appendFileSync('/etc/passwd','x')\"",
+        "node -e \"require('fs').appendFile('/etc/shadow','x',()=>{})\"",
+        "pip install --root=/ evil",
+        "pip3 install --prefix=/ evil",
+        "git init --separate-git-dir=/etc/passwd",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

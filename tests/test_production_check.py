@@ -30,6 +30,7 @@ def test_production_check_json() -> None:
     assert payload["fails"] == 0
     by_name = {c["name"]: c for c in payload["checks"]}
     assert by_name["destructive_guard"]["status"] == "pass"
+    assert "hard-blocks" in by_name["destructive_guard"]["detail"]
     assert by_name["command_review"]["status"] in {"pass", "warn"}
 
 

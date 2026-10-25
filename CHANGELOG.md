@@ -39,6 +39,7 @@ All notable changes to this project will be documented in this file.
 - Scope: short/octal inet_aton IPv4 (`0177.1` → `127.0.0.1`); hex-dotted requires a `0x` octet.
 - Scope: scrub hex-dotted forms before short-IP parse (no phantom `0.0.0.0` from `0x7f.0x0…`).
 - Hard-block combined-flag `chmod -Rf` / `chgrp -R` on `/`; `curl`/`wget` `-o` onto disks; `ln -sf /dev/null` and `cp` onto auth files.
+- `siyarix doctor` / `production-check` probes live hard-blocks + inet_aton scope deny.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

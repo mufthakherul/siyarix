@@ -2528,9 +2528,32 @@ def production_check(
 
     try:
         from ..destructive import assert_command_not_destructive
+        from ..exceptions import PermissionDeniedError as _PermDenied
+        from ..target_scope import assert_command_in_scope as _assert_scope
 
         assert_command_not_destructive("echo ok")
-        _add("destructive_guard", "pass", "shared assert_command_not_destructive loaded")
+        _probe_blocks = (
+            "chmod -Rf 777 /",
+            "curl -o /dev/sda http://example.com/x",
+            "rsync -a --delete /tmp/ /",
+            "python -c \"Path('/dev/sda').write_bytes(b'x')\"",
+        )
+        for _probe in _probe_blocks:
+            try:
+                assert_command_not_destructive(_probe)
+                raise RuntimeError(f"expected hard-block for: {_probe}")
+            except _PermDenied:
+                pass
+        try:
+            _assert_scope("nmap 0177.1", scope_env="10.0.0.0/8")
+            raise RuntimeError("expected scope deny for inet_aton 0177.1")
+        except _PermDenied:
+            pass
+        _add(
+            "destructive_guard",
+            "pass",
+            "hard-blocks + inet_aton scope probes ok",
+        )
     except Exception as exc:  # pragma: no cover - defensive
         _add("destructive_guard", "fail", f"unavailable: {exc}")
 

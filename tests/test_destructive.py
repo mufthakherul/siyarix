@@ -453,6 +453,19 @@ def test_assert_allows_safe_commands(command: str) -> None:
         # RH-38
         "pip install --target=/ evil",
         "pip3 install --target /opt/../ evil",
+        # RH-41 — volume create, gem install-dir, patool, bind /etc, systemd vendor units
+        "zpool create tank /dev/sda",
+        "mdadm --create /dev/md0 --level=0 --raid-devices=2 /dev/sda /dev/sdb",
+        "pvcreate /dev/sda",
+        "vgcreate vg /dev/sda",
+        "gem install foo --install-dir /",
+        "gem i foo -i /",
+        "patool extract --outdir / a.tar",
+        "mount --bind /tmp /etc",
+        "mount --bind /tmp /",
+        "cp /tmp/evil /lib/systemd/system/evil.service",
+        "cp /tmp/evil /usr/lib/systemd/system/evil.service",
+        "cargo install --root / foo",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

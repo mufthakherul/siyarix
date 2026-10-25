@@ -474,6 +474,20 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "MITMPROXY_CONF",
         "REDSOCKS_CONF",
         "MICROSOCKS_CONFIG",
+        # Service-discovery / DB hosts also blocked on argv under scope (RH-41).
+        "CONSUL_HTTP_ADDR",
+        "CONSUL_HTTP_HOST",
+        "NOMAD_ADDR",
+        "ETCDCTL_ENDPOINTS",
+        "CLICKHOUSE_HOST",
+        "CASSANDRA_HOST",
+        "SSH_PROXY_COMMAND",
+        "YARN_REGISTRY",
+        "PNPM_REGISTRY",
+        "UV_INDEX",
+        "UV_EXTRA_INDEX_URL",
+        "UV_DEFAULT_INDEX",
+        "NPM_CONFIG_REGISTRY",
     }
 )
 
@@ -530,6 +544,19 @@ def should_skip_dotenv_key(key: str) -> bool:
         "REDSOCKS_CONF",
         "MITMPROXY_CONF",
         "MICROSOCKS_CONFIG",
+    }:
+        return True
+    if key_upper.endswith("_REGISTRY") or key_upper in {
+        "UV_INDEX",
+        "UV_EXTRA_INDEX_URL",
+        "UV_DEFAULT_INDEX",
+        "CONSUL_HTTP_ADDR",
+        "CONSUL_HTTP_HOST",
+        "NOMAD_ADDR",
+        "ETCDCTL_ENDPOINTS",
+        "CLICKHOUSE_HOST",
+        "CASSANDRA_HOST",
+        "SSH_PROXY_COMMAND",
     }:
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:

@@ -1089,13 +1089,25 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             continue
         # docker/podman daemon endpoints: ``-H tcp://host``, ``--url``, ``context use``.
         if base in {"docker", "podman"}:
-            # ``docker context use <name>`` / ``podman --connection`` hide the daemon (RH-34).
+            # ``docker context use`` / ``podman system connection use`` hide the daemon
+            # (RH-34 / RH-41).
             rest_lower = [t.lower() for t in tokens[i + 1 :]]
             for j in range(len(rest_lower) - 1):
                 if rest_lower[j] == "context" and rest_lower[j + 1] == "use":
                     raise PermissionDeniedError(
                         f"{base} context use is not allowed under authorized scope "
                         f"(authorized scope: {scope_display}); pass an explicit -H/--host"
+                    )
+                if (
+                    j + 2 < len(rest_lower)
+                    and rest_lower[j] == "system"
+                    and rest_lower[j + 1] == "connection"
+                    and rest_lower[j + 2] in {"use", "default", "remove"}
+                ):
+                    raise PermissionDeniedError(
+                        f"{base} system connection {rest_lower[j + 2]} is not allowed "
+                        f"under authorized scope (authorized scope: {scope_display}); "
+                        f"pass an explicit -H/--host/--connection"
                     )
             skip_daemon = False
             for nxt in tokens[i + 1 :]:
@@ -1416,9 +1428,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if base == "chisel":
                 for nxt in tokens[i + 1 :]:
                     low = nxt.lower().strip().strip("'\"")
+                    # Client remotes + server ``--socks5`` listener (RH-29 / RH-41).
                     if (
-                        low in {"r:socks", "socks", "socks5", "socks4"}
+                        low in {"r:socks", "socks", "socks5", "socks4", "--socks5", "--socks4", "--socks"}
                         or low.startswith("r:socks")
+                        or low.startswith("--socks5")
+                        or low.startswith("--socks4")
                         or ":socks" in low
                     ):
                         raise PermissionDeniedError(

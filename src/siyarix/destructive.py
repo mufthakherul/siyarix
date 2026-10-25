@@ -176,17 +176,23 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\b(?:unar|unrar|rar)\b[\s\S]{0,140}(?:-op|-o|-d)(?:=|\s*)(\S+)"
     # ``ar x a.a --output /`` / ``ar -O /`` (RH-27). Avoid matching ``-O`` inside ``--output``.
     r"|\bar\b[\s\S]{0,160}(?:--output(?:=|\s*)|(?<![-\w])-O(?:=|\s*))(\S+)"
-    # ``gem unpack … --target /`` / ``aunpack -X /`` (RH-35).
-    r"|\bgem\b[\s\S]{0,160}(?:unpack|install)\b[\s\S]{0,120}(?:--target|-i)(?:=|\s*)(\S+)"
+    # ``gem unpack/install/i … --target|--install-dir|-i /`` / ``aunpack -X /`` (RH-35/41).
+    # Long opts first; short ``-i`` must not match inside ``--install-dir``.
+    r"|\bgem\b[\s\S]{0,160}(?:unpack|install|\bi)\b[\s\S]{0,140}"
+    r"(?:(?:--target|--install-dir)(?:=|\s*)|(?<![-\w])-i(?:=|\s*))(\S+)"
     r"|\b(?:aunpack|atool)\b[\s\S]{0,100}(?:-X|--extract-to)(?:=|\s*)(\S+)"
+    # ``patool extract --outdir /`` (RH-41). Avoid ``-O`` matching inside ``--outdir``.
+    r"|\bpatool\b[\s\S]{0,140}(?:extract|x)\b[\s\S]{0,120}"
+    r"(?:(?:--outdir|--out-dir)(?:=|\s*)|(?<![-\w])-O(?:=|\s*))(\S+)"
     r")",
     re.IGNORECASE,
 )
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
-    # ``pip install --target=/`` is an install-root pivot (RH-38).
-    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm)\b[\s\S]{0,160}?"
+    # ``pip install --target=/`` / ``cargo install --root=/`` (RH-38 / RH-41).
+    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv)\b"
+    r"[\s\S]{0,160}?"
     r"(?:--installroot|--offline-root|--root|--prefix|--target|(?<![\w-])-r)"
     r"(?:=|\s*)(\S+)",
     re.IGNORECASE,
@@ -312,6 +318,8 @@ _AUTH_FILE_RE = re.compile(
     r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local)\b"
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?"
     r"|/etc/systemd/(?:system|user)(?:/\S*)?"
+    # Vendor unit dirs (RH-41) — persistence outside /etc/systemd.
+    r"|/(?:usr/)?lib/systemd/(?:system|user)(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
     r")",
     re.IGNORECASE,
@@ -374,6 +382,7 @@ _AUTH_DIR_RE = re.compile(
     r"/etc/sudoers\.d\b"
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)\b"
     r"|/etc/systemd/(?:system|user)\b"
+    r"|/(?:usr/)?lib/systemd/(?:system|user)\b"
     r")",
     re.IGNORECASE,
 )
@@ -427,10 +436,13 @@ _PROCFS_HIJACK_RE = re.compile(
 )
 _MOUNT_BIND_AUTH_RE = re.compile(
     # Match before and after comma→space scrub (``-o rw,bind`` / ``-o rw bind``).
+    # Also block bind onto ``/`` / ``/etc`` (RH-41) — hides/clobbers auth trees.
     r"\bmount\b[\s\S]{0,160}"
     r"(?:--bind\b|-B\b|-o(?:=|\s+)\S*bind\b|-o(?:=|\s+)\S*\s+bind\b)"
-    r"[\s\S]{0,160}"
-    + _AUTH_FILE_RE.pattern,
+    r"(?=[\s\S]{0,200}(?:"
+    + _AUTH_FILE_RE.pattern
+    + r"|/etc\b|(?:\s)/(?:\s*)$"
+    r"))",
     re.IGNORECASE,
 )
 _TAR_ABSOLUTE_NAMES_RE = re.compile(
@@ -576,6 +588,22 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\b(?:restore|xfsrestore|star)\b[\s\S]{0,160}(?:-C|--directory)(?:=|\s*)/"
     r"|\b(?:restore|xfsrestore)\b[\s\S]{0,200}\s/\s*$"
     r")",
+    re.IGNORECASE,
+)
+# Create-on-device siblings of destroy (RH-41) — wipe existing data via new pool/RAID/LVM.
+_VOLUME_CREATE_RE = re.compile(
+    r"(?:"
+    r"\bzpool\s+create\b[\s\S]{0,220}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bmdadm\b[\s\S]{0,160}--create\b[\s\S]{0,220}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bpvcreate\b[\s\S]{0,160}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bvgcreate\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\blvcreate\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    + r")",
     re.IGNORECASE,
 )
 
@@ -1034,6 +1062,11 @@ def assert_command_not_destructive(command: str) -> None:
     if _VOLUME_DESTROY_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Volume/array destroy is blocked."
+        )
+
+    if _VOLUME_CREATE_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Volume/array create on block devices is blocked."
         )
 
     if _PARTITION_RE.search(cmd_clean):

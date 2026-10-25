@@ -609,6 +609,13 @@ class TestAssertCommandInScope:
             assert_command_in_scope("microsocks -p 1080", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="context use"):
             assert_command_in_scope("docker context use prod", scope_env=scope)
+        # RH-41: podman system connection + chisel server SOCKS
+        with pytest.raises(PermissionDeniedError, match="connection|context"):
+            assert_command_in_scope(
+                "podman system connection use evil", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
+            assert_command_in_scope("chisel server --socks5", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

@@ -259,12 +259,21 @@ class LLMEngineMixin:
             from .stubs import AdversarialTester, AdversarialSeverity
 
             tester = AdversarialTester()
-            plan_lines = [
-                f"{getattr(s, 'tool', '') or ''} {' '.join(str(a) for a in getattr(s, 'args', []))} {getattr(s, 'target', '') or ''}".strip()
-                or getattr(s, "command", "")
-                or ""
-                for s in plan.steps
-            ]
+            plan_lines = []
+            for s in plan.steps:
+                cmd = str(getattr(s, "command", "") or "").strip()
+                tool = str(getattr(s, "tool", "") or "").strip()
+                args = getattr(s, "args", None)
+                if isinstance(args, dict):
+                    arg_bits = " ".join(f"{k}={v}" for k, v in sorted(args.items()))
+                elif isinstance(args, (list, tuple)):
+                    arg_bits = " ".join(str(a) for a in args)
+                else:
+                    arg_bits = str(args or "")
+                target = str(getattr(s, "target", "") or "").strip()
+                # Prefer the real shell command so CRITICAL abort cannot miss it.
+                line = cmd or f"{tool} {arg_bits} {target}".strip()
+                plan_lines.append(line)
             findings = tester.review_plan(plan_lines)
             critical = [f for f in findings if f.severity == AdversarialSeverity.CRITICAL]
             high = [f for f in findings if f.severity == AdversarialSeverity.HIGH]

@@ -11,9 +11,9 @@ escape hatch is ``SIYARIX_PREAUTHORIZED=1``: opt-in, loudly logged, and audited 
 
 Integration points
 ------------------
-- ``authorization.py``         — the chokepoint calls ``review_and_confirm`` for gated commands
 - ``executor.py``              — ``_get_review_and_confirm()`` imports ``review_and_confirm``
 - ``executor_autonomous.py``   — ``_review_commands()`` imports ``review_and_confirm``
+- ``executor_registry.py``     — plan execution goes through BaseExecutor permission checks
 - ``registry.py``              — permission-gate review imports ``review_and_confirm``
 - ``chat/handlers.py``         — ``/review`` slash command toggles the ``command_review`` setting
                                   which gates whether the executor calls this module.

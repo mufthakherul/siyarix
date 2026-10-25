@@ -259,6 +259,10 @@ class TestPlatformUtils:
             "SIYARIX_WEBHOOK_URL=https://hooks.example/x\n"
             "APP_BEARER=tok\n"
             "SESSION_COOKIE=sid\n"
+            "PGPASSWORD=dbpass\n"
+            "MYSQL_PWD=dbpass\n"
+            "DATABASE_URL=postgres://u:p@h/db\n"
+            "API_KEY=bare\n"
             "VALID_KEY=ok\n"
         )
         mock_dir = MagicMock()
@@ -271,6 +275,10 @@ class TestPlatformUtils:
             assert "SIYARIX_WEBHOOK_URL" not in os.environ
             assert "APP_BEARER" not in os.environ
             assert "SESSION_COOKIE" not in os.environ
+            assert "PGPASSWORD" not in os.environ
+            assert "MYSQL_PWD" not in os.environ
+            assert "DATABASE_URL" not in os.environ
+            assert "API_KEY" not in os.environ
             mock_log.debug.assert_any_call(
                 "Skipping %s from .env (use /key command instead)", "OPENAI_API_KEY"
             )

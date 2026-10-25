@@ -2529,7 +2529,7 @@ class CommandHandlersMixin:
 
             agent = AgentCore(mode=AgentMode.REGISTRY)
             await agent.initialize()
-            agent.executor_autonomous.command_review = self._settings.get("command_review", False)
+            agent.executor_autonomous.command_review = self._settings.get("command_review", True)
             res = await agent.executor_autonomous.execute_plan(plan, live_display=True)
             skill.usage_count += 1
             if res.status.name == "COMPLETED":

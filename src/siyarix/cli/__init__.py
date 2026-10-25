@@ -94,6 +94,30 @@ def _load_dotenv(path: Path | None = None) -> None:
         "_PRIVATE_KEY",
         "_ACCESS_KEY",
         "_MASTER_PASSWORD",
+        "_URI",
+        "_DSN",
+        "PASSWORD",
+        "SECRET",
+        "TOKEN",
+        "API_KEY",
+        "CONNECTION_STRING",
+    )
+    _blocked_exact = frozenset(
+        {
+            "PGPASSWORD",
+            "MYSQL_PWD",
+            "DATABASE_URL",
+            "REDIS_URL",
+            "MONGO_URL",
+            "MONGODB_URI",
+            "API_KEY",
+            "PASSWORD",
+            "SECRET",
+            "TOKEN",
+            "AUTH_TOKEN",
+            "ACCESS_TOKEN",
+            "CONNECTION_STRING",
+        }
     )
     _blocked_vars = {
         "PATH",
@@ -125,10 +149,11 @@ def _load_dotenv(path: Path | None = None) -> None:
         key = key.strip()
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
-            if any(p in key.upper() for p in _api_key_patterns):
+            key_upper = key.upper()
+            if key_upper in _blocked_exact or any(p in key_upper for p in _api_key_patterns):
                 logger.debug("Skipping %s from .env (use auth set-key instead)", key)
                 continue
-            if key.upper() in _blocked_vars:
+            if key_upper in _blocked_vars:
                 logger.debug("Skipping blocked env var %s from .env", key)
                 continue
             os.environ[key] = val

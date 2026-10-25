@@ -234,7 +234,21 @@ class AdversarialTester:
         findings: list[AdversarialFinding] = []
         for idx, line in enumerate(plan_lines):
             lower = line.lower()
-            if any(p in lower for p in ("rm -rf /", ":(){ :|:& };:", "dd if=/dev/zero", "mkfs.")):
+            if any(
+                p in lower
+                for p in (
+                    "rm -rf /",
+                    "rm -fr /",
+                    "rm --recursive",
+                    ":(){ :|:& };:",
+                    "dd if=/dev/zero",
+                    "of=/dev/",
+                    "mkfs.",
+                    "mkfs ",
+                    "fdisk ",
+                    "parted ",
+                )
+            ):
                 findings.append(
                     AdversarialFinding(
                         severity=AdversarialSeverity.CRITICAL,

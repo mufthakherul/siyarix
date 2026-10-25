@@ -389,18 +389,20 @@ class ToolRegistry:
         assert_command_in_scope(scope_command)
 
         if self._permission_gate:
-            gate_result = self._permission_gate.check(command, tool=name)
+            # Gate on the folded synopsis so dangerous flags/args cannot hide
+            # behind a benign `command` kwarg.
+            gate_result = self._permission_gate.check(scope_command, tool=name)
             if not gate_result.allowed:
                 raise PermissionDeniedError(gate_result.reason)
             if gate_result.requires_review:
                 from .shell_review import review_and_confirm
 
-                reviewed = review_and_confirm(command, name, gate_result.reason)
+                reviewed = review_and_confirm(scope_command, name, gate_result.reason)
                 if reviewed is None:
                     from .shell_review import review_refusal_message
 
                     raise PermissionDeniedError(review_refusal_message(gate_result.reason))
-                if reviewed != command:
+                if reviewed != scope_command:
                     # The edited text is what runs, so it has to clear the gate on its own
                     # merits — previously the edit was collected and then discarded.
                     recheck = self._permission_gate.check(reviewed, tool=name)

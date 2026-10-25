@@ -126,23 +126,20 @@ class RegistryExecutor(BaseExecutor):
                 break
             ready_steps = plan.get_ready_steps()
             if not ready_steps:
+                # Fail-closed on cycles / unreachable deps (mirror executor_autonomous).
+                # A PENDING↔PENDING cycle never sees FAILED deps, so the old "blocked"
+                # heuristic slept forever — mark remaining pending SKIPPED and exit.
                 if plan.pending_steps:
-                    blocked = True
-                    for step in plan.pending_steps:
-                        step_blocked = False
-                        for dep_id in step.dependencies:
-                            dep_step = plan.get_step(dep_id)
-                            if dep_step is None or dep_step.status == StepStatus.FAILED:
-                                step_blocked = True
-                                break
-                        if not step_blocked:
-                            blocked = False
-                            break
-                    if blocked:
-                        logger.warning("Plan %s is deadlocked; breaking", plan.id)
-                        break
-                    await asyncio.sleep(0.01)
-                    continue
+                    logger.warning(
+                        "Plan %s deadlocked or cyclic; skipping remaining pending steps",
+                        plan.id,
+                    )
+                    for step in list(plan.pending_steps):
+                        step.status = StepStatus.SKIPPED
+                        step.result = {
+                            "status": "skipped",
+                            "error": "Skipped: unresolvable dependency cycle or deadlock",
+                        }
                 break
 
             plan_type_val = (

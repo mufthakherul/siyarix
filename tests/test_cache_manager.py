@@ -24,20 +24,20 @@ def cache(tmp_path) -> CacheManager:
 
 class TestCacheEntry:
     def test_expired_property(self) -> None:
-        entry = CacheEntry(key="k", data="d", created_at=time.monotonic() - 100, ttl=50)
+        entry = CacheEntry(key="k", data="d", created_at=time.time() - 100, ttl=50)
         assert entry.expired is True
 
     def test_not_expired(self) -> None:
-        entry = CacheEntry(key="k", data="d", created_at=time.monotonic(), ttl=3600)
+        entry = CacheEntry(key="k", data="d", created_at=time.time(), ttl=3600)
         assert entry.expired is False
 
     def test_age_seconds(self) -> None:
-        created = time.monotonic() - 10
+        created = time.time() - 10
         entry = CacheEntry(key="k", data="d", created_at=created, ttl=3600)
         assert 9.5 <= entry.age_seconds <= 10.5
 
     def test_zero_age(self) -> None:
-        entry = CacheEntry(key="k", data="d", created_at=time.monotonic(), ttl=3600)
+        entry = CacheEntry(key="k", data="d", created_at=time.time(), ttl=3600)
         assert entry.age_seconds < 1.0
 
 
@@ -71,7 +71,7 @@ class TestCacheManager:
     def test_get_expired(self, cache: CacheManager) -> None:
         cache.set("test_key", "test_data", "tool_output")
         entry = cache._entries["test_key"]
-        entry.created_at = time.monotonic() - 7200
+        entry.created_at = time.time() - 7200
         result = cache.get("test_key", "tool_output")
         assert result is None
         assert cache._miss_count == 1
@@ -174,7 +174,10 @@ class TestCacheManager:
     def test_data_path(self, cache: CacheManager) -> None:
         path = cache._data_path("test/key:value")
         assert path.name.endswith(".cache")
-        assert "_" in path.stem
+        # Keys are hashed — no raw separators / traversal in the filename.
+        assert "/" not in path.name
+        assert ".." not in path.name
+        assert len(path.stem) == 64  # sha256 hex
 
     def test_evict_nonexistent(self, cache: CacheManager) -> None:
         cache._evict("nonexistent")
@@ -239,7 +242,7 @@ class TestCacheManagerEviction:
 
         cm = CacheManager()
         cm._entries["k"] = CacheEntry(
-            key="k", data="mem_data", created_at=time.monotonic(), ttl=9999
+            key="k", data="mem_data", created_at=time.time(), ttl=9999
         )
         with patch("siyarix.opsec.opsec_manager") as m:
             m.status.memory_only = True
@@ -249,7 +252,7 @@ class TestCacheManagerEviction:
         from siyarix.cache_manager import CacheManager, CacheEntry
 
         cm = CacheManager()
-        cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.monotonic(), ttl=9999)
+        cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.time(), ttl=9999)
         with patch("siyarix.opsec.opsec_manager") as mock_os:
             mock_os.status.memory_only = False
             with patch.object(Path, "read_text", return_value="file_data"):
@@ -295,7 +298,7 @@ class TestCacheManagerExpiry:
 
     def test_get_import_error_returns_none(self):
         cm = CacheManager()
-        cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.monotonic(), ttl=9999)
+        cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.time(), ttl=9999)
         with patch("siyarix.opsec.opsec_manager") as mock_os:
             mock_os.status.memory_only = False
             with patch.object(Path, "read_text", side_effect=OSError("read error")):
@@ -304,7 +307,7 @@ class TestCacheManagerExpiry:
     def test_invalidate_all_exception_logged(self):
         cm = CacheManager()
         cm._entries["k"] = CacheEntry(
-            key="k", domain="d", data="x", created_at=time.monotonic(), ttl=9999
+            key="k", domain="d", data="x", created_at=time.time(), ttl=9999
         )
         with patch.object(Path, "glob", return_value=[Path("k.cache")]):
             with patch.object(Path, "unlink", side_effect=OSError("fail")):
@@ -331,7 +334,7 @@ class TestCacheManagerConcurrency:
 
     def test_get_import_error_returns_none(self):
         cm = CacheManager()
-        cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.monotonic(), ttl=9999)
+        cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.time(), ttl=9999)
         with patch("siyarix.opsec.opsec_manager") as mock_os:
             mock_os.status.memory_only = False
             with patch.object(Path, "read_text", side_effect=OSError("read error")):
@@ -340,7 +343,7 @@ class TestCacheManagerConcurrency:
     def test_invalidate_all_exception_logged(self):
         cm = CacheManager()
         cm._entries["k"] = CacheEntry(
-            key="k", domain="d", data="x", created_at=time.monotonic(), ttl=9999
+            key="k", domain="d", data="x", created_at=time.time(), ttl=9999
         )
         with patch.object(Path, "glob", return_value=[Path("k.cache")]):
             with patch.object(Path, "unlink", side_effect=OSError("fail")):

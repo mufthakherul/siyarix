@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -89,6 +90,10 @@ def _validate_git_clone_url(url: str) -> str:
     cleaned = (url or "").strip()
     if cleaned.startswith("git@"):
         raise ValueError("SSH git remotes are not allowed for plugin install; use https://")
+    # Reject embedded credentials so tokens never appear on `git clone` argv.
+    parsed = urllib.parse.urlparse(cleaned)
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Git remotes must not include embedded credentials (userinfo)")
     return _validate_plugin_fetch_url(cleaned)
 
 

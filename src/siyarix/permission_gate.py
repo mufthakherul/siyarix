@@ -67,9 +67,19 @@ class PermissionGate:
     def _load_state(self) -> None:
         if self._state_file.exists():
             try:
-                self._calls = json.loads(self._state_file.read_text(encoding="utf-8"))
+                raw = json.loads(self._state_file.read_text(encoding="utf-8"))
+                if not isinstance(raw, list):
+                    self._calls = []
+                    return
+                calls: list[float] = []
+                for item in raw:
+                    try:
+                        calls.append(float(item))
+                    except (TypeError, ValueError):
+                        continue
+                self._calls = calls
             except Exception:
-                pass
+                self._calls = []
 
     def _save_state(self, force: bool = False) -> None:
         if not force:

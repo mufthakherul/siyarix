@@ -130,13 +130,15 @@ class PlaybookEngine:
             if retries:
                 args["_retries"] = retries
 
-            command = json.dumps(args)
-
+            # Keep structured args on the step; JSON in `command` is only a
+            # transport for the workflow runner (never shelled).
+            step_args = args if isinstance(args, dict) else {}
             step = PlanStep(
                 id=step_id,
                 description=resolved_step.get("description", f"Run {tool} from playbook"),
                 tool=tool,
-                command=command,
+                args=dict(step_args),
+                command=json.dumps(step_args),
                 dependencies=depends_on,
                 timeout=timeout,
             )

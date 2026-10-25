@@ -203,6 +203,13 @@ class WorkflowEngine:
                 if not workflow.get_ready_nodes() and not any(
                     n.status == WorkflowStepStatus.RUNNING for n in workflow.nodes
                 ):
+                    # Cycles leave nodes PENDING forever — mark them SKIPPED.
+                    for node in workflow.nodes:
+                        if node.status == WorkflowStepStatus.PENDING:
+                            node.status = WorkflowStepStatus.SKIPPED
+                            node.result = {
+                                "error": "Skipped: unresolvable dependency cycle or deadlock"
+                            }
                     break
                 continue
             await asyncio.gather(

@@ -24,6 +24,13 @@ All notable changes to this project will be documented in this file.
 - `tty_confirm` fails closed (returns False) when no TTY is attached — never auto-approves.
 - Autonomous/chat paths surface non-TTY review refusal guidance instead of "cancelled by user".
 - Plugin install rejects cleartext `http://` git remotes with an explicit https-only error.
+- RegistryExecutor / workflow mark cyclic deps SKIPPED (no busy-wait hang).
+- Harden `dd of=` (last wins) and hard-block `mkfs`/`fdisk`/`parted`/`mkswap`.
+- Executor re-checks destructive/scope/gate after review EDIT (SX-002 parity).
+- Reject URL userinfo; block CGNAT `100.64.0.0/10` and `198.18.0.0/15` in webhook SSRF.
+- Broaden `.env` skips (PGPASSWORD, DATABASE_URL, bare API_KEY/TOKEN, …).
+- Cache disk TTL uses wall clock; cache filenames are SHA-256 (no `..` escape).
+- Generic tool handlers share `_run()` injection validation; skills default `command_review=True`.
 - Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
 - Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
 - Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).

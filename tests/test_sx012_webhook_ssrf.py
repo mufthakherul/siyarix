@@ -46,6 +46,11 @@ def test_validate_url_rejects_http_scheme_even_for_public_hosts() -> None:
         _validate_url("http://example.com/hook")
 
 
+def test_validate_url_rejects_embedded_credentials() -> None:
+    with pytest.raises(ValueError, match="credentials"):
+        _validate_url("https://user:token@example.com/hook")
+
+
 def test_validate_url_rejects_dns_to_private(monkeypatch) -> None:
     import socket
 

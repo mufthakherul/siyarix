@@ -40,6 +40,8 @@ def _validate_url(url: str, *, allow_ip: bool = False) -> None:
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https":
         raise ValueError(f"URL scheme must be https, got: {parsed.scheme!r}")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("URL must not include embedded credentials (userinfo)")
     host = (parsed.hostname or "").strip().lower()
     if not host:
         raise ValueError("URL must include a hostname")
@@ -76,15 +78,24 @@ def _validate_url(url: str, *, allow_ip: bool = False) -> None:
             raise ValueError(f"Webhook hostname resolves to blocked IP: {host} -> {resolved}")
 
 
+# RFC6598 CGNAT + RFC2544 benchmarking ranges are not covered by is_private.
+_EXTRA_BLOCKED_NETWORKS = (
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("198.18.0.0/15"),
+)
+
+
 def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
-    return bool(
+    if (
         ip.is_private
         or ip.is_loopback
         or ip.is_link_local
         or ip.is_reserved
         or ip.is_multicast
         or ip.is_unspecified
-    )
+    ):
+        return True
+    return any(ip in net for net in _EXTRA_BLOCKED_NETWORKS)
 
 
 class WebhookDispatcher:

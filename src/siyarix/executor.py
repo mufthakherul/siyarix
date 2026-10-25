@@ -333,16 +333,20 @@ class BaseExecutor:
                 "Destructive command detected: Fork bomb execution is blocked."
             )
 
-        # Block device overwrite
-        if "dd " in cmd_clean and "of=/dev/" in cmd_clean:
-            if not any(x in cmd_clean for x in ["of=/dev/null", "of=/dev/zero"]):
-                raise PermissionDeniedError(
-                    "Destructive command detected: Overwriting block devices is blocked."
-                )
-
-        # Recursive deletion of critical paths (normalize -rf/-fr/--recursive/--force)
         import re as _re
 
+        # Block device overwrite — last ``of=`` wins (dual-of= must not bypass).
+        if _re.search(r"\bdd\b", cmd_clean):
+            of_matches = _re.findall(r"\bof=(\S+)", cmd_clean)
+            if of_matches:
+                of_target = of_matches[-1]
+                allowed_of = {"/dev/null", "/dev/zero"}
+                if of_target.startswith("/dev/") and of_target not in allowed_of:
+                    raise PermissionDeniedError(
+                        "Destructive command detected: Overwriting block devices is blocked."
+                    )
+
+        # Recursive deletion of critical paths (normalize -rf/-fr/--recursive/--force)
         _rm_destructive = bool(
             _re.search(r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s*)+", cmd_clean)
             or _re.search(r"\brm\b\s+--(?:recursive|force)", cmd_clean)
@@ -355,12 +359,11 @@ class BaseExecutor:
                 "Destructive command detected: Deleting system directory is blocked."
             )
 
-        # Partition formatting
-        if any(x in cmd_clean for x in ["mkfs ", "mkfs.", "fdisk ", "parted "]):
-            if any(flag in cmd_clean for flag in ["-d", "--destroy", "format", "delete"]):
-                raise PermissionDeniedError(
-                    "Destructive command detected: Formatting storage devices is blocked."
-                )
+        # Partition formatting / disk tools — hard block regardless of flags
+        if _re.search(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", cmd_clean):
+            raise PermissionDeniedError(
+                "Destructive command detected: Formatting storage devices is blocked."
+            )
 
     async def _check_permissions(self, step: PlanStep) -> None:
         command = str(step.command or step.args.get("command") or "").strip()
@@ -404,6 +407,13 @@ class BaseExecutor:
                     self._log_safety(step.tool, command, "cancelled", denial)
                     raise PermissionDeniedError(denial)
                 if reviewed != command:
+                    # Re-authorize the edited text (mirror registry SX-002).
+                    self.check_destructive(reviewed)
+                    self.check_scope(reviewed)
+                    recheck = self._permission_gate.check(reviewed, tool=step.tool)
+                    if not recheck.allowed:
+                        self._log_safety(step.tool, reviewed, "blocked", recheck.reason)
+                        raise PermissionDeniedError(recheck.reason)
                     step.command = reviewed
                     if "command" in step.args:
                         step.args["command"] = reviewed

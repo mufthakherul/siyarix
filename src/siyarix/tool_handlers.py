@@ -756,8 +756,6 @@ def make_generic_handler(
     timeout: int | None = None,
 ) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         exec_bin = binary or tool_name
         extra_defaults = list(default_args or [])
         tool_timeout = timeout
@@ -792,18 +790,16 @@ def make_generic_handler(
             cmd.extend(flags.split())
         if target:
             cmd.append(target)
-        cmd_timeout = kwargs.get("timeout") or tool_timeout or 120
-        on_stdout = kwargs.get("on_stdout")
-        on_stderr = kwargs.get("on_stderr")
+        cmd_timeout = int(kwargs.get("timeout") or tool_timeout or 120)
         try:
-            if on_stdout or on_stderr:
-                from .subprocess_utils import safe_run_async_stream
-
-                result = await safe_run_async_stream(
-                    cmd, timeout=cmd_timeout, on_stdout=on_stdout, on_stderr=on_stderr
-                )
-            else:
-                result = await safe_run_async(cmd, timeout=cmd_timeout)
+            # Share curated-handler injection validation / sanitization.
+            result = await _run(
+                tool_name,
+                cmd,
+                timeout=cmd_timeout,
+                on_stdout=kwargs.get("on_stdout"),
+                on_stderr=kwargs.get("on_stderr"),
+            )
             return _make_result(tool_name, result)
         except Exception as exc:
             return {"status": "error", "error": str(exc), "tool": tool_name}

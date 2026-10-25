@@ -56,3 +56,62 @@ def test_legacy_loader_refuses_without_trust(
     loader = PluginLoader(MagicMock(), MagicMock(), plugins_dir=plugins)
     with pytest.raises(PermissionError, match="SIYARIX_TRUST_PLUGINS"):
         loader._load_plugin(entry)
+
+
+def test_production_requires_force_not_lab_trust(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """SX-A01: SIYARIX_TRUST_PLUGINS=1 is insufficient under production flags."""
+    monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "1")
+    monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
+    plugins = tmp_path / "plugins"
+    plugins.mkdir()
+    entry = plugins / "demo.py"
+    entry.write_text("def register_tools(reg):\n    pass\n", encoding="utf-8")
+
+    mgr = PluginManager(
+        registry=MagicMock(),
+        provider_manager=MagicMock(),
+        plugins_dir=plugins,
+        config_dir=tmp_path,
+    )
+    mgr._installed_plugins["demo"] = PluginMetadata(
+        manifest=PluginManifest(name="demo", version="0.0.1", entrypoint="demo.py"),
+        path=entry,
+        plugin_type=PluginType.SINGLE_FILE,
+        status=PluginStatus.ACTIVE,
+    )
+    mgr._config_data = {"disabled": []}
+    assert mgr.load_plugin("demo") is False
+    err = mgr._installed_plugins["demo"].error_message or ""
+    assert "force" in err
+    assert mgr._installed_plugins["demo"].status == PluginStatus.DISABLED
+
+
+def test_production_allows_force_trust(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "force")
+    monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
+    plugins = tmp_path / "plugins"
+    plugins.mkdir()
+    entry = plugins / "demo.py"
+    entry.write_text("def register_tools(reg):\n    pass\n", encoding="utf-8")
+
+    mgr = PluginManager(
+        registry=MagicMock(_graph=MagicMock(_nodes={})),
+        provider_manager=MagicMock(),
+        plugins_dir=plugins,
+        config_dir=tmp_path,
+    )
+    # registry._graph._nodes needs to support .keys() for tool snapshot
+    mgr.registry._graph._nodes = {}
+    mgr._installed_plugins["demo"] = PluginMetadata(
+        manifest=PluginManifest(name="demo", version="0.0.1", entrypoint="demo.py"),
+        path=entry,
+        plugin_type=PluginType.SINGLE_FILE,
+        status=PluginStatus.ACTIVE,
+    )
+    mgr._config_data = {"disabled": []}
+    assert mgr.load_plugin("demo") is True
+    assert mgr._installed_plugins["demo"].status == PluginStatus.ACTIVE

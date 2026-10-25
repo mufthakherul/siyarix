@@ -50,6 +50,35 @@ def _safe_plugin_name(name: str) -> str:
     return cleaned
 
 
+def _env_flag_on(*names: str) -> bool:
+    for name in names:
+        if os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+    return False
+
+
+def plugin_trust_mode() -> str:
+    """Return ``off`` | ``trusted`` | ``force`` for in-process plugin loads (SX-A01).
+
+    Plugins still execute in-process (OS isolation is not available yet). Production
+    / require-master-password deployments must set ``SIYARIX_TRUST_PLUGINS=force``
+    so accidental ``=1`` from a lab shell cannot enable third-party code.
+    """
+    raw = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower()
+    if raw in {"force", "forced", "unsafe-force"}:
+        return "force"
+    if raw in {"1", "true", "yes", "on"}:
+        if _env_flag_on("SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"):
+            return "off"
+        return "trusted"
+    return "off"
+
+
+def plugins_trusted_for_load() -> bool:
+    """True when in-process plugin execution is explicitly authorized."""
+    return plugin_trust_mode() in {"trusted", "force"}
+
+
 def _assert_under_dir(path: Path, root: Path, *, what: str) -> Path:
     resolved = path.resolve()
     root_resolved = root.resolve()
@@ -342,7 +371,7 @@ class PluginManager:
         """Load a single discovered plugin into the runtime.
 
         Plugins execute in-process (not OS-isolated). Require explicit trust:
-        set ``SIYARIX_TRUST_PLUGINS=1`` before loading third-party code (SX-A01).
+        set ``SIYARIX_TRUST_PLUGINS=1`` (lab) or ``=force`` under production flags (SX-A01).
         """
         meta = self._installed_plugins.get(name)
         if not meta:
@@ -357,19 +386,28 @@ class PluginManager:
             meta.status = PluginStatus.DISABLED
             return False
 
-        trust = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
-        if not trust:
-            meta.status = PluginStatus.DISABLED
-            meta.error_message = (
-                "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
-                "in-process plugin execution (plugins are fully trusted code)"
+        if not plugins_trusted_for_load():
+            production = _env_flag_on(
+                "SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"
             )
-            logger.warning("Refusing to load plugin %s without SIYARIX_TRUST_PLUGINS=1", name)
+            meta.status = PluginStatus.DISABLED
+            if production:
+                meta.error_message = (
+                    "Plugin load blocked under production flags: set "
+                    "SIYARIX_TRUST_PLUGINS=force to allow in-process plugin "
+                    "execution (plugins are fully trusted code; OS isolation "
+                    "is not available yet)"
+                )
+            else:
+                meta.error_message = (
+                    "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
+                    "in-process plugin execution (plugins are fully trusted code)"
+                )
+            logger.warning(
+                "Refusing to load plugin %s without trusted plugin mode (got %s)",
+                name,
+                plugin_trust_mode(),
+            )
             return False
 
         if meta.plugin_type == PluginType.SINGLE_FILE:

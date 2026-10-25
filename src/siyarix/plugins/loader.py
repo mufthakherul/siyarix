@@ -53,13 +53,19 @@ class PluginLoader:
 
         from siyarix.plugins.manager import _assert_under_dir
 
-        trust = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
-        if not trust:
+        from siyarix.plugins.manager import (
+            _env_flag_on,
+            plugin_trust_mode,
+            plugins_trusted_for_load,
+        )
+
+        if not plugins_trusted_for_load():
+            if _env_flag_on("SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"):
+                raise PermissionError(
+                    "Plugin load blocked under production flags: set "
+                    "SIYARIX_TRUST_PLUGINS=force to allow in-process plugin "
+                    f"execution (current mode={plugin_trust_mode()})"
+                )
             raise PermissionError(
                 "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
                 "in-process plugin execution (plugins are fully trusted code)"

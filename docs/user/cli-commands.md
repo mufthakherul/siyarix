@@ -93,6 +93,15 @@ Run a comprehensive diagnostic check on your AI providers, terminal tools, RAM, 
 siyarix health
 ```
 
+### `production-check`
+Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, webhook destination policy, credential store, health).
+```bash
+siyarix production-check
+siyarix production-check -o json
+siyarix production-check --strict   # nonzero exit on warn/fail (CI-friendly)
+make production-check
+```
+
 ---
 
 ## 🗂️ Management & Utility Commands

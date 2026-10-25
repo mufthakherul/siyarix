@@ -6,7 +6,7 @@
 Navigating compliance audits can be overwhelming, but Siyarix is here to help simplify the process. We are actively building out automated probes and evidence collection to assess your systems against six major industry compliance frameworks!
 
 !!! warning
-    **Active Development Notice**: The compliance assessment engine is currently a work in progress! At the moment, running compliance checks will return a `NOT_EVALUATED` status because we are carefully building out the underlying evaluation logic.
+    **Honest evaluation model**: Unmapped controls remain `NOT_EVALUATED` (insufficient evidence — never a pass). A subset of controls now run **local technical probes** (audit hash chain, shell-review fail-closed posture, credential store availability). Treat probe `PASS`/`FAIL` as platform hygiene signals, not a formal certification.
 
 ---
 

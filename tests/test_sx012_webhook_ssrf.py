@@ -60,3 +60,14 @@ def test_validate_url_rejects_dns_to_private(monkeypatch) -> None:
     monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo)
     with pytest.raises(ValueError, match="blocked IP"):
         _validate_url("https://evil.internal/hook")
+
+
+def test_is_blocked_ip_unwraps_ipv4_mapped() -> None:
+    import ipaddress
+
+    from siyarix.webhooks import _is_blocked_ip
+
+    assert _is_blocked_ip(ipaddress.ip_address("::ffff:169.254.169.254")) is True
+    assert _is_blocked_ip(ipaddress.ip_address("::ffff:10.0.0.1")) is True
+    assert _is_blocked_ip(ipaddress.ip_address("::ffff:100.64.0.1")) is True
+    assert _is_blocked_ip(ipaddress.ip_address("::ffff:8.8.8.8")) is False

@@ -86,6 +86,10 @@ _EXTRA_BLOCKED_NETWORKS = (
 
 
 def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    # Unwrap IPv4-mapped IPv6 (::ffff:x.x.x.x) so CGNAT/metadata checks apply
+    # to the embedded v4 address rather than the IPv4-mapped reserved range.
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
     if (
         ip.is_private
         or ip.is_loopback

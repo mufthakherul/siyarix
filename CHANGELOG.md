@@ -44,6 +44,10 @@ All notable changes to this project will be documented in this file.
 - SecretRedactor/DLP URL-password redaction handles embedded `@` in passwords.
 - Hard-block `curl -o/dev` (no space), `dd of=/etc/passwd`, and interpreter writes to auth files.
 - Hard-block `urlretrieve` onto disks; `gpg`/`openssl` output onto disks/auth; `tar -C /` / `unzip -d /`.
+- Hard-block nwipe/scrub/dcfldd/srm/wipe/sg_unmap; `/dev/disk/by-*`; path `..` to `/`; `__import__` rmtree; find `-exec shred`.
+- Hard-block aria2c `--out`/`--index-out`, axel, socat `OPEN:`, lwp-download, Windows `PhysicalDrive`/`format`.
+- `.env` skips `SIYARIX_SAFE_MODE`/`PREAUTHORIZED`/`COMMAND_REVIEW`/`ALLOWED_SCOPE` and inject/proxy vars.
+- Playbook `env.*` redacts provider/SSH `*_KEY`/`*_PASS` names.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

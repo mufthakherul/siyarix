@@ -231,18 +231,27 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bmkswap\b"),
     re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.I),
     re.compile(
-        r"\b(?:curl|wget|fetch|aria2c)\b.*(?:-o|--output(?:-document)?|-O)"
-        r"(?:=|\s+)/dev/(?:sd|nvme|vd|xvd)",
+        r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
+        r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
+        r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
         re.I,
     ),
+    re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
+    re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
+    re.compile(r"\b(?:nwipe|scrub|sg_unmap|srm|wipe|bcwipe)\b", re.I),
+    re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.I),
+    re.compile(r"/dev/disk/", re.I),
     re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
     re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.I),
     re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
     re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
+    re.compile(
+        r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
+        re.I,
+    ),
     re.compile(
         r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"
-        r"sg_format|sg_sanitize)\b.*(/dev/)",
+        r"sg_format|sg_sanitize|nwipe|scrub|sg_unmap)\b.*(/dev/)",
         re.I,
     ),
     re.compile(

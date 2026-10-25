@@ -114,6 +114,23 @@ def test_resolve_vars_blocks_secret_env(playbook_engine: PlaybookEngine) -> None
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_AUTHORIZATION }}", {}) == "[REDACTED]"
 
 
+def test_resolve_vars_redacts_provider_and_ssh_keys(playbook_engine: PlaybookEngine) -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "SIYARIX_GROQ_KEY": "gsk_LEAK",
+            "SIYARIX_OPENAI_KEY": "sk_LEAK",
+            "SIYARIX_ANTHROPIC_KEY": "ak_LEAK",
+            "SIYARIX_SSH_PASS": "ssh_LEAK",
+        },
+        clear=False,
+    ):
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_GROQ_KEY }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_OPENAI_KEY }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_ANTHROPIC_KEY }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SSH_PASS }}", {}) == "[REDACTED]"
+
+
 def test_resolve_vars_missing_var(playbook_engine: PlaybookEngine) -> None:
     result = playbook_engine._resolve_vars("{{ missing }}", {})
     assert result == "{{ missing }}"

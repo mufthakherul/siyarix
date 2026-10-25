@@ -124,6 +124,11 @@ def _load_dotenv(path: Path | None = None) -> None:
             "AUTH_TOKEN",
             "ACCESS_TOKEN",
             "CONNECTION_STRING",
+            # Security posture — must not be flipped by a cwd .env drop.
+            "SIYARIX_SAFE_MODE",
+            "SIYARIX_PREAUTHORIZED",
+            "SIYARIX_COMMAND_REVIEW",
+            "SIYARIX_ALLOWED_SCOPE",
         }
     )
     _blocked_vars = {
@@ -136,12 +141,23 @@ def _load_dotenv(path: Path | None = None) -> None:
         "IFS",
         "SHELLOPTS",
         "PERL5LIB",
+        "PERL5OPT",
         "RUBYLIB",
+        "RUBYOPT",
         "PYTHONHOME",
         "DYLD_INSERT_LIBRARIES",
         "DYLD_LIBRARY_PATH",
         "NODE_OPTIONS",
         "PYTHONWARNINGS",
+        "JAVA_TOOL_OPTIONS",
+        "ENV",
+        "PROMPT_COMMAND",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

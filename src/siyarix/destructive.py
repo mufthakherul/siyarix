@@ -40,21 +40,26 @@ _PARTITION_RE = re.compile(
     re.IGNORECASE,
 )
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
-_DD_WORD_RE = re.compile(r"\b(?:dd|dc3dd|ddrescue)\b", re.IGNORECASE)
+_DD_WORD_RE = re.compile(
+    r"\b(?:dd|dc3dd|ddrescue|dcfldd|gddrescue)\b",
+    re.IGNORECASE,
+)
 
-# Block-device node paths (sd / nvme / vd / xvd / hd / loop / dm / mapper).
+# Block-device node paths (sd / nvme / vd / xvd / hd / loop / dm / mapper / by-id).
 _BLOCK_DEV_RE = re.compile(
     r"/dev/(?:sd[a-z]\d*|nvme\d+n\d+(?:p\d+)?|vd[a-z]\d*|xvd[a-z]\d*|hd[a-z]\d*"
-    r"|loop\d+|dm-\d+|mapper/\S+)",
+    r"|loop\d+|dm-\d+|mapper/\S+|disk/\S+|block/\S+|root\b)",
     re.IGNORECASE,
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
     r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install|"
-    r"hdparm|nvme|cryptsetup|sg_format|sg_sanitize)\b",
+    r"hdparm|nvme|cryptsetup|sg_format|sg_sanitize|nwipe|scrub|sg_unmap)\b",
     re.IGNORECASE,
 )
+_FILE_WIPE_TOOLS_RE = re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.IGNORECASE)
 _CP_TEE_TO_BLOCK_RE = re.compile(
-    r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|install|pv|openssl|tar|badblocks|fio|rsync)\b"
+    r"\b(?:cp|tee|cat|dd|dc3dd|ddrescue|dcfldd|gddrescue|install|pv|openssl|"
+    r"tar|badblocks|fio|rsync)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
@@ -63,16 +68,19 @@ _REDIRECT_TO_BLOCK_RE = re.compile(
     re.IGNORECASE,
 )
 _FIND_DELETE_RE = re.compile(
-    r"\bfind\b[\s\S]{0,400}(?:-delete\b|-exec\s+rm\b)",
+    r"\bfind\b[\s\S]{0,400}"
+    r"(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe|nwipe)\b)",
     re.IGNORECASE,
 )
 # Matched after quote-stripping, so paths appear as bare ``/`` (not ``'/'``).
 _INTERPRETER_WIPE_RE = re.compile(
     r"(?:"
-    r"shutil\s*\.\s*rmtree\s*\(\s*/"
+    r"(?:shutil\s*\.\s*)?rmtree\s*\(\s*/"
     r"|os\s*\.\s*(?:remove|unlink|rmdir)\s*\(\s*/"
-    r"|Path\s*\(\s*/?\s*\)\s*\.\s*(?:unlink|rmdir)"
-    r"|pathlib\s*\.\s*Path\s*\(\s*/?\s*\)\s*\.\s*(?:unlink|rmdir)"
+    r"|Path\s*\(\s*/(?:etc|var|usr|home|boot|root|opt|lib(?:64)?|bin|sbin)?/?\s*\)"
+    r"\s*\.\s*(?:unlink|rmdir|rmtree)"
+    r"|pathlib\s*\.\s*Path\s*\(\s*/(?:etc|var|usr|home|boot|root|opt|lib(?:64)?|"
+    r"bin|sbin)?/?\s*\)\s*\.\s*(?:unlink|rmdir|rmtree)"
     r"|FileUtils\s*\.\s*rm_rf\s*\(?\s*/"
     r"|unlink\s+(?:q(?:w)?\()?\s*/"  # perl unlink /… or unlink q(/…)
     r"|rmSync\s*\(\s*/"
@@ -131,9 +139,25 @@ _RECURSE_FLAG_RE = re.compile(
     re.IGNORECASE,
 )
 _DOWNLOAD_TO_BLOCK_RE = re.compile(
-    r"\b(?:curl|wget|busybox|fetch|aria2c)\b[\s\S]{0,220}"
-    r"(?:-o|--output(?:-document)?|-O)(?:=|\s*)"
-    + _BLOCK_DEV_RE.pattern,
+    r"(?:"
+    r"\b(?:curl|wget|busybox|fetch|aria2c|axel)\b[\s\S]{0,220}"
+    r"(?:-o|--output(?:-document)?|--out|--index-out|-O)(?:=|\s*)(?:\d+=)?"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\blwp-download\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    + r")",
+    re.IGNORECASE,
+)
+_SOCAT_BLOCK_RE = re.compile(
+    r"\bsocat\b[\s\S]{0,220}(?:OPEN|CREATE):" + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_WINDOWS_WIPE_RE = re.compile(
+    r"(?:"
+    r"\\\\\.\\physicaldrive\d+"
+    r"|\bof=\\\\\.\\physicaldrive"
+    r"|\bformat\s+[a-z]\s*:"
+    r")",
     re.IGNORECASE,
 )
 _AUTH_FILE_RE = re.compile(r"/etc/(?:passwd|shadow|sudoers|group)\b", re.IGNORECASE)
@@ -189,16 +213,31 @@ def _strip_shell_quotes(text: str) -> str:
 
 
 def _normalize_path_token(tok: str) -> str:
-    """Strip quotes and collapse trivial root equivalents."""
+    """Strip quotes, resolve ``..``/``.`` lexically, collapse root equivalents."""
     t = tok.strip().strip("'\"")
-    # Collapse repeated slashes and trailing "/." noise for root checks.
+    # Collapse repeated slashes before segment walk.
     while "//" in t:
         t = t.replace("//", "/")
     if t.endswith("/.") and t != "/.":
         t = t[:-2] or "/"
+    # Lexical ``..`` / ``.`` resolution so ``/tmp/../`` and ``/etc/..`` → ``/``.
+    if "/" in t or t in {".", ".."}:
+        abs_path = t.startswith("/")
+        parts: list[str] = []
+        for seg in t.split("/"):
+            if seg in ("", "."):
+                continue
+            if seg == "..":
+                if parts:
+                    parts.pop()
+                continue
+            parts.append(seg)
+        if abs_path:
+            t = "/" + "/".join(parts) if parts else "/"
+        else:
+            t = "/".join(parts) if parts else "."
     if t in _ROOT_EQUIV or t in {"/.", "/./", "//", "///"}:
         return "/"
-    # "/." and "/./" already covered; bare "." after strip of leading slash
     if t in {".", "./"}:
         return t
     return t
@@ -256,7 +295,13 @@ def assert_command_not_destructive(command: str) -> None:
         _BLOCK_WIPE_TOOLS_RE.search(cmd_clean)
         or _CP_TEE_TO_BLOCK_RE.search(cmd_clean)
         or _REDIRECT_TO_BLOCK_RE.search(cmd_clean)
+        or _FILE_WIPE_TOOLS_RE.search(cmd_clean)
     ):
+        raise PermissionDeniedError(
+            "Destructive command detected: Overwriting block devices is blocked."
+        )
+
+    if _WINDOWS_WIPE_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting block devices is blocked."
         )
@@ -266,7 +311,9 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: find -delete on system paths is blocked."
         )
 
-    if _RM_DESTRUCTIVE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
+    if (
+        _RM_DESTRUCTIVE_RE.search(cmd_clean) or _FILE_WIPE_TOOLS_RE.search(cmd_clean)
+    ) and _targets_system_path(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Deleting system directory is blocked."
         )
@@ -285,6 +332,7 @@ def assert_command_not_destructive(command: str) -> None:
         _QEMU_IMG_BLOCK_RE.search(cmd_clean)
         or _DOWNLOAD_TO_BLOCK_RE.search(cmd_clean)
         or _GPG_OPENSSL_OUT_BLOCK_RE.search(cmd_clean)
+        or _SOCAT_BLOCK_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting block devices is blocked."

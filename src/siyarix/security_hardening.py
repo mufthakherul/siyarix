@@ -519,29 +519,53 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Archive/forensics write onto block device",
     ),
     (
-        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vda\d*)", re.I),
+        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vd[a-z]|disk/|block/)", re.I),
         "critical",
         "Write to block device",
     ),
     (
-        re.compile(r"\b(?:cp|tee|cat)\b.*/dev/(?:sd[a-z]|nvme\d+|vd[a-z]|xvd[a-z])", re.I),
+        re.compile(
+            r"\b(?:cp|tee|cat)\b.*/dev/(?:sd[a-z]|nvme\d+|vd[a-z]|xvd[a-z]|disk/)",
+            re.I,
+        ),
         "critical",
         "Copy/tee onto block device",
     ),
     (
-        re.compile(r"\b(wipefs|sgdisk|blkdiscard|shred)\b.*/dev/", re.I),
+        re.compile(
+            r"\b(wipefs|sgdisk|blkdiscard|shred|nwipe|scrub|sg_unmap)\b.*/dev/",
+            re.I,
+        ),
         "critical",
         "Block-device wipe utility",
     ),
     (
-        re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
+        re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.I),
+        "critical",
+        "Secure file wipe utility",
+    ),
+    (
+        re.compile(
+            r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
+            re.I,
+        ),
         "critical",
         "find -delete / -exec rm",
     ),
     (
-        re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
+        re.compile(r"(?:shutil\s*\.\s*)?rmtree\s*\(\s*['\"]?/", re.I),
         "critical",
         "Python shutil.rmtree on system path",
+    ),
+    (
+        re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
+        "critical",
+        "socat OPEN onto block device",
+    ),
+    (
+        re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.I),
+        "critical",
+        "Windows disk wipe",
     ),
     (
         re.compile(
@@ -566,12 +590,18 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (
         re.compile(
-            r"\b(?:curl|wget|fetch|aria2c)\b.*(?:-o|--output(?:-document)?|-O)"
-            r"(?:=|\s+)/dev/(?:sd|nvme|vd|xvd)",
+            r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
+            r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
+            r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
             re.I,
         ),
         "critical",
         "Download onto block device",
+    ),
+    (
+        re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
+        "critical",
+        "lwp-download onto block device",
     ),
     (
         re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),

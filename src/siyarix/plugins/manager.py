@@ -483,21 +483,17 @@ class PluginManager:
         """Fetch remote registry index of available plugins."""
         cache_file = self.config_dir / "registry_cache.json"
 
-        # 1. First priority: Check local repo clone if present
-        local_repo_index = self.plugins_dir.parent / "siyarix-plugins" / "index.json"
-        # Also check workspace path e:\Documents\siyarix\siyarix-plugins\index.json
-        workspace_repo_index = Path.cwd() / "siyarix-plugins" / "index.json"
-
-        for p in (local_repo_index, workspace_repo_index):
-            if p.exists():
-                try:
-                    data = json.loads(p.read_text(encoding="utf-8"))
-                    if isinstance(data, list):
-                        return data
-                    if isinstance(data, dict) and "plugins" in data:
-                        return list(data["plugins"])
-                except Exception as e:
-                    logger.debug("Failed reading local registry %s: %s", p, e)
+        # 1. Trust only config-dir local index (never CWD — SX-A11).
+        local_repo_index = self.config_dir / "siyarix-plugins" / "index.json"
+        if local_repo_index.exists():
+            try:
+                data = json.loads(local_repo_index.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    return data
+                if isinstance(data, dict) and "plugins" in data:
+                    return list(data["plugins"])
+            except Exception as e:
+                logger.debug("Failed reading local registry %s: %s", local_repo_index, e)
 
         # 2. Check disk cache if recent (< 1 hour) and not forced refresh
         if not refresh and cache_file.exists():
@@ -653,8 +649,8 @@ class PluginManager:
         catalog = self.fetch_registry_index()
         entry = next((i for i in catalog if i.get("name") == target_name), None)
 
-        # Check local plugins repo first
-        local_plugins_repo = Path.cwd() / "siyarix-plugins" / "plugins" / target_name
+        # Local plugins only from config-dir tree (never CWD — SX-A11).
+        local_plugins_repo = self.config_dir / "siyarix-plugins" / "plugins" / target_name
         dest = _assert_under_dir(
             self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
         )
@@ -705,9 +701,26 @@ class PluginManager:
         return self._installed_plugins[target_name]
 
     def _install_dependencies(self, plugin_dir: Path) -> None:
-        """Safely resolve plugin python dependencies."""
+        """Optionally resolve plugin python dependencies.
+
+        Auto-pip is **off by default** (SX-A02). Set
+        ``SIYARIX_PLUGIN_AUTO_PIP=1`` to allow a constrained install with
+        ``--no-deps`` after requirements-line abuse checks.
+        """
         req_file = plugin_dir / "requirements.txt"
         if not req_file.exists():
+            return
+        auto = os.getenv("SIYARIX_PLUGIN_AUTO_PIP", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not auto:
+            logger.info(
+                "Skipping pip install for %s (set SIYARIX_PLUGIN_AUTO_PIP=1 to enable)",
+                plugin_dir.name,
+            )
             return
         # Block common pip abuse switches / VCS URLs in requirements files.
         try:
@@ -733,6 +746,7 @@ class PluginManager:
                     "install",
                     "-q",
                     "--disable-pip-version-check",
+                    "--no-deps",
                     "-r",
                     str(req_file),
                 ],
@@ -779,6 +793,25 @@ class PluginManager:
             # Check if git-controlled
             git_dir = meta.path / ".git"
             if git_dir.exists():
+                # Re-validate remote URL before pull (SX-A10).
+                remote = subprocess.run(
+                    ["git", "-C", str(meta.path), "remote", "get-url", "origin"],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if remote.returncode != 0:
+                    logger.warning("Plugin %s has no origin remote; skipping update", t)
+                    continue
+                try:
+                    _validate_git_clone_url(remote.stdout.strip())
+                except Exception as exc:
+                    logger.warning(
+                        "Refusing plugin %s update: origin URL failed validation (%s)",
+                        t,
+                        exc,
+                    )
+                    continue
                 res = subprocess.run(
                     ["git", "-C", str(meta.path), "pull", "--ff-only"],
                     capture_output=True,

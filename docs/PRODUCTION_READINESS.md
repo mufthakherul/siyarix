@@ -50,6 +50,9 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-A05 | Closed | Agent PermissionGate uses `permission_gate_enabled()` env-only (no settings.toml silent off) |
 | SX-A07/A08 | Closed | `*.enc` chmod 600; config dir 0700; KMS fail-closed when `SIYARIX_KMS_PROVIDER=aws` |
 | FEAT/DOC | Partial | Compose API ports removed; classifiers Beta (no iOS); stub module warning; ghost TAXII/MISP/dashboard env scrubbed |
+| SX-A02/A10/A11 | Closed | Plugin auto-pip off by default (`SIYARIX_PLUGIN_AUTO_PIP`); git origin re-validated; CWD plugin index removed |
+| SX-A06 | Partial | production-check warns + compliance FAIL on file_key until `SIYARIX_MASTER_PASSWORD` |
+| CI | Partial | coverage fail-under aligned to 70%; Trivy CRITICAL exit-code 1 |
 
 ## Premium ops
 

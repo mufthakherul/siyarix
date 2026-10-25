@@ -2606,7 +2606,16 @@ def production_check(
 
         store = CredentialStore()
         backend = type(store).__name__
-        _add("credentials", "pass", f"store={backend}")
+        mode = getattr(store, "_vault_mode", "unknown")
+        if mode == "file_key":
+            _add(
+                "credentials",
+                "warn",
+                f"store={backend} mode=file_key — set SIYARIX_MASTER_PASSWORD "
+                "for production (key file on disk)",
+            )
+        else:
+            _add("credentials", "pass", f"store={backend} mode={mode}")
     except Exception as exc:  # pragma: no cover - defensive
         _add("credentials", "warn", f"unavailable: {exc}")
 

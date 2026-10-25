@@ -114,15 +114,29 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                 reqs = engine.get_decoy_requests(target)
                 for req in reqs:
                     try:
-                        _parsed = urllib.parse.urlparse(req["url"])
+                        decoy_url = str(req.get("url") or "")
+                        _parsed = urllib.parse.urlparse(decoy_url)
                         if _parsed.scheme not in ("http", "https"):
                             continue
+                        # Reuse webhook SSRF policy + no redirects (metadata pivot).
+                        from .webhooks import _validate_url
+
+                        try:
+                            _validate_url(decoy_url, allow_ip=False)
+                        except ValueError:
+                            continue
+
+                        class _NoRedirect(urllib.request.HTTPRedirectHandler):
+                            def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+                                return None
+
                         r = urllib.request.Request(
-                            req["url"],
+                            decoy_url,
                             method=req["method"],
                             headers={"User-Agent": req["user_agent"]},
                         )
-                        urllib.request.urlopen(r, timeout=1)  # nosec B310
+                        opener = urllib.request.build_opener(_NoRedirect)
+                        opener.open(r, timeout=1)  # nosec B310
                     except Exception:
                         pass
         except Exception:

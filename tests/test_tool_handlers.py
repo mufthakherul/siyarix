@@ -239,34 +239,49 @@ class TestMakeWebHandler:
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     @patch("siyarix.stealth.StealthEngine")
-    @patch("urllib.request.urlopen")
+    @patch("siyarix.webhooks._validate_url")
+    @patch("urllib.request.build_opener")
     @patch("urllib.request.Request")
     async def test_stealth_mode(
-        self, mock_urllib_req, mock_urllib_open, MockStealth, mock_safe_run
+        self,
+        mock_urllib_req,
+        mock_build_opener,
+        mock_validate_url,
+        MockStealth,
+        mock_safe_run,
     ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = [
-            {"url": "http://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
+            {"url": "https://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
         ]
         MockStealth.return_value = mock_engine
         mock_safe_run.return_value = _mock_result()
+        mock_build_opener.return_value.open = MagicMock()
 
         handler = make_web_handler("nuclei")
         await handler(target="example.com", stealth={"rotate_user_agents": True})
         mock_engine.set_config.assert_called_once_with(rotate_user_agents=True)
         mock_engine.get_decoy_requests.assert_called_once_with("example.com")
+        mock_validate_url.assert_called()
+        mock_build_opener.assert_called()
 
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
     @patch("urllib.request.Request")
-    @patch("urllib.request.urlopen", side_effect=Exception("Connection refused"))
+    @patch("urllib.request.build_opener")
+    @patch("siyarix.webhooks._validate_url", side_effect=ValueError("blocked"))
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_stealth_mode_decoy_fail(
-        self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req
+        self,
+        mock_safe_run,
+        MockStealth,
+        mock_validate_url,
+        mock_build_opener,
+        mock_urllib_req,
     ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = [
-            {"url": "http://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
+            {"url": "https://127.0.0.1/decoy", "method": "GET", "user_agent": "Mozilla"},
         ]
         MockStealth.return_value = mock_engine
         mock_safe_run.return_value = _mock_result()
@@ -275,14 +290,15 @@ class TestMakeWebHandler:
         result = await handler(target="example.com")
         assert result["status"] == "success"
         mock_engine.get_decoy_requests.assert_called_once_with("example.com")
+        mock_build_opener.assert_not_called()
 
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
     @patch("urllib.request.Request")
-    @patch("urllib.request.urlopen")
+    @patch("urllib.request.build_opener")
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_stealth_mode_no_stealth_kwarg(
-        self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req
+        self, mock_safe_run, MockStealth, mock_build_opener, mock_urllib_req
     ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = []

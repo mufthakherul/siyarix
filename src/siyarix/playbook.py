@@ -18,9 +18,9 @@ from siyarix.workflow import WorkflowEngine
 logger = logging.getLogger(__name__)
 
 
-_ENV_ALLOWLIST: frozenset[str] = frozenset(
+# Exact allowlist for non-SIYARIX env keys + SIYARIX_ prefix for feature flags.
+_ENV_ALLOWLIST_EXACT: frozenset[str] = frozenset(
     {
-        "SIYARIX_",
         "HOME",
         "USER",
         "SHELL",
@@ -31,8 +31,23 @@ _ENV_ALLOWLIST: frozenset[str] = frozenset(
         "HOSTNAME",
         "PWD",
         "LOGNAME",
+        "CI",
     }
 )
+_ENV_PREFIX_ALLOW: frozenset[str] = frozenset({"SIYARIX_"})
+# Block secret-bearing names even when they match the SIYARIX_ prefix.
+_ENV_SECRET_RE = re.compile(
+    r"(?i)(password|passwd|secret|token|api[_-]?key|credential|webhook|private[_-]?key|sudo)"
+)
+
+
+def _env_var_allowed(env_key: str) -> bool:
+    """Return True when *env_key* may be interpolated into a playbook."""
+    if not env_key or _ENV_SECRET_RE.search(env_key):
+        return False
+    if env_key in _ENV_ALLOWLIST_EXACT:
+        return True
+    return any(env_key.startswith(prefix) for prefix in _ENV_PREFIX_ALLOW)
 
 
 class PlaybookEngine:
@@ -40,6 +55,7 @@ class PlaybookEngine:
 
     def __init__(self, workflow_engine: WorkflowEngine) -> None:
         self.workflow_engine = workflow_engine
+        self._agent: Any = None
 
     def load(self, path: str | Path) -> dict[str, Any]:
         """Load and validate a YAML playbook."""
@@ -58,7 +74,7 @@ class PlaybookEngine:
             var_name = match.group(1).strip()
             if var_name.startswith("env."):
                 env_key = var_name[4:]
-                if not any(env_key.startswith(p) for p in _ENV_ALLOWLIST):
+                if not _env_var_allowed(env_key):
                     logger.warning("Blocked access to restricted env var: %s", env_key)
                     return "[REDACTED]"
                 return os.environ.get(env_key, "")
@@ -130,36 +146,74 @@ class PlaybookEngine:
             steps=steps,
         )
 
-    def _ensure_tool_step_functions(self, tool_names: set[str]) -> None:
-        """Register shell-backed step functions for tools referenced by the playbook."""
-        from siyarix.subprocess_utils import get_platform_shell_cmd, safe_run_async
+    def _parse_step_args(self, raw: str) -> dict[str, Any]:
+        try:
+            parsed = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
 
-        async def _run_tool_command(ctx: dict[str, Any]) -> dict[str, Any]:
-            command = str(ctx.get("command") or "").strip()
-            if not command:
-                return {"status": "error", "error": "Empty playbook command"}
-            timeout = int(float(ctx.get("timeout") or 300))
-            shell_cmd = get_platform_shell_cmd(command)
-            result = await safe_run_async(shell_cmd, timeout=timeout)
-            exit_code = int(getattr(result, "exit_code", getattr(result, "returncode", -1)))
-            return {
-                "status": "success" if exit_code == 0 else "error",
-                "output": getattr(result, "stdout", "") or "",
-                "error": getattr(result, "stderr", "") or "",
-                "exit_code": exit_code,
-            }
+    def _ensure_tool_step_functions(self, tool_names: set[str]) -> None:
+        """Register registry-backed (or agent-backed) step functions for playbook tools."""
+        from siyarix.registry_factory import make_tool_registry
+
+        registry = make_tool_registry()
+        try:
+            registry.discover_from_path()
+            registry.scan_path()
+        except Exception:
+            logger.debug("Playbook tool discovery incomplete", exc_info=True)
+
+        async def _run_registry_tool(ctx: dict[str, Any]) -> dict[str, Any]:
+            tool = str(ctx.get("tool") or "").strip()
+            if not tool:
+                return {"status": "error", "error": "Playbook step missing tool name"}
+            args = self._parse_step_args(str(ctx.get("command") or ""))
+            exec_kwargs = {k: v for k, v in args.items() if not str(k).startswith("_")}
+            try:
+                result = await registry.execute(tool, **exec_kwargs)
+                if isinstance(result, dict):
+                    return result
+                return {"status": "success", "output": result}
+            except Exception as exc:
+                logger.exception("Playbook tool %s failed", tool)
+                return {"status": "error", "error": str(exc), "tool": tool}
+
+        async def _run_subagent(ctx: dict[str, Any]) -> dict[str, Any]:
+            args = self._parse_step_args(str(ctx.get("command") or ""))
+            role = str(args.get("role") or "assistant")
+            goal = str(args.get("goal") or "")
+            if self._agent is None:
+                return {
+                    "status": "error",
+                    "error": "Agent executor not provided for playbook agent steps",
+                }
+            try:
+                result = await self._agent.execute_subagent(role, goal)
+                findings = getattr(result, "findings", None) or []
+                return {
+                    "status": "success" if getattr(result, "success", False) else "error",
+                    "output": getattr(result, "summary", "") or "",
+                    "findings": findings,
+                    "role": role,
+                }
+            except Exception as exc:
+                logger.exception("Playbook subagent failed")
+                return {"status": "error", "error": str(exc), "role": role}
 
         for name in tool_names:
             if not name:
                 continue
-            # Idempotent: last registration wins with the same shell runner.
-            self.workflow_engine.register_step(name, _run_tool_command)
+            if name == "_subagent":
+                self.workflow_engine.register_step(name, _run_subagent)
+            else:
+                self.workflow_engine.register_step(name, _run_registry_tool)
 
     async def execute(
         self, path: str | Path, variables: dict[str, str] | None = None, executor: Any = None
     ) -> Any:
         """Load and execute a playbook."""
-        del executor  # reserved for alternate backends
+        self._agent = executor
         data = self.load(path)
         plan = self.create_plan(data, variables)
         self._ensure_tool_step_functions({s.tool for s in plan.steps if s.tool})
@@ -168,7 +222,11 @@ class PlaybookEngine:
                 "id": step.id,
                 "name": step.description,
                 "step_fn": step.tool,
-                "args": {"command": step.command, "timeout": step.timeout},
+                "args": {
+                    "tool": step.tool,
+                    "command": step.command,
+                    "timeout": step.timeout,
+                },
                 "timeout": step.timeout,
             }
             for step in plan.steps
@@ -184,3 +242,6 @@ class PlaybookEngine:
             edges=edges,
         )
         return await self.workflow_engine.run_workflow(workflow)
+
+
+__all__ = ["PlaybookEngine", "_env_var_allowed"]

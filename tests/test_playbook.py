@@ -89,6 +89,21 @@ def test_resolve_vars_env_var(playbook_engine: PlaybookEngine) -> None:
     assert result == "env_value"
 
 
+def test_resolve_vars_blocks_secret_env(playbook_engine: PlaybookEngine) -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "SIYARIX_SUDO_PASSWORD": "s3cret",
+            "SIYARIX_WEBHOOK_URL": "https://hooks.example/x",
+            "SIYARIX_MASTER_PASSWORD": "vault",
+        },
+        clear=False,
+    ):
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SUDO_PASSWORD }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_WEBHOOK_URL }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_MASTER_PASSWORD }}", {}) == "[REDACTED]"
+
+
 def test_resolve_vars_missing_var(playbook_engine: PlaybookEngine) -> None:
     result = playbook_engine._resolve_vars("{{ missing }}", {})
     assert result == "{{ missing }}"

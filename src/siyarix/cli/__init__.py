@@ -3486,7 +3486,7 @@ def playbook_run(
     async def _run() -> None:
         await core.start()
         try:
-            await engine.execute(p, variables)
+            await engine.execute(p, variables, executor=core)
         finally:
             await core.shutdown()
 

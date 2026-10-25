@@ -91,6 +91,7 @@ _NON_HTTP_URL_RE = re.compile(
 _HOST_TOOL_NAMES = frozenset(
     {
         "ssh",
+        "autossh",
         "nmap",
         "ncat",
         "nc",
@@ -267,6 +268,31 @@ _HOST_TOOL_NAMES = frozenset(
         "stunnel",
         "stunnel4",
         "rathole",
+        # RH-47 — SOCKS daemons, Tor/I2P, VPN activate, local k8s.
+        "sockd",
+        "ss5",
+        "cntlm",
+        "srelay",
+        "delegate",
+        "tor",
+        "obfs4proxy",
+        "lyrebird",
+        "snowflake-client",
+        "meek-client",
+        "i2pd",
+        "onioncat",
+        "openfortivpn",
+        "twingate",
+        "cloudflare-warp",
+        "warp-cli",
+        "tincd",
+        "tinc",
+        "forticlient",
+        "hamachi",
+        "k3d",
+        "k3s",
+        "kubefwd",
+        "microk8s",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -366,6 +392,31 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "stunnel",
         "stunnel4",
         "rathole",
+        # RH-47 — SOCKS daemons, Tor/I2P, VPN activate, local k8s.
+        "sockd",
+        "ss5",
+        "cntlm",
+        "srelay",
+        "delegate",
+        "tor",
+        "obfs4proxy",
+        "lyrebird",
+        "snowflake-client",
+        "meek-client",
+        "i2pd",
+        "onioncat",
+        "openfortivpn",
+        "twingate",
+        "cloudflare-warp",
+        "warp-cli",
+        "tincd",
+        "tinc",
+        "forticlient",
+        "hamachi",
+        "k3d",
+        "k3s",
+        "kubefwd",
+        "microk8s",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -525,6 +576,14 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "AWS_ENDPOINT_URL",
         "S3_ENDPOINT",
         "MINIO_ENDPOINT",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "DYNAMODB_ENDPOINT",
+        "R2_ENDPOINT",
+        "ELASTICSEARCH_HOST",
+        "KAFKA_HOST",
+        "BOUNDARY_ADDR",
+        "TORSOCKS_TOR_ADDRESS",
     }
 )
 # Cloud CLIs that rewrite kubeconfig to an opaque API server (RH-46).
@@ -546,6 +605,7 @@ _CLOUD_KUBECONFIG_VERBS: frozenset[str] = frozenset(
         "update-kubeconfig",
         "get-credentials",
         "write-kubeconfig",
+        "create-kubeconfig",
         "kubeconfig",
     }
 )
@@ -906,6 +966,32 @@ def _glued_host_flag_value(
     return None
 
 
+
+# Strip Go/release platform + version suffixes: ``gost-linux-amd64``, ``ngrok-v3`` (RH-47).
+_TOOL_PLATFORM_SUFFIX_RE = re.compile(
+    r"-(?:linux|darwin|windows|freebsd|openbsd|netbsd|macos)"
+    r"(?:-(?:amd64|arm64|armv\d+|arm|386|x86_64|aarch64|ppc64le|s390x|riscv64|musl))?$",
+    re.IGNORECASE,
+)
+_TOOL_VERSION_SUFFIX_RE = re.compile(r"-v?\d+(?:\.\d+)*$", re.IGNORECASE)
+
+
+def _normalize_tool_basename(name: str) -> str:
+    """Return canonical tool basename after stripping path and release suffixes."""
+    base = name.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+    changed = True
+    while changed:
+        changed = False
+        nxt = _TOOL_PLATFORM_SUFFIX_RE.sub("", base)
+        if nxt != base:
+            base, changed = nxt, True
+            continue
+        nxt = _TOOL_VERSION_SUFFIX_RE.sub("", base)
+        if nxt != base:
+            base, changed = nxt, True
+    return base
+
+
 def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     """Raise :class:`PermissionDeniedError` if any target is outside authorized scope.
 
@@ -947,7 +1033,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         if "=" in tok and not tok.startswith("-"):
             # ``ALL_PROXY=…`` is not a tool name.
             continue
-        base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+        base = _normalize_tool_basename(tok)
         if base in _SCOPE_BLOCKED_WRAPPERS:
             raise PermissionDeniedError(
                 f"Proxy/tunnel tool {base!r} is not allowed under authorized scope "
@@ -969,26 +1055,39 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             f"ip tuntap/tunnel is not allowed under authorized scope "
             f"(authorized scope: {scope_display})"
         )
-    # RH-46: cloud CLIs rewriting kubeconfig (not in _HOST_TOOL_NAMES).
+    # RH-47: NetworkManager VPN activate (opaque peer in connection profile).
+    if re.search(r"\bnmcli\b", decoded_early, re.IGNORECASE) and re.search(
+        r"\bconnection\b[\s\S]{0,40}\bup\b", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"nmcli connection up is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-46/47: cloud CLIs rewriting kubeconfig (not in _HOST_TOOL_NAMES).
     _early_tokens = decoded_early.split()
     if _early_tokens:
-        _early_base = (
-            _early_tokens[0].lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
-        )
+        _early_base = _normalize_tool_basename(_early_tokens[0])
+        _rest = [t.lower().strip().strip("'\"") for t in _early_tokens[1:]]
         if _early_base in _CLOUD_KUBECONFIG_TOOLS:
-            _rest = [t.lower().strip().strip("'\"") for t in _early_tokens[1:]]
             for j, low in enumerate(_rest):
-                if low not in _CLOUD_KUBECONFIG_VERBS:
-                    continue
-                if low == "kubeconfig" and not (
-                    j + 1 < len(_rest)
-                    and _rest[j + 1] in {"save", "write", "merge", "set", "use"}
-                ):
-                    continue
+                if low in _CLOUD_KUBECONFIG_VERBS or low == "create-kubeconfig":
+                    raise PermissionDeniedError(
+                        f"{_early_base} kubeconfig rewrite ({low}) is not allowed under "
+                        f"authorized scope (authorized scope: {scope_display}); "
+                        f"pass an explicit in-scope --server / API host instead"
+                    )
+                # ``microk8s config`` dumps/writes kubeconfig (RH-47).
+                if _early_base == "microk8s" and low == "config":
+                    raise PermissionDeniedError(
+                        f"microk8s config is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+        # RH-47: opaque AWS SSM / ECS interactive shells.
+        if _early_base == "aws":
+            if "start-session" in _rest or "execute-command" in _rest:
                 raise PermissionDeniedError(
-                    f"{_early_base} kubeconfig rewrite ({low}) is not allowed under "
-                    f"authorized scope (authorized scope: {scope_display}); "
-                    f"pass an explicit in-scope --server / API host instead"
+                    f"aws SSM/ECS interactive session is not allowed under "
+                    f"authorized scope (authorized scope: {scope_display})"
                 )
     # Fail-closed: ``psql service=…`` hides the remote host in a service file.
     if re.search(r"\bpsql\b", decoded_early, re.IGNORECASE) and re.search(
@@ -1051,7 +1150,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             )
     for i, tok in enumerate(tokens):
         # Basename path-qualified tools: ``/usr/bin/curl``, ``./curl``, ``\curl``.
-        base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+        base = _normalize_tool_basename(tok)
         if base not in _HOST_TOOL_NAMES:
             continue
         # Fail-closed: URL-from-file / curl config hides the real target.
@@ -1809,22 +1908,27 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 continue
             if nxt.startswith("-"):
                 flag = nxt.split("=", 1)[0]
-                ssh_opt = base in {"ssh", "scp", "sftp"} and (
+                ssh_opt = base in {"ssh", "autossh", "scp", "sftp"} and (
                     flag in _ssh_opt_flags
                     or flag.startswith("-o")
                     or flag.startswith("--option")
                 )
                 jump_opt = flag in {"-J", "--jump"}
                 # TUN/TAP device forwarding ``-w`` / ``-w0:0`` (RH-19).
-                if base == "ssh" and (flag == "-w" or re.match(r"^-w[\d:]", flag)):
+                if base in {"ssh", "autossh"} and (flag == "-w" or re.match(r"^-w[\d:]", flag)):
                     raise PermissionDeniedError(
                         f"ssh -w TUN/TAP tunnel is not allowed under authorized scope "
                         f"(authorized scope: {scope_display})"
                     )
+                # autossh ``-M 0`` monitor port — skip so ``0`` is not treated as a host.
+                if base == "autossh" and flag in {"-M", "--monitor"}:
+                    if "=" not in nxt:
+                        skip_next_port = True
+                    continue
                 # Spaced ``-D 9050`` and glued ``-D9050`` / ``-L8080:h:80`` (RH-08).
                 glued_dyn = bool(re.match(r"^-D\d", flag))
                 glued_lr = bool(re.match(r"^-[LR]\d", flag))
-                forward_opt = base == "ssh" and (
+                forward_opt = base in {"ssh", "autossh"} and (
                     flag in _ssh_forward_flags or glued_dyn or glued_lr
                 )
                 if forward_opt:

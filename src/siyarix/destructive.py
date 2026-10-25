@@ -196,8 +196,25 @@ _PKG_ROOT_RE = re.compile(
     r"composer|bundle|dpkg|dpkg-deb|apt|apt-get|emerge|xbps-install|bun|deno|pdm)\b"
     r"[\s\S]{0,180}?"
     r"(?:--installroot|--offline-root|--root|--prefix|--target|--global-dir|"
-    r"--working-dir|--path|--cwd|(?<![\w-])-r)"
+    r"--working-dir|--path|--cwd|--dir|(?<![\w-])-r)"
     r"(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# make/cmake/meson/stow install roots (RH-47).
+_MAKE_DESTDIR_RE = re.compile(
+    r"\bmake\b[\s\S]{0,200}\bDESTDIR=(\S+)",
+    re.IGNORECASE,
+)
+_CMAKE_PREFIX_RE = re.compile(
+    r"\bcmake\b[\s\S]{0,200}--(?:prefix|install-prefix)(?:=|\s+)(\S+)",
+    re.IGNORECASE,
+)
+_MESON_DESTDIR_RE = re.compile(
+    r"\bmeson\b[\s\S]{0,200}--destdir(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+_STOW_TARGET_RE = re.compile(
+    r"\bstow\b[\s\S]{0,160}(?:-t|--target)(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
 # Nix/Guix profile root pivots (RH-44): ``nix-env -p /`` / ``guix package -p /``.
@@ -349,6 +366,12 @@ _AUTH_FILE_RE = re.compile(
     r"|/etc/tmpfiles\.d(?:/\S*)?"
     r"|/etc/security/limits\.d(?:/\S*)?"
     r"|/run/systemd/system(?:/\S*)?"
+    # Login / resolver / doas / modprobe persistence (RH-47).
+    r"|/etc/profile\b"
+    r"|/etc/environment\b"
+    r"|/etc/nsswitch\.conf\b"
+    r"|/etc/doas\.conf\b"
+    r"|/etc/modprobe\.d(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
     r")",
     re.IGNORECASE,
@@ -425,6 +448,7 @@ _AUTH_DIR_RE = re.compile(
     r"|/etc/tmpfiles\.d\b"
     r"|/etc/security/limits\.d\b"
     r"|/run/systemd/system\b"
+    r"|/etc/modprobe\.d\b"
     r")",
     re.IGNORECASE,
 )
@@ -498,18 +522,24 @@ _MOUNT_OVERLAY_AUTH_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
-# Network / FUSE mounts onto ``/`` or ``/etc`` (RH-46).
+# Network / FUSE / tmpfs mounts onto ``/`` or ``/etc`` (RH-46/47).
 _MOUNT_NETWORK_AUTH_RE = re.compile(
     r"(?:"
-    r"\bmount\b[\s\S]{0,220}(?:-t|--types?)(?:=|\s*)(?:nfs4?|cifs|smb|smbfs)\b"
+    r"\bmount\b[\s\S]{0,220}(?:-t|--types?)(?:=|\s*)(?:nfs4?|cifs|smb|smbfs|tmpfs|ramfs|devtmpfs)\b"
     r"[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bmount\b[\s\S]{0,220}"
+    + _BLOCK_DEV_RE.pattern
+    + r"[\s\S]{0,80}(?:/etc\b|(?:\s)/(?:\s*)$)"
     r"|\bsshfs\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
     r"|\brclone\b[\s\S]{0,80}\bmount\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
-    r"|\b(?:mergerfs|unionfs-fuse|gocryptfs|squashfuse)\b[\s\S]{0,220}"
+    r"|\b(?:mergerfs|unionfs-fuse|gocryptfs|squashfuse|encfs|cryfs)\b[\s\S]{0,220}"
+    r"(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bveracrypt\b[\s\S]{0,80}--mount\b[\s\S]{0,220}"
     r"(?:/etc\b|(?:\s)/(?:\s*)$)"
     r")",
     re.IGNORECASE,
 )
+
 _TAR_ABSOLUTE_NAMES_RE = re.compile(
     # ``-P``, clustered ``-xPf`` / ``-xPvf``, or ``--absolute-names``.
     r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}"
@@ -670,6 +700,9 @@ _VOLUME_CREATE_RE = re.compile(
     + _BLOCK_DEV_RE.pattern
     # ``kpartx -a`` / ``-av`` / ``--add`` on live disks (RH-42).
     + r"|\bkpartx\b[\s\S]{0,80}(?:--add\b|-[a-zA-Z]*a[a-zA-Z]*)\b[\s\S]{0,120}"
+    + _BLOCK_DEV_RE.pattern
+    # ``partx -a`` sibling (RH-47).
+    + r"|\bpartx\b[\s\S]{0,80}(?:--add\b|-[a-zA-Z]*a[a-zA-Z]*)\b[\s\S]{0,120}"
     + _BLOCK_DEV_RE.pattern
     + r")",
     re.IGNORECASE,
@@ -1095,6 +1128,10 @@ def assert_command_not_destructive(command: str) -> None:
         *_OPKG_ROOT_RE.finditer(cmd_clean),
         *_NIX_GUIX_PROFILE_RE.finditer(cmd_clean),
         *_CONDA_PREFIX_RE.finditer(cmd_clean),
+        *_MAKE_DESTDIR_RE.finditer(cmd_clean),
+        *_CMAKE_PREFIX_RE.finditer(cmd_clean),
+        *_MESON_DESTDIR_RE.finditer(cmd_clean),
+        *_STOW_TARGET_RE.finditer(cmd_clean),
     ):
         if _is_dangerous_extract_dest(pkg_root.group(1)):
             raise PermissionDeniedError(

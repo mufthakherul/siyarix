@@ -503,6 +503,18 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "yarn --cwd / add lodash",
         "bun install --cwd /",
         "deno install --root=/ npm:x",
+        # RH-47 — tmpfs/blockdev mount, encfs, partx, make/cmake/stow, login auth files
+        "mount -t tmpfs tmpfs /etc",
+        "mount /dev/sda /",
+        "encfs /tmp/c /etc",
+        "partx -a /dev/sda",
+        "pnpm --dir / add pkg",
+        "make DESTDIR=/ install",
+        "cmake --install . --prefix /",
+        "meson install --destdir=/",
+        "stow -t / pkg",
+        "tee /etc/profile <<< x",
+        "tee /etc/modprobe.d/x.conf <<< x",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

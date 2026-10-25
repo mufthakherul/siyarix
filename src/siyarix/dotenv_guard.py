@@ -538,6 +538,22 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "SOPS_AGE_KEY_FILE",
         "CLOUDSDK_CONFIG",
         "XDG_CONFIG_HOME",
+        # RH-47 — additional proxy/DB/config-home pivots.
+        "TORSOCKS_TOR_ADDRESS",
+        "AZURE_CONFIG_DIR",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "OVPN_CONFIG",
+        "DYNAMODB_ENDPOINT",
+        "XDG_DATA_HOME",
+        "HELM_CONFIG_HOME",
+        "OCI_CONFIG_FILE",
+        "BOUNDARY_ADDR",
+        "V2RAY_LOCATION_CONFIG",
+        "SHADOWSOCKS_CONFIG",
+        "R2_ENDPOINT",
+        "ELASTICSEARCH_HOST",
+        "KAFKA_HOST",
     }
 )
 
@@ -663,6 +679,22 @@ def should_skip_dotenv_key(key: str) -> bool:
         "SOPS_AGE_KEY_FILE",
         "CLOUDSDK_CONFIG",
         "XDG_CONFIG_HOME",
+        # RH-47 — additional proxy/DB/config-home pivots.
+        "TORSOCKS_TOR_ADDRESS",
+        "AZURE_CONFIG_DIR",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "OVPN_CONFIG",
+        "DYNAMODB_ENDPOINT",
+        "XDG_DATA_HOME",
+        "HELM_CONFIG_HOME",
+        "OCI_CONFIG_FILE",
+        "BOUNDARY_ADDR",
+        "V2RAY_LOCATION_CONFIG",
+        "SHADOWSOCKS_CONFIG",
+        "R2_ENDPOINT",
+        "ELASTICSEARCH_HOST",
+        "KAFKA_HOST",
     }:
         return True
     if key_upper.startswith("TAILSCALE_") or key_upper.startswith("WIREGUARD_"):
@@ -692,6 +724,12 @@ def should_skip_dotenv_key(key: str) -> bool:
     ):
         return True
     if key_upper.endswith("_PROXY") and key_upper not in {"NO_PROXY", "no_proxy"}:
+        return True
+    if key_upper.startswith("XDG_") and key_upper.endswith(("_HOME", "_DIRS")):
+        return True
+    if key_upper.endswith(("_CONFIG_HOME", "_CONFIG_DIR", "_CONFIG_FILE")):
+        return True
+    if key_upper in {"BOUNDARY_ADDR", "NERDCTL_HOST", "MSSQL_HOST", "OVPN_CONFIG"}:
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

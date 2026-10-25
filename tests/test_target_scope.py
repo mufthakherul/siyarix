@@ -683,6 +683,29 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "singularity run docker://alpine:latest", scope_env=scope
             )
+        # RH-47 — versioned wrappers, autossh -D, tor/sockd, nmcli VPN, k3d, kubeconfig bare
+        with pytest.raises(PermissionDeniedError, match="gost|Proxy/tunnel"):
+            assert_command_in_scope(
+                "gost-linux-amd64 -L=socks5://:1080", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="DynamicForward|ssh -D"):
+            assert_command_in_scope(
+                "autossh -M 0 -D 1080 user@10.0.0.5", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="tor|Proxy/tunnel"):
+            assert_command_in_scope("tor -f /tmp/torrc", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="sockd|Proxy/tunnel"):
+            assert_command_in_scope("sockd", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="nmcli connection up"):
+            assert_command_in_scope("nmcli connection up my-vpn", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="k3d|Proxy/tunnel"):
+            assert_command_in_scope("k3d cluster create", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="kubeconfig"):
+            assert_command_in_scope("talosctl kubeconfig", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="SSM|ECS|interactive"):
+            assert_command_in_scope(
+                "aws ssm start-session --target i-0123", scope_env=scope
+            )
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

@@ -74,6 +74,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-43 | Closed | `mdadm -C`; PAM/`ld.so.conf.d`/spool cron; overlay/`bindfs` on `/etc`; `dpkg --root=/`; brook/mitmproxy SOCKS wrappers; dotenv `PGHOST`/MySQL/Redis transport |
 | RH-45 | Closed | Mesh VPN (`zerotier`/`netbird`/`headscale`/`nebula`/`v2raya`/…) + `ip tuntap`/`tunnel` under scope |
 | RH-46 | Closed | Wave9 hunter: conda/mamba `-p /`; nfs/cifs/sshfs/rclone/mergerfs onto `/|/etc`; profile.d/sysctl.d/udev/run-systemd persistence; cloud kubeconfig rewrite; lima/colima/lxd/singularity/privoxy/ipsec; emerge/xbps/yarn/bun/deno roots; dotenv DB/proxy/kube/crypto homes |
+| RH-47 | Closed | Wave10 hunter: versioned wrapper basenames; autossh `-D`; sockd/tor/I2P/VPN activate/nmcli; k3d/k3s/microk8s/kubefwd; bare kubeconfig + AWS SSM/ECS; tmpfs/blockdev/encfs mounts; make/cmake/meson/stow roots; dotenv TORSOCKS/XDG_DATA/HELM_CONFIG/… |
 | RH-44 | Closed | VPN/mesh/covert tunnels (`wg-quick`/`tailscale`/`clash`/`wstunnel`/`sshx`/…); `rclone mount`; `fuse-overlayfs`; `nix-env`/`guix -p /`; dotenv Tailscale/WireGuard/OpenVPN/Clash |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
 | Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |

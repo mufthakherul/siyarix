@@ -557,3 +557,26 @@ def test_should_skip_rh46_db_proxy_crypto_keys() -> None:
         "XDG_CONFIG_HOME",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh47_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "TORSOCKS_TOR_ADDRESS",
+        "AZURE_CONFIG_DIR",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "OVPN_CONFIG",
+        "DYNAMODB_ENDPOINT",
+        "XDG_DATA_HOME",
+        "HELM_CONFIG_HOME",
+        "OCI_CONFIG_FILE",
+        "BOUNDARY_ADDR",
+        "V2RAY_LOCATION_CONFIG",
+        "SHADOWSOCKS_CONFIG",
+        "R2_ENDPOINT",
+        "ELASTICSEARCH_HOST",
+        "KAFKA_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key

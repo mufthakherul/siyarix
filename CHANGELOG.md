@@ -13,6 +13,10 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Shared `assert_command_not_destructive` used by executor, ToolRegistry, PermissionGate, and subprocess (closes registry/deep-scan bypass of `dd of=` / `fdisk`).
+- CLI deep-scan injects PermissionGate-aware `RegistryExecutor`; alt-tool fallbacks re-check permissions.
+- Threat-intel (OTX/NVD) and stealth decoy traffic use IP-pinned HTTPS (`_https_request_pinned`); cleartext decoys skipped.
+- Default `command_review` is `true` (safer production posture; CTF profile still opts out).
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).
 - Broaden `.env` credential skips (bearer/cookie/session/webhook/auth/…) in CLI and chat loaders.

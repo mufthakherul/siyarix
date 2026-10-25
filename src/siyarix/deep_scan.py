@@ -286,9 +286,21 @@ class DeepScanEngine:
         alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
         for alt in alt_tools:
             try:
+                # Re-run permission/scope/destructive checks for the alternate tool
+                # so fallbacks cannot bypass the injected executor gate.
+                if self._executor is not None:
+                    alt_step = PlanStep(
+                        tool=alt,
+                        args=dict(step.args),
+                        command=step.command,
+                        timeout=step.timeout,
+                    )
+                    await self._executor._check_permissions(alt_step)
                 result = await self._registry.execute(alt, **step.args)
                 if result.get("status") != "error":
                     return {"status": "completed", "findings": self._wrap_result(result, alt)}
+            except PermissionDeniedError:
+                continue
             except (ToolNotFoundError, ToolExecutionError):
                 continue
         return {"status": "error", "error": f"No alternatives succeeded for {step.tool}"}

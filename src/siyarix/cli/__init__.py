@@ -275,11 +275,21 @@ def _get_creds() -> Any:
     return _creds_store if _creds_store else None
 
 
+def _make_deep_scan_engine():
+    """Build DeepScanEngine with PermissionGate-aware executor injected."""
+    from ..deep_scan import DeepScanEngine
+    from ..executor_registry import RegistryExecutor
+
+    executor = RegistryExecutor(
+        registry=registry,
+        permission_gate=getattr(registry, "_permission_gate", None),
+    )
+    return DeepScanEngine(registry=registry, executor=executor)
+
+
 def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -> None:
     """Execute a deep scan using the DeepScanEngine."""
-    from ..deep_scan import DeepScanEngine
-
-    engine = DeepScanEngine(registry=registry)
+    engine = _make_deep_scan_engine()
     result = run_async(engine.scan(target, persist=save))
 
     if output == "json":
@@ -2031,9 +2041,7 @@ def discover(
         raise typer.Exit(1)
 
     if deep:
-        from ..deep_scan import DeepScanEngine
-
-        engine = DeepScanEngine(registry=registry)
+        engine = _make_deep_scan_engine()
         result = run_async(engine.scan(target, persist=True))
 
         if export:

@@ -388,6 +388,11 @@ class ToolRegistry:
 
         assert_command_in_scope(scope_command)
 
+        # Same hard-blocks as BaseExecutor (playbook/deep-scan use this path).
+        from .destructive import assert_command_not_destructive
+
+        assert_command_not_destructive(scope_command)
+
         if self._permission_gate:
             # Gate on the folded synopsis so dangerous flags/args cannot hide
             # behind a benign `command` kwarg.

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import urllib.error
-import urllib.request
 
 from siyarix.threat_intel import (
     AlienVaultOTX,
@@ -21,21 +21,25 @@ from siyarix.threat_intel import (
 )
 
 
-from contextlib import ExitStack, contextmanager
-
-
 @contextmanager
-def _patch_safe_opener(fake_response: MagicMock | Exception):
-    """Patch SSRF validation + no-redirect opener used by threat intel lookups."""
-    opener = MagicMock()
+def _patch_safe_opener(fake_response: MagicMock | Exception | bytes):
+    """Patch IP-pinned HTTPS used by threat intel lookups."""
     if isinstance(fake_response, Exception):
-        opener.open.side_effect = fake_response
+        side_effect: Exception | None = fake_response
+        return_value = None
+    elif isinstance(fake_response, (bytes, bytearray)):
+        side_effect = None
+        return_value = bytes(fake_response)
     else:
-        opener.open.return_value = fake_response
-    with ExitStack() as stack:
-        stack.enter_context(patch("siyarix.webhooks._validate_url"))
-        stack.enter_context(patch.object(urllib.request, "build_opener", return_value=opener))
-        yield opener
+        # Legacy MagicMock response with .read()
+        side_effect = None
+        return_value = fake_response.read.return_value
+    with patch(
+        "siyarix.webhooks._https_request_pinned",
+        side_effect=side_effect,
+        return_value=return_value,
+    ) as pinned:
+        yield pinned
 
 
 # -- ThreatIntelProvider -------------------------------------------------------

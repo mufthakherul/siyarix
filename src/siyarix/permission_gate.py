@@ -50,7 +50,9 @@ class PermissionGate:
             r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*[\s]*)*(?:-[a-zA-Z]*[rf])", re.IGNORECASE
         ),
         re.compile(r"\brm\b\s+--(?:recursive|force)", re.IGNORECASE),
-        re.compile(r"\bmkfs\b", re.IGNORECASE),
+        re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.IGNORECASE),
+        # Any dd with of=/dev/<block> (last of= checked in assert_command_not_destructive).
+        re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.IGNORECASE),
         re.compile(r"\bdd\b\s+if=", re.IGNORECASE),
     ]
 
@@ -63,6 +65,9 @@ class PermissionGate:
         self._state_file.parent.mkdir(parents=True, exist_ok=True)
         self._load_state()
         self._dirty = False
+        import atexit
+
+        atexit.register(self._flush_dirty)
 
     def _load_state(self) -> None:
         if self._state_file.exists():
@@ -91,6 +96,10 @@ class PermissionGate:
         except Exception:
             pass
 
+    def _flush_dirty(self) -> None:
+        if self._dirty:
+            self._save_state(force=True)
+
     def check(
         self,
         command: str,
@@ -99,6 +108,24 @@ class PermissionGate:
     ) -> GateResult:
         now = time.time()
         self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
+
+        # Shared hard-blocks (dd of= last-wins, fdisk/parted, …) before soft review.
+        try:
+            from siyarix.destructive import assert_command_not_destructive
+
+            assert_command_not_destructive(command)
+        except Exception as exc:
+            from siyarix.exceptions import PermissionDeniedError
+
+            if isinstance(exc, PermissionDeniedError):
+                return GateResult(
+                    False,
+                    GateStage.FORBIDDEN,
+                    str(exc),
+                    tool=tool,
+                    command=command,
+                )
+            raise
 
         # Always check restricted patterns for destructive payloads
         if any(p.search(command) for p in self._RESTRICTED_PATTERNS):

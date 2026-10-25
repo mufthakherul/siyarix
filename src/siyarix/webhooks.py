@@ -124,17 +124,18 @@ def _resolve_public_ips(host: str, port: int = 443) -> list[str]:
     return ips
 
 
-def _https_post_json_pinned(
+def _https_request_pinned(
     url: str,
-    payload: dict[str, Any],
     *,
+    method: str = "GET",
+    body: bytes | None = None,
     timeout: float = 5.0,
     headers: dict[str, str] | None = None,
-) -> None:
-    """POST JSON to *url* after SSRF checks, connecting to a pinned resolved IP.
+) -> bytes:
+    """HTTPS request after SSRF checks, connecting to a pinned resolved IP.
 
-    DNS is resolved once under policy; the TCP/TLS connection targets that IP while
-    SNI/Host keep the original hostname — shrinking DNS-rebinding TOCTOU.
+    DNS is resolved under policy; TCP/TLS targets that IP while SNI/Host keep the
+    original hostname — shrinking DNS-rebinding TOCTOU. Redirects are not followed.
     """
     import http.client
     import socket
@@ -148,14 +149,11 @@ def _https_post_json_pinned(
     if parsed.query:
         path = f"{path}?{parsed.query}"
 
-    pinned_ips = _resolve_public_ips(host, port)
     # Re-validate immediately before connect (hostname policy + fresh DNS).
     _validate_url(url, allow_ip=False)
-    pinned_ips = _resolve_public_ips(host, port)
-    target_ip = pinned_ips[0]
+    target_ip = _resolve_public_ips(host, port)[0]
 
-    body = json.dumps(payload).encode("utf-8")
-    req_headers = {"Content-Type": "application/json", "Host": host}
+    req_headers = {"Host": host, "User-Agent": "Siyarix/1.0"}
     if headers:
         req_headers.update(headers)
 
@@ -168,13 +166,34 @@ def _https_post_json_pinned(
 
     conn.connect = _pinned_connect  # type: ignore[method-assign]
     try:
-        conn.request("POST", path, body=body, headers=req_headers)
+        conn.request(method.upper(), path, body=body, headers=req_headers)
         resp = conn.getresponse()
-        resp.read()
+        data = resp.read()
         if resp.status >= 400:
-            raise urllib.error.URLError(f"Webhook HTTP {resp.status}")
+            raise urllib.error.URLError(f"HTTPS {resp.status} for {host}{path}")
+        return data
     finally:
         conn.close()
+
+
+def _https_post_json_pinned(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    timeout: float = 5.0,
+    headers: dict[str, str] | None = None,
+) -> None:
+    """POST JSON to *url* via :func:`_https_request_pinned`."""
+    req_headers = {"Content-Type": "application/json"}
+    if headers:
+        req_headers.update(headers)
+    _https_request_pinned(
+        url,
+        method="POST",
+        body=json.dumps(payload).encode("utf-8"),
+        timeout=timeout,
+        headers=req_headers,
+    )
 
 
 class WebhookDispatcher:

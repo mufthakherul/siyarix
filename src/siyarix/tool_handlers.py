@@ -103,7 +103,6 @@ def make_web_handler(tool_name: str) -> ToolHandler:
 
             if target and os.getenv("SIYARIX_STEALTH") == "1":
                 import urllib.parse
-                import urllib.request
 
                 from .stealth import StealthEngine
 
@@ -116,27 +115,23 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                     try:
                         decoy_url = str(req.get("url") or "")
                         _parsed = urllib.parse.urlparse(decoy_url)
-                        if _parsed.scheme not in ("http", "https"):
+                        # HTTPS-only: cleartext decoys are skipped (SSRF / MITM).
+                        if _parsed.scheme != "https":
                             continue
-                        # Reuse webhook SSRF policy + no redirects (metadata pivot).
-                        from .webhooks import _validate_url
+                        from .webhooks import _https_request_pinned
 
-                        try:
-                            _validate_url(decoy_url, allow_ip=False)
-                        except ValueError:
-                            continue
-
-                        class _NoRedirect(urllib.request.HTTPRedirectHandler):
-                            def redirect_request(self, *args: Any, **kwargs: Any) -> None:
-                                return None
-
-                        r = urllib.request.Request(
+                        method = str(req.get("method") or "GET").upper()
+                        body = None
+                        data = req.get("data")
+                        if data and method in ("POST", "PUT", "PATCH"):
+                            body = str(data).encode("utf-8")
+                        _https_request_pinned(
                             decoy_url,
-                            method=req["method"],
-                            headers={"User-Agent": req["user_agent"]},
+                            method=method,
+                            body=body,
+                            timeout=1.0,
+                            headers={"User-Agent": str(req.get("user_agent") or "Siyarix")},
                         )
-                        opener = urllib.request.build_opener(_NoRedirect)
-                        opener.open(r, timeout=1)  # nosec B310
                     except Exception:
                         pass
         except Exception:

@@ -69,20 +69,38 @@ def _validate_plugin_fetch_url(url: str) -> str:
     return cleaned
 
 
+class _PinnedHttpResponse:
+    """Minimal file-like response for callers that expect ``urlopen`` semantics."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    def read(self, n: int = -1) -> bytes:
+        if n is None or n < 0:
+            out, self._data = self._data, b""
+            return out
+        out, self._data = self._data[:n], self._data[n:]
+        return out
+
+    def __enter__(self) -> _PinnedHttpResponse:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        return None
+
+
 def _safe_urlopen(url: str, *, timeout: float = 8.0, headers: dict[str, str] | None = None):
-    """Open a validated https URL without following redirects (SSRF-safe)."""
+    """Fetch a validated https URL with IP pinning (SSRF / rebinding-safe)."""
+    from siyarix.webhooks import _https_request_pinned
+
     safe = _validate_plugin_fetch_url(url)
-    req = urllib.request.Request(
+    data = _https_request_pinned(
         safe,
+        method="GET",
+        timeout=timeout,
         headers=headers or {"User-Agent": "Siyarix-PluginManager/1.0"},
     )
-
-    class _NoRedirect(urllib.request.HTTPRedirectHandler):
-        def redirect_request(self, *args: Any, **kwargs: Any) -> None:
-            return None
-
-    opener = urllib.request.build_opener(_NoRedirect)
-    return opener.open(req, timeout=timeout)  # nosec B310
+    return _PinnedHttpResponse(data)
 
 
 def _validate_git_clone_url(url: str) -> str:

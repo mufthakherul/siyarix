@@ -458,9 +458,19 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Format disk (mkfs)",
     ),
     (
+        re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
+        "critical",
+        "Raw disk overwrite (dd of=/dev/…)",
+    ),
+    (
         re.compile(r"\bdd\s+if=", re.I),
         "critical",
         "Raw disk overwrite (dd)",
+    ),
+    (
+        re.compile(r"\b(fdisk|parted|mkswap)\b", re.I),
+        "critical",
+        "Partition / swap device tool",
     ),
     (
         re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vda\d*)", re.I),

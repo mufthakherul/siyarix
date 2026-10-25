@@ -325,45 +325,9 @@ class BaseExecutor:
 
     def check_destructive(self, command: str) -> None:
         """Block fork bombs, block device overwrites, system dir deletions, and partitioning."""
-        cmd_clean = command.strip().lower()
+        from .destructive import assert_command_not_destructive
 
-        # Fork bomb patterns
-        if ":(){" in cmd_clean or "::&" in cmd_clean:
-            raise PermissionDeniedError(
-                "Destructive command detected: Fork bomb execution is blocked."
-            )
-
-        import re as _re
-
-        # Block device overwrite — last ``of=`` wins (dual-of= must not bypass).
-        if _re.search(r"\bdd\b", cmd_clean):
-            of_matches = _re.findall(r"\bof=(\S+)", cmd_clean)
-            if of_matches:
-                of_target = of_matches[-1]
-                allowed_of = {"/dev/null", "/dev/zero"}
-                if of_target.startswith("/dev/") and of_target not in allowed_of:
-                    raise PermissionDeniedError(
-                        "Destructive command detected: Overwriting block devices is blocked."
-                    )
-
-        # Recursive deletion of critical paths (normalize -rf/-fr/--recursive/--force)
-        _rm_destructive = bool(
-            _re.search(r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s*)+", cmd_clean)
-            or _re.search(r"\brm\b\s+--(?:recursive|force)", cmd_clean)
-        )
-        if _rm_destructive and any(
-            path in cmd_clean
-            for path in [" /", " /*", " /etc", " /var", " /bin", " /sbin", " /usr", " /home"]
-        ):
-            raise PermissionDeniedError(
-                "Destructive command detected: Deleting system directory is blocked."
-            )
-
-        # Partition formatting / disk tools — hard block regardless of flags
-        if _re.search(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", cmd_clean):
-            raise PermissionDeniedError(
-                "Destructive command detected: Formatting storage devices is blocked."
-            )
+        assert_command_not_destructive(command)
 
     async def _check_permissions(self, step: PlanStep) -> None:
         command = str(step.command or step.args.get("command") or "").strip()

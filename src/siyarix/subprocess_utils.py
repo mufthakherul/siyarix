@@ -220,8 +220,10 @@ def get_platform_shell_cmd(command: str) -> list[str]:
 _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/\s*$", re.I),
     re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.I),
+    re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
     re.compile(r"\bmkfs\.", re.I),
+    re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.I),
     re.compile(r"\bmkswap\b"),
     re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
     re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
@@ -263,6 +265,15 @@ def _validate_cmd_list(cmd: list[str]) -> None:
     _check_path_traversal(cmd)
 
     full = " ".join(cmd)
+    # Hard-block the same disk-wipe / partition class as BaseExecutor (no prompt).
+    try:
+        from siyarix.destructive import assert_command_not_destructive
+        from siyarix.exceptions import PermissionDeniedError
+
+        assert_command_not_destructive(full)
+    except PermissionDeniedError as exc:
+        raise ValueError(str(exc)) from exc
+
     for pattern in _DESTRUCTIVE_PATTERNS:
         if pattern.search(full):
             _confirm_destructive(cmd)

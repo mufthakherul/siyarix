@@ -13,7 +13,6 @@ import os
 import re
 import urllib.error
 import urllib.parse
-import urllib.request
 from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
@@ -52,24 +51,16 @@ class AlienVaultOTX(ThreatIntelProvider):
             headers["X-OTX-API-KEY"] = self.api_key
 
         try:
-            from siyarix.webhooks import _validate_url
+            from siyarix.webhooks import _https_request_pinned
 
-            _validate_url(url, allow_ip=False)
-            req = urllib.request.Request(url, headers=headers)
-
-            class _NoRedirect(urllib.request.HTTPRedirectHandler):
-                def redirect_request(self, *args: Any, **kwargs: Any) -> None:
-                    return None
-
-            opener = urllib.request.build_opener(_NoRedirect)
-            with opener.open(req, timeout=10) as response:  # nosec B310
-                data = json.loads(response.read().decode())
-                return {
-                    "source": "AlienVault OTX",
-                    "pulse_count": data.get("pulse_info", {}).get("count", 0),
-                    "reputation": data.get("reputation", 0),
-                }
-        except (urllib.error.URLError, ValueError) as e:
+            body = _https_request_pinned(url, timeout=10.0, headers=headers or None)
+            data = json.loads(body.decode())
+            return {
+                "source": "AlienVault OTX",
+                "pulse_count": data.get("pulse_info", {}).get("count", 0),
+                "reputation": data.get("reputation", 0),
+            }
+        except (urllib.error.URLError, ValueError, json.JSONDecodeError) as e:
             logger.warning("AlienVault lookup failed for %s: %s", ip, e)
             return {"source": "AlienVault OTX", "error": str(e)}
 
@@ -86,33 +77,25 @@ class NVDDatabase(ThreatIntelProvider):
             return {"source": "NVD", "error": f"Invalid CVE id: {cve_id!r}"}
         url = f"{self.BASE_URL}?{urllib.parse.urlencode({'cveId': raw})}"
         try:
-            from siyarix.webhooks import _validate_url
+            from siyarix.webhooks import _https_request_pinned
 
-            _validate_url(url, allow_ip=False)
-            req = urllib.request.Request(url)
-
-            class _NoRedirect(urllib.request.HTTPRedirectHandler):
-                def redirect_request(self, *args: Any, **kwargs: Any) -> None:
-                    return None
-
-            opener = urllib.request.build_opener(_NoRedirect)
-            with opener.open(req, timeout=10) as response:  # nosec B310
-                data = json.loads(response.read().decode())
-                vulnerabilities = data.get("vulnerabilities", [])
-                if vulnerabilities:
-                    cve_data = vulnerabilities[0].get("cve", {})
-                    metrics = cve_data.get("metrics", {})
-                    base_score = None
-                    if "cvssMetricV31" in metrics:
-                        base_score = metrics["cvssMetricV31"][0]["cvssData"]["baseScore"]
-                    return {
-                        "source": "NVD",
-                        "id": raw,
-                        "description": cve_data.get("descriptions", [{}])[0].get("value", ""),
-                        "base_score": base_score,
-                    }
-                return {"source": "NVD", "error": "CVE not found"}
-        except (urllib.error.URLError, ValueError) as e:
+            payload = _https_request_pinned(url, timeout=10.0)
+            data = json.loads(payload.decode())
+            vulnerabilities = data.get("vulnerabilities", [])
+            if vulnerabilities:
+                cve_data = vulnerabilities[0].get("cve", {})
+                metrics = cve_data.get("metrics", {})
+                base_score = None
+                if "cvssMetricV31" in metrics:
+                    base_score = metrics["cvssMetricV31"][0]["cvssData"]["baseScore"]
+                return {
+                    "source": "NVD",
+                    "id": raw,
+                    "description": cve_data.get("descriptions", [{}])[0].get("value", ""),
+                    "base_score": base_score,
+                }
+            return {"source": "NVD", "error": "CVE not found"}
+        except (urllib.error.URLError, ValueError, json.JSONDecodeError) as e:
             logger.warning("NVD lookup failed for %s: %s", cve_id, e)
             return {"source": "NVD", "error": str(e)}
 

@@ -18,6 +18,9 @@ All notable changes to this project will be documented in this file.
 - Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).
 - Stealth decoy HTTP uses SSRF validation and refuses redirects.
 - Playbook tool/agent steps run via gated ToolRegistry / AgentCore (no `sh -c` JSON).
+- Threat-intel IP/CVE lookups validate inputs and refuse redirects.
+- Local-provider URL checks reject link-local and IPv4-mapped metadata addresses.
+- Workflow soft `status=error` results mark FAILED and skip dependents.
 - Fail closed on non-interactive command review unless `SIYARIX_PREAUTHORIZED=1` (SX-001).
 - Execute permission-gate edits and revalidate them before handlers run (SX-002).
 - Enforce permission checks and dependency-aware scheduling in the autonomous executor (SX-003, SX-010).

@@ -239,6 +239,8 @@ _REDACT_PLACEHOLDER = "[REDACTED]"
 
 _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # ── API keys ──────────────────────────────────────────────────────────
+    # Stripe live/test keys before generic ``sk-`` OpenAI pattern.
+    ("stripe_key", re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{16,}")),
     ("openai_key", re.compile(r"sk-[A-Za-z0-9_-]{20,}")),
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
     # H-10: preserve the key name, only redact the value after = or :.
@@ -268,6 +270,7 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     ("bearer_token", re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}")),
+    ("auth_token_header", re.compile(r"(?i)Authorization:\s*Token\s+[A-Za-z0-9_.~+/=-]{8,}")),
     ("basic_auth", re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
     (

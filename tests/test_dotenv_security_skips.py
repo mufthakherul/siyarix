@@ -41,6 +41,16 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SIYARIX_CONFIG_DIR=/tmp/evil-cfg",
                 "GIT_SSH_COMMAND=ssh -o ProxyCommand=evil",
                 "PGPASSFILE=/tmp/pgpass",
+                "NETRC=/tmp/netrc",
+                "HOME=/tmp/fakehome",
+                "SSL_CERT_FILE=/tmp/evil.pem",
+                "CURL_CA_BUNDLE=/tmp/evil.pem",
+                "REQUESTS_CA_BUNDLE=/tmp/evil.pem",
+                "GIT_CONFIG_GLOBAL=/tmp/gitconfig",
+                "NPM_CONFIG_REGISTRY=http://evil/npm",
+                "DSN=postgres://u:p@h/db",
+                "PGSERVICEFILE=/tmp/pg_service",
+                "GIT_EXTERNAL_DIFF=evil",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -70,6 +80,16 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SIYARIX_CONFIG_DIR",
         "GIT_SSH_COMMAND",
         "PGPASSFILE",
+        "NETRC",
+        "HOME",
+        "SSL_CERT_FILE",
+        "CURL_CA_BUNDLE",
+        "REQUESTS_CA_BUNDLE",
+        "GIT_CONFIG_GLOBAL",
+        "NPM_CONFIG_REGISTRY",
+        "DSN",
+        "PGSERVICEFILE",
+        "GIT_EXTERNAL_DIFF",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -100,4 +120,14 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SIYARIX_CONFIG_DIR" not in os.environ
     assert "GIT_SSH_COMMAND" not in os.environ
     assert "PGPASSFILE" not in os.environ
+    assert "NETRC" not in os.environ
+    assert "HOME" not in os.environ
+    assert "SSL_CERT_FILE" not in os.environ
+    assert "CURL_CA_BUNDLE" not in os.environ
+    assert "REQUESTS_CA_BUNDLE" not in os.environ
+    assert "GIT_CONFIG_GLOBAL" not in os.environ
+    assert "NPM_CONFIG_REGISTRY" not in os.environ
+    assert "DSN" not in os.environ
+    assert "PGSERVICEFILE" not in os.environ
+    assert "GIT_EXTERNAL_DIFF" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 SECRET_PATTERNS = {
     "ANTHROPIC_KEY": re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
     "DEEPSEEK_KEY": re.compile(r"sk-ds[A-Za-z0-9_-]{20,}"),
+    "STRIPE_KEY": re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{16,}"),
     "OPENAI_KEY": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     "XAI_KEY": re.compile(r"xai-[A-Za-z0-9_-]{20,}"),
     "GROQ_KEY": re.compile(r"gsk_[A-Za-z0-9_-]{16,}"),
@@ -33,6 +34,7 @@ SECRET_PATTERNS = {
     "SLACK_TOKEN": re.compile(r"xox[bporas]-[0-9A-Za-z-]+"),
     "GITHUB_TOKEN": re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}"),
     "GENERIC_BEARER": re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}"),
+    "AUTH_TOKEN_HEADER": re.compile(r"(?i)Authorization:\s*Token\s+[A-Za-z0-9_.~+/=-]{8,}"),
     "BASIC_AUTH": re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}"),
     "GENERIC_API_KEY": re.compile(
         r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"

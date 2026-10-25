@@ -434,6 +434,14 @@ class TestSecretRedactorRedact:
             pem = f"-----BEGIN {kind} PRIVATE KEY-----\n{body}\n-----END {kind} PRIVATE KEY-----"
             assert body not in self.r.redact(pem)
 
+    def test_stripe_and_authorization_token_redacted(self) -> None:
+        stripe = self.r.redact("STRIPE_SECRET_KEY=sk_live_51ABCDEFghijklmnopQRST")
+        assert "sk_live_51ABCDEFghijklmnopQRST" not in stripe
+        assert "[REDACTED]" in stripe
+        tok = self.r.redact("Authorization: Token secrettoken1234567890")
+        assert "secrettoken1234567890" not in tok
+        assert "[REDACTED]" in tok
+
     def test_secret_kv_redacted(self) -> None:
         text = "password = super_secret_123"
         result = self.r.redact(text)

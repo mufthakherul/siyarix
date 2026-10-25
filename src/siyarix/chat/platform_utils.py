@@ -276,6 +276,17 @@ def load_env_file() -> None:
             "MYSQL_HISTFILE",
             "AWS_CONFIG_FILE",
             "AWS_SHARED_CREDENTIALS_FILE",
+            "NETRC",
+            "HOME",
+            "SSL_CERT_FILE",
+            "CURL_CA_BUNDLE",
+            "REQUESTS_CA_BUNDLE",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_SYSTEM",
+            "GIT_EXTERNAL_DIFF",
+            "NPM_CONFIG_REGISTRY",
+            "PGSERVICEFILE",
+            "DSN",
         }
     )
     _blocked_vars = {
@@ -315,6 +326,16 @@ def load_env_file() -> None:
         "KUBECONFIG",
         "GIT_SSH_COMMAND",
         "PGPASSFILE",
+        "NETRC",
+        "HOME",
+        "SSL_CERT_FILE",
+        "CURL_CA_BUNDLE",
+        "REQUESTS_CA_BUNDLE",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+        "GIT_EXTERNAL_DIFF",
+        "NPM_CONFIG_REGISTRY",
+        "PGSERVICEFILE",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

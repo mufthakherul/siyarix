@@ -14,8 +14,13 @@ from siyarix.exceptions import PermissionDeniedError
 
 _FORK_BOMB_MARKERS = (":(){", "::&")
 _ALLOWED_DD_OF = frozenset({"/dev/null", "/dev/zero"})
-_RM_DESTRUCTIVE_RE = re.compile(
-    r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s*)+|\brm\b\s+--(?:recursive|force)",
+_RM_WORD_RE = re.compile(r"\brm\b", re.IGNORECASE)
+_RM_RECURSIVE_FLAG_RE = re.compile(
+    r"(?:-[a-zA-Z]*r[a-zA-Z]*\b|--recursive\b)",
+    re.IGNORECASE,
+)
+_RM_FORCE_FLAG_RE = re.compile(
+    r"(?:-[a-zA-Z]*f[a-zA-Z]*\b|--force\b)",
     re.IGNORECASE,
 )
 _SYSTEM_RM_ROOTS = frozenset(
@@ -114,12 +119,26 @@ _INTERPRETER_DEV_WRITE_RE = re.compile(
     re.IGNORECASE,
 )
 _GPG_OPENSSL_OUT_BLOCK_RE = re.compile(
-    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out)\s*"
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
     + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 _OPENSSL_OUT_AUTH_RE = re.compile(
-    r"\bopenssl\b[\s\S]{0,160}(?:-out|--out)\s*" + r"/etc/(?:passwd|shadow|sudoers|group)\b",
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
+    + r"/etc/(?:passwd|shadow|sudoers|group)\b",
+    re.IGNORECASE,
+)
+_MISC_WRITE_BLOCK_RE = re.compile(
+    r"(?:"
+    r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip)\b[\s\S]{0,120}"
+    r"(?:-o|--output)(?:=|\s*)" + _BLOCK_DEV_RE.pattern
+    + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|ddrescue)\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _BLOCK_DEV_RE.pattern
+    + r"|\bsocat\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    + r")",
     re.IGNORECASE,
 )
 # Capture extract destinations; normalize before comparing to ``/``.
@@ -131,6 +150,8 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
     r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
     r"|\bcpio\b[\s\S]{0,100}(?:--directory|-D)\b(?:=|\s*)(\S+)"
+    r"|\bpython(?:\d+(?:\.\d+)?)?\s+-m\s+(?:zipfile|tarfile)\b"
+    r"[\s\S]{0,100}(?:-e|--extract|\bextract\b)[\s\S]{0,80}(\S+)"
     r")",
     re.IGNORECASE,
 )
@@ -240,6 +261,42 @@ _REDIRECT_TO_AUTH_RE = re.compile(
     r"|(?:\b(?:truncate|shred|install)\b[\s\S]{0,80}" + _AUTH_FILE_RE.pattern + r")",
     re.IGNORECASE,
 )
+_DOWNLOAD_TO_AUTH_RE = re.compile(
+    r"(?:"
+    r"\b(?:curl|wget|busybox|fetch|aria2c|axel|http|httpie|yt-dlp|youtube-dl|lftp)\b"
+    r"[\s\S]{0,220}"
+    r"(?:-o|--output(?:-document)?|--out|--index-out|-O)(?:=|\s*)(?:\d+=)?"
+    + _AUTH_FILE_RE.pattern
+    + r"|\blwp-download\b[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\brclone\b[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\b(?:scp|sftp)\b[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\b(?:base64|brotli)\b[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern
+    + r")",
+    re.IGNORECASE,
+)
+_DOWNLOAD_DIR_AUTH_RE = re.compile(
+    r"\b(?:curl|wget|aria2c)\b[\s\S]{0,220}"
+    r"(?:--output-dir|--directory-prefix|--dir|-d)(?:=|\s*)/etc(?:/|\s|$)",
+    re.IGNORECASE,
+)
+_CMAKE_COPY_AUTH_RE = re.compile(
+    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_INPLACE_AUTH_RE = re.compile(
+    r"(?:"
+    r"\b(?:sed|perl)\b[\s\S]{0,100}-i\S*[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\bsponge\b\s+"
+    + _AUTH_FILE_RE.pattern
+    + r")",
+    re.IGNORECASE,
+)
 _DD_OF_AUTH_RE = re.compile(
     r"\b(?:dd|dc3dd|ddrescue)\b[\s\S]{0,120}\bof=" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
@@ -333,6 +390,15 @@ def _targets_block_device(cmd_clean: str) -> bool:
     return bool(_BLOCK_DEV_RE.search(cmd_clean))
 
 
+def _rm_is_destructive(cmd_clean: str) -> bool:
+    """True when ``rm`` has recursive+force flags in any option order."""
+    if not _RM_WORD_RE.search(cmd_clean):
+        return False
+    return bool(
+        _RM_RECURSIVE_FLAG_RE.search(cmd_clean) and _RM_FORCE_FLAG_RE.search(cmd_clean)
+    )
+
+
 def _is_dangerous_extract_dest(tok: str, *, absolute_any: bool = False) -> bool:
     """True for ``/``, root aliases, system roots, or (7z) any absolute path."""
     norm = _normalize_path_token(tok)
@@ -415,7 +481,7 @@ def assert_command_not_destructive(command: str) -> None:
         )
 
     if (
-        _RM_DESTRUCTIVE_RE.search(cmd_clean) or _FILE_WIPE_TOOLS_RE.search(cmd_clean)
+        _rm_is_destructive(cmd_clean) or _FILE_WIPE_TOOLS_RE.search(cmd_clean)
     ) and _targets_system_path(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Deleting system directory is blocked."
@@ -437,6 +503,7 @@ def assert_command_not_destructive(command: str) -> None:
         or _DOWNLOAD_DIR_DEV_RE.search(cmd_clean)
         or _CMAKE_COPY_BLOCK_RE.search(cmd_clean)
         or _GPG_OPENSSL_OUT_BLOCK_RE.search(cmd_clean)
+        or _MISC_WRITE_BLOCK_RE.search(cmd_clean)
         or _SOCAT_BLOCK_RE.search(cmd_clean)
         or _DISKUTIL_WIPE_RE.search(cmd_clean)
         or _ASR_ERASE_RE.search(cmd_clean)
@@ -477,6 +544,10 @@ def assert_command_not_destructive(command: str) -> None:
         or _DD_OF_AUTH_RE.search(cmd_clean)
         or _INTERPRETER_AUTH_WRITE_RE.search(cmd_clean)
         or _OPENSSL_OUT_AUTH_RE.search(cmd_clean)
+        or _DOWNLOAD_TO_AUTH_RE.search(cmd_clean)
+        or _DOWNLOAD_DIR_AUTH_RE.search(cmd_clean)
+        or _CMAKE_COPY_AUTH_RE.search(cmd_clean)
+        or _INPLACE_AUTH_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."

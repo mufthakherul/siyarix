@@ -213,3 +213,16 @@ class TestAssertCommandInScope:
             assert_command_in_scope("nmap -p 80 dc01", scope_env=scope)
         assert_command_in_scope("nmap 10.1.2.3", scope_env=scope)
         assert_command_in_scope("ssh jump.lab.example", scope_env=scope)
+
+    def test_integer_hosts_and_idn_fail_closed(self) -> None:
+        scope = "10.0.0.0/8,*.lab.example"
+        with pytest.raises(PermissionDeniedError, match="0.0.0.0"):
+            assert_command_in_scope("curl 0", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="0.0.0.1"):
+            assert_command_in_scope("curl 1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="0.0.0.0"):
+            assert_command_in_scope("nc 0 80", scope_env=scope)
+        # Cyrillic homoglyph in domain label.
+        with pytest.raises(PermissionDeniedError, match="еxample"):
+            assert_command_in_scope("nmap еxample.com", scope_env=scope)
+        assert_command_in_scope("nmap -p 80 10.1.2.3", scope_env=scope)

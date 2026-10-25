@@ -68,6 +68,11 @@ All notable changes to this project will be documented in this file.
 - Scope fail-closed on smb/nfs/ldap/dict/… schemes and single-label hosts (`ssh bastion`).
 - SecretRedactor/DLP redact ENCRYPTED/DSA/ED25519 PEM bodies.
 - `.env` skips `OPENSSL_CONF`/`LD_AUDIT`/`DOCKER_HOST`/`KUBECONFIG`/`GIT_SSH_COMMAND`/`PGPASSFILE`/`SIYARIX_CONFIG_DIR`.
+- `rm` recursive+force detected in any option order (`rm --no-preserve-root -rf /`).
+- Hard-block downloads/copies/gpg/base64/`sed -i`/`sponge` onto auth files; misc writers (`xxd`/`ffmpeg`/`fallocate`/`flash_erase`/`socat`) onto disks.
+- `python -m zipfile|tarfile` extract-to-root; scope integer hosts (`curl 0`) + IDN homoglyphs.
+- `.env` also skips `HOME`/`NETRC`/`SSL_CERT_FILE`/`CURL_CA_BUNDLE`/`GIT_CONFIG_*`/`DSN`/…
+- SecretRedactor/DLP: Stripe `sk_live_`/`sk_test_` and `Authorization: Token`.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

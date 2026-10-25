@@ -419,21 +419,52 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             f"(authorized scope: {scope_display})"
         )
 
-    # Fail-closed: bare single-label hosts after host-taking tools (``ssh bastion``).
+    # Fail-closed: bare hosts after host-taking tools (``ssh bastion``, ``curl 0``).
+    _port_flags = frozenset({"-p", "-P", "--port", "--ports"})
     tokens = decoded_early.split()
     for i, tok in enumerate(tokens):
         base = tok.split("/", 1)[0].lower()
         if base not in _HOST_TOOL_NAMES:
             continue
+        skip_next_port = False
         for nxt in tokens[i + 1 :]:
+            if skip_next_port:
+                skip_next_port = False
+                continue
             if nxt.startswith("-"):
+                flag = nxt.split("=", 1)[0]
+                if flag in _port_flags or flag.lower().startswith("-p"):
+                    if "=" not in nxt:
+                        skip_next_port = True
                 continue
             if "://" in nxt:
                 break  # URLs handled by scheme / http(s) checks
             candidate = nxt.split("@")[-1].split("/")[0].split(":")[0]
-            if not candidate or candidate.isdigit():
-                continue  # ports / numeric args (``nmap -p 80 host``)
+            if not candidate:
+                continue
+            # Integer / short IPv4 hosts (``curl 0`` → 0.0.0.0).
+            if candidate.isdigit() or re.fullmatch(r"0[xX][0-9a-fA-F]+", candidate):
+                int_ip = _try_int_ip(candidate)
+                if int_ip is not None and not ip_in_scope(int_ip, allowed_items):
+                    raise PermissionDeniedError(
+                        f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+                    )
+                break
             if "." in candidate or candidate.lower() == "localhost":
+                # IDN / homoglyph domains are often missed by ASCII ``_DOMAIN_RE``.
+                if any(ord(ch) > 127 for ch in candidate):
+                    dom = candidate.lower().rstrip(".")
+                    try:
+                        puny = candidate.encode("idna").decode("ascii").lower().rstrip(".")
+                    except (UnicodeError, ValueError):
+                        puny = dom
+                    if not (
+                        domain_in_scope(dom, allowed_items)
+                        or domain_in_scope(puny, allowed_items)
+                    ):
+                        raise PermissionDeniedError(
+                            f"Target domain {dom} is out of authorized scope: {scope_display}"
+                        )
                 break
             if _SINGLE_LABEL_RE.match(candidate):
                 if not domain_in_scope(candidate.lower(), allowed_items):

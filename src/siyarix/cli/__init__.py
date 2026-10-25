@@ -42,7 +42,14 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
@@ -58,7 +65,8 @@ from ..exceptions import ValidationError
 from ..health import get_health
 from ..logging_config import configure_logging
 from ..metrics import get_metrics
-from ..registry import ToolRegistry
+from ..compat import EngineResult
+from ..registry_factory import make_tool_registry
 from ..security_commands import security_app
 from ..validators import validate_target
 from .plugins import plugins_app
@@ -78,19 +86,269 @@ def _load_dotenv(path: Path | None = None) -> None:
 
     Dangerous variables (PATH, LD_PRELOAD, PYTHONPATH, etc.) are also blocked.
     """
-    _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
+    # Block credential-bearing names; use `siyarix auth set-key` / CredentialStore.
+    _api_key_patterns = (
+        "_API_KEY",
+        "_SECRET",
+        "_PASSWORD",
+        "_TOKEN",
+        "_AUTH",
+        "_BEARER",
+        "_COOKIE",
+        "_SESSION",
+        "_CREDENTIAL",
+        "_WEBHOOK",
+        "_PRIVATE_KEY",
+        "_ACCESS_KEY",
+        "_MASTER_PASSWORD",
+        "_MASTER_KEY",
+        "_PASSPHRASE",
+        "_URI",
+        "_URL",
+        "_DSN",
+        "DATABASE_URL",
+        "SSLKEYLOGFILE",
+        "PASSWORD",
+        "SECRET",
+        "TOKEN",
+        "API_KEY",
+        "CONNECTION_STRING",
+        "ENCRYPTION_KEY",
+        "APP_KEY",
+        "RAILS_MASTER_KEY",
+    )
+    # Short provider key aliases (not matched by ``_API_KEY``); keep ``VALID_KEY`` loadable.
+    _provider_short_keys = frozenset(
+        {
+            "OPENAI_KEY",
+            "ANTHROPIC_KEY",
+            "XAI_KEY",
+            "GROQ_KEY",
+            "GEMINI_KEY",
+            "OPENROUTER_KEY",
+            "TOGETHER_KEY",
+            "COHERE_KEY",
+            "MISTRAL_KEY",
+            "DEEPSEEK_KEY",
+            "PERPLEXITY_KEY",
+            "HUGGINGFACE_KEY",
+            "HF_KEY",
+        }
+    )
+    _blocked_exact = frozenset(
+        {
+            "PGPASSWORD",
+            "MYSQL_PWD",
+            "DATABASE_URL",
+            "REDIS_URL",
+            "MONGO_URL",
+            "MONGODB_URI",
+            "API_KEY",
+            "PASSWORD",
+            "SECRET",
+            "TOKEN",
+            "AUTH_TOKEN",
+            "ACCESS_TOKEN",
+            "CONNECTION_STRING",
+            # Security posture — must not be flipped by a cwd .env drop.
+            "SIYARIX_SAFE_MODE",
+            "SIYARIX_PREAUTHORIZED",
+            "SIYARIX_COMMAND_REVIEW",
+            "SIYARIX_ALLOWED_SCOPE",
+            "SIYARIX_CONFIG",
+            "SIYARIX_CONFIG_DIR",
+            "PRIVATE_KEY",
+            "OPENSSL_CONF",
+            "DOCKER_HOST",
+            "KUBECONFIG",
+            "GIT_SSH_COMMAND",
+            "GIT_SSH",
+            "GIT_PROXY_COMMAND",
+            "PGPASSFILE",
+            "MYSQL_HISTFILE",
+            "AWS_CONFIG_FILE",
+            "AWS_SHARED_CREDENTIALS_FILE",
+            "NETRC",
+            "HOME",
+            "SSL_CERT_FILE",
+            "CURL_CA_BUNDLE",
+            "REQUESTS_CA_BUNDLE",
+            "GIT_CONFIG_GLOBAL",
+            "GIT_CONFIG_SYSTEM",
+            "GIT_EXTERNAL_DIFF",
+            "NPM_CONFIG_REGISTRY",
+            "NPM_CONFIG_SCRIPT_SHELL",
+            "PGSERVICEFILE",
+            "DSN",
+            "GIT_SSL_NO_VERIFY",
+            "PYTHONHTTPSVERIFY",
+            "NODE_EXTRA_CA_CERTS",
+            "GIT_SSL_CAINFO",
+            "AWS_CA_BUNDLE",
+            "SSL_CERT_DIR",
+            "DOCKER_CERT_PATH",
+            "DOCKER_TLS_VERIFY",
+            "NODE_TLS_REJECT_UNAUTHORIZED",
+            "PIP_TRUSTED_HOST",
+            "NPM_CONFIG_STRICT_SSL",
+            "COMPOSER_DISABLE_TLS",
+            "UV_INSECURE_HOST",
+            "LESSOPEN",
+            "SUDO_ASKPASS",
+            "GCONV_PATH",
+            "HOSTALIASES",
+            "GIT_HTTP_PROXY",
+            "GIT_HTTPS_PROXY",
+            "FTP_PROXY",
+            "SOCKS_PROXY",
+            "SOCKS5_PROXY",
+            "ALL_PROXY",
+            "KUBE_CONFIG_PATH",
+            "KUBE_CONFIG",
+            "GIT_EXEC_PATH",
+            "RSYNC_RSH",
+            "RSYNC_CONNECT_PROG",
+            "RSYNC_PROXY",
+            "OPENSSL_MODULES",
+            "OPENSSL_ENGINES",
+            "WGETRC",
+            "_JAVA_OPTIONS",
+            "JDK_JAVA_OPTIONS",
+            "JAVA_OPTS",
+            "PERL5DB",
+            "DOTNET_STARTUP_HOOKS",
+            "CORECLR_PROFILER_PATH",
+            "HOSTFILE",
+            "CVS_RSH",
+            "ZDOTDIR",
+            "CONTAINER_HOST",
+            "DOCKER_CONFIG",
+            "RAILS_MASTER_KEY",
+            "ENCRYPTION_KEY",
+            "APP_KEY",
+            "CLASSPATH",
+            "JAVA_OPTIONS",
+            "MSBUILDSTARTUPHOOKS",
+            "SOCKS5_SERVER",
+            "GIT_SSL_CAPATH",
+            "DOCKER_CONTEXT",
+            "NODE_PATH",
+            "PHPRC",
+            "MAVEN_OPTS",
+            "ANSIBLE_SSH_ARGS",
+            "ANSIBLE_INVENTORY",
+            "VIMINIT",
+            "GRADLE_OPTS",
+        }
+    )
     _blocked_vars = {
         "PATH",
         "LD_PRELOAD",
         "LD_LIBRARY_PATH",
+        "LD_AUDIT",
         "PYTHONPATH",
         "PYTHONSTARTUP",
         "BASH_ENV",
         "IFS",
         "SHELLOPTS",
         "PERL5LIB",
+        "PERL5OPT",
+        "PERL5DB",
         "RUBYLIB",
+        "RUBYOPT",
         "PYTHONHOME",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "NODE_OPTIONS",
+        "PYTHONWARNINGS",
+        "JAVA_TOOL_OPTIONS",
+        "_JAVA_OPTIONS",
+        "JDK_JAVA_OPTIONS",
+        "JAVA_OPTS",
+        "ENV",
+        "PROMPT_COMMAND",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "SSLKEYLOGFILE",
+        "GIT_ASKPASS",
+        "SSH_ASKPASS",
+        "CURL_HOME",
+        "OPENSSL_CONF",
+        "OPENSSL_MODULES",
+        "OPENSSL_ENGINES",
+        "WGETRC",
+        "DOCKER_HOST",
+        "KUBECONFIG",
+        "KUBE_CONFIG",
+        "GIT_SSH_COMMAND",
+        "GIT_SSH",
+        "GIT_PROXY_COMMAND",
+        "PGPASSFILE",
+        "NETRC",
+        "HOME",
+        "SSL_CERT_FILE",
+        "CURL_CA_BUNDLE",
+        "REQUESTS_CA_BUNDLE",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_SYSTEM",
+        "GIT_EXTERNAL_DIFF",
+        "NPM_CONFIG_REGISTRY",
+        "NPM_CONFIG_SCRIPT_SHELL",
+        "PGSERVICEFILE",
+        "GIT_SSL_NO_VERIFY",
+        "PYTHONHTTPSVERIFY",
+        "NODE_EXTRA_CA_CERTS",
+        "GIT_SSL_CAINFO",
+        "AWS_CA_BUNDLE",
+        "SSL_CERT_DIR",
+        "DOCKER_CERT_PATH",
+        "DOCKER_TLS_VERIFY",
+        "NODE_TLS_REJECT_UNAUTHORIZED",
+        "PIP_TRUSTED_HOST",
+        "NPM_CONFIG_STRICT_SSL",
+        "COMPOSER_DISABLE_TLS",
+        "UV_INSECURE_HOST",
+        "LESSOPEN",
+        "SUDO_ASKPASS",
+        "GCONV_PATH",
+        "HOSTALIASES",
+        "GIT_HTTP_PROXY",
+        "GIT_HTTPS_PROXY",
+        "FTP_PROXY",
+        "SOCKS_PROXY",
+        "SOCKS5_PROXY",
+        "ftp_proxy",
+        "socks_proxy",
+        "socks5_proxy",
+        "KUBE_CONFIG_PATH",
+        "GIT_EXEC_PATH",
+        "RSYNC_RSH",
+        "RSYNC_CONNECT_PROG",
+        "RSYNC_PROXY",
+        "DOTNET_STARTUP_HOOKS",
+        "CORECLR_PROFILER_PATH",
+        "HOSTFILE",
+        "CVS_RSH",
+        "ZDOTDIR",
+        "CONTAINER_HOST",
+        "DOCKER_CONFIG",
+        "CLASSPATH",
+        "JAVA_OPTIONS",
+        "MSBUILDSTARTUPHOOKS",
+        "SOCKS5_SERVER",
+        "GIT_SSL_CAPATH",
+        "DOCKER_CONTEXT",
+        "NODE_PATH",
+        "PHPRC",
+        "MAVEN_OPTS",
+        "ANSIBLE_SSH_ARGS",
+        "ANSIBLE_INVENTORY",
+        "VIMINIT",
+        "GRADLE_OPTS",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():
@@ -105,10 +363,22 @@ def _load_dotenv(path: Path | None = None) -> None:
         key = key.strip()
         val = val.strip().strip("'").strip('"')
         if key and not os.environ.get(key):
-            if any(p in key.upper() for p in _api_key_patterns):
+            key_upper = key.upper()
+            # GIT_CONFIG_KEY_*/VALUE_* can pivot sshCommand / core.sshCommand.
+            if key_upper.startswith("GIT_CONFIG_"):
+                logger.debug("Skipping %s from .env (git config pivot)", key)
+                continue
+            if key_upper.startswith("SIYARIX_") and key_upper.endswith("_KEY"):
                 logger.debug("Skipping %s from .env (use auth set-key instead)", key)
                 continue
-            if key.upper() in _blocked_vars:
+            if (
+                key_upper in _blocked_exact
+                or key_upper in _provider_short_keys
+                or any(p in key_upper for p in _api_key_patterns)
+            ):
+                logger.debug("Skipping %s from .env (use auth set-key instead)", key)
+                continue
+            if key_upper in _blocked_vars:
                 logger.debug("Skipping blocked env var %s from .env", key)
                 continue
             os.environ[key] = val
@@ -188,7 +458,7 @@ _IS_STDIN_PIPE = not sys.stdin.isatty()
 _CI_MODE = os.getenv("CI", "") or os.getenv("SIYARIX_NO_BANNER", "") or not _IS_TTY
 
 console = Console()
-registry = ToolRegistry()
+registry = make_tool_registry()
 config = SettingsStore()
 configure_logging(config.get("log_level"))
 _load_dotenv()
@@ -230,11 +500,21 @@ def _get_creds() -> Any:
     return _creds_store if _creds_store else None
 
 
+def _make_deep_scan_engine():
+    """Build DeepScanEngine with PermissionGate-aware executor injected."""
+    from ..deep_scan import DeepScanEngine
+    from ..executor_registry import RegistryExecutor
+
+    executor = RegistryExecutor(
+        registry=registry,
+        permission_gate=getattr(registry, "_permission_gate", None),
+    )
+    return DeepScanEngine(registry=registry, executor=executor)
+
+
 def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -> None:
     """Execute a deep scan using the DeepScanEngine."""
-    from ..deep_scan import DeepScanEngine
-
-    engine = DeepScanEngine(registry=registry)
+    engine = _make_deep_scan_engine()
     result = run_async(engine.scan(target, persist=save))
 
     if output == "json":
@@ -514,8 +794,8 @@ async def _run_onboarding() -> None:
 @app.callback(invoke_without_command=True)
 def main_callback(
     ctx: typer.Context,
-    config: str = typer.Option(
-        None, "--config", "-c", help="Path to custom config file (YAML/JSON)"
+    config_file: str = typer.Option(
+        None, "--config", "-c", help="Path to custom config file (TOML/JSON/YAML)"
     ),
     batch: str = typer.Option(None, "--batch", "-b", help="Path to batch script file to execute"),
     mode: str = typer.Option(
@@ -529,18 +809,6 @@ def main_callback(
     resume: bool = typer.Option(False, "--resume", help="Resume an existing session"),
     version: bool = typer.Option(False, "--version", help="Show version information"),
 ) -> None:
-    if version:
-        _show_version()
-        raise typer.Exit()
-
-    mode_val: Any = mode
-    if mode_val is None:
-        try:
-            from siyarix.config import SettingsStore
-
-            mode = SettingsStore().get("default_mode") or "integrated"
-        except Exception:
-            mode = "integrated"
     """Siyarix CLI — unified entry point.
 
     Usage:
@@ -548,15 +816,36 @@ def main_callback(
       echo "<cmd>" | siyarix         — Pipe commands via stdin
       siyarix                        — Launch interactive chat
     """
-    if config:
-        resolved = Path(config).expanduser().resolve()
-        if resolved.exists():
+    global _active_theme
+
+    if version:
+        _show_version()
+        raise typer.Exit()
+
+    if config_file:
+        resolved = Path(config_file).expanduser().resolve()
+        if resolved.is_file():
+            # Point the settings loader at this file for this process only.
+            # Do NOT rewrite SIYARIX_CONFIG_DIR — that would make subsequent
+            # lookups invent a sibling settings.toml and ignore the selection.
             os.environ["SIYARIX_CONFIG"] = str(resolved)
-            os.environ["SIYARIX_CONFIG_DIR"] = str(resolved.parent)
+            try:
+                config.reload(resolved)  # module-level SettingsStore singleton
+            except Exception as exc:
+                console.print(f"[red]Failed to load config {resolved}: {exc}[/red]")
+                raise typer.Exit(1)
+            _active_theme = str(config.get("color_theme") or "default")
             console.print(f"[dim]Loaded config: {resolved}[/dim]")
         else:
             console.print(f"[red]Config file not found: {resolved}[/red]")
             raise typer.Exit(1)
+
+    mode_val: Any = mode
+    if mode_val is None:
+        try:
+            mode = str(config.get("default_mode") or "integrated")
+        except Exception:
+            mode = "integrated"
 
     # --batch file mode (file-based, non-interactive)
     if batch:
@@ -1520,7 +1809,17 @@ def scan(
     output: str = typer.Option(
         "table", "--output", "-o", help="Output: table|json|yaml|csv|html|quiet"
     ),
-    _parallel: int = typer.Option(3, "--parallel", "-p", help="Parallel workers"),
+    _parallel: int | None = typer.Option(
+        None,
+        "--parallel",
+        "-p",
+        help=(
+            "Max concurrent workers for multi-target scans (1 = sequential per-target; "
+            "default from settings default_parallel / SIYARIX_PARALLEL)"
+        ),
+        min=1,
+        max=32,
+    ),
     timeout: int = typer.Option(300, "--timeout", help="Timeout per tool (seconds)"),
     save: bool = typer.Option(False, "--save", "-s", help="Save results to database"),
     _notify: bool = typer.Option(False, "--notify", "-n", help="Send notification on completion"),
@@ -1531,6 +1830,7 @@ def scan(
     """Run security scans against one or more targets.
 
     Supports @targets.txt multi-target mode. Prefix a file path with @ to load targets.
+    With 2+ targets, --parallel runs independent per-target scans concurrently.
 
     Examples:
       siyarix scan 192.168.1.1
@@ -1545,7 +1845,15 @@ def scan(
         parent_params = ctx.parent.params if ctx.parent else {}
         mode = str(parent_params.get("mode", "integrated"))
 
-    _execute_scan_core(
+    parallel_workers = _parallel
+    if parallel_workers is None:
+        try:
+            parallel_workers = int(config.get("default_parallel") or 3)
+        except (TypeError, ValueError):
+            parallel_workers = 3
+    parallel_workers = max(1, min(int(parallel_workers), 32))
+
+    result = _execute_scan_core(
         targets,
         tool=tool,
         mode=mode,
@@ -1555,9 +1863,180 @@ def scan(
         dry_run=dry_run,
         no_banner=no_banner,
         profile=profile,
-        parallel=_parallel,
+        parallel=parallel_workers,
         notify=_notify,
     )
+    if result is not None and not getattr(result, "success", True):
+        raise typer.Exit(1)
+
+
+def _build_scan_instruction(target: str, *, tool: str = "", nmap_args: str = "") -> str:
+    """Build a natural-language scan instruction for a single target."""
+    instruction = f"scan {target}"
+    if nmap_args:
+        instruction += f" flags {nmap_args}"
+    if tool:
+        instruction += f" with {tool}"
+    return instruction
+
+
+async def _execute_targets_parallel(
+    targets: list[str],
+    *,
+    mode: str,
+    tool: str = "",
+    nmap_args: str = "",
+    parallel: int = 3,
+    dry_run: bool = False,
+    persist: bool = False,
+) -> EngineResult:
+    """Run one engine.execute per target with bounded concurrency; merge results."""
+    workers = max(1, min(int(parallel), len(targets), 32))
+    sem = asyncio.Semaphore(workers)
+    console.print(
+        f"[dim]Scanning {len(targets)} targets with {workers} parallel workers[/dim]"
+    )
+
+    async def _one(target: str) -> EngineResult:
+        instruction = _build_scan_instruction(target, tool=tool, nmap_args=nmap_args)
+        engine = _get_engine(mode)
+        async with sem:
+            try:
+                return await engine.execute(
+                    instruction,
+                    interactive=False,
+                    dry_run=dry_run,
+                    persist=persist,
+                )
+            except Exception as exc:
+                logger.exception("Parallel scan failed for target %s", target)
+                return EngineResult(
+                    success=False,
+                    summary=f"{target}: failed ({exc})",
+                    error_message=str(exc),
+                )
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold cyan]Parallel scan[/bold cyan]"),
+        TextColumn("{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        task_id = progress.add_task(
+            f"0/{len(targets)} done · 0 ok · 0 fail", total=len(targets)
+        )
+        completed = 0
+        ok_count = 0
+        fail_count = 0
+        in_flight: set[str] = set()
+        lock = asyncio.Lock()
+
+        async def _tracked(target: str) -> EngineResult:
+            nonlocal completed, ok_count, fail_count
+            async with lock:
+                in_flight.add(target)
+                active = ", ".join(sorted(in_flight)[:3])
+                if len(in_flight) > 3:
+                    active += f" +{len(in_flight) - 3}"
+                progress.update(
+                    task_id,
+                    description=(
+                        f"{completed}/{len(targets)} done · {ok_count} ok · "
+                        f"{fail_count} fail · now: {active or '—'}"
+                    ),
+                )
+            result = await _one(target)
+            async with lock:
+                in_flight.discard(target)
+                completed += 1
+                if result.success:
+                    ok_count += 1
+                else:
+                    fail_count += 1
+                progress.update(
+                    task_id,
+                    advance=1,
+                    description=(
+                        f"{completed}/{len(targets)} done · {ok_count} ok · "
+                        f"{fail_count} fail"
+                    ),
+                )
+            return result
+
+        raw_results = await asyncio.gather(
+            *[_tracked(t) for t in targets],
+            return_exceptions=True,
+        )
+
+    merged = EngineResult(success=True, summary="")
+    summaries: list[str] = []
+    for target, raw in zip(targets, raw_results, strict=True):
+        if isinstance(raw, BaseException):
+            merged.success = False
+            msg = f"{target}: error ({raw})"
+            summaries.append(msg)
+            merged.error_message = (
+                f"{merged.error_message}; {msg}" if merged.error_message else msg
+            )
+            continue
+        for finding in raw.all_findings or []:
+            if isinstance(finding, dict):
+                tagged = dict(finding)
+                tagged.setdefault("target", target)
+                tagged.setdefault("scan_target", target)
+                merged.all_findings.append(tagged)
+            else:
+                # Best-effort tag object findings for multi-target rollups.
+                try:
+                    if getattr(finding, "target", None) in (None, ""):
+                        setattr(finding, "target", target)
+                    if getattr(finding, "scan_target", None) in (None, ""):
+                        setattr(finding, "scan_target", target)
+                except Exception:
+                    pass
+                merged.all_findings.append(finding)
+        merged.step_results.extend(raw.step_results or [])
+        merged.duration_ms += float(raw.duration_ms or 0.0)
+        merged.retries_performed += int(raw.retries_performed or 0)
+        if raw.raw_output:
+            merged.raw_output = (
+                f"{merged.raw_output}\n{raw.raw_output}" if merged.raw_output else raw.raw_output
+            )
+        if not raw.success:
+            merged.success = False
+        if raw.error_message:
+            merged.error_message = (
+                f"{merged.error_message}; {raw.error_message}"
+                if merged.error_message
+                else raw.error_message
+            )
+        summaries.append(raw.summary or f"{target}: done")
+
+    preview = "; ".join(summaries[:8])
+    if len(summaries) > 8:
+        preview += "…"
+    ok_n = sum(
+        1
+        for raw in raw_results
+        if not isinstance(raw, BaseException) and getattr(raw, "success", False)
+    )
+    fail_n = len(targets) - ok_n
+    findings_n = len(merged.all_findings or [])
+    status = "ok" if merged.success else "partial/fail"
+    merged.summary = (
+        f"Parallel scan of {len(targets)} targets ({status}; "
+        f"{ok_n} ok / {fail_n} fail; {findings_n} findings): {preview}"
+    )
+    style = "green" if merged.success else "yellow"
+    console.print(
+        f"[{style}]Parallel scan complete:[/{style}] "
+        f"{ok_n} ok · {fail_n} fail · {findings_n} findings · "
+        f"{merged.duration_ms:.0f} ms"
+    )
+    return merged
 
 
 def _execute_scan_core(
@@ -1575,6 +2054,7 @@ def _execute_scan_core(
     nmap_args: str = "",
 ) -> Any:
     """Core scan execution logic (shared between scan and presets)."""
+    _ = timeout, no_banner, profile  # reserved for preset/future CLI wiring
     expanded_targets: list[str] = []
     for t in targets:
         if t.startswith("@"):
@@ -1608,11 +2088,9 @@ def _execute_scan_core(
             f"[red]Invalid output format '{output}'. Valid: {', '.join(valid_outputs)}[/red]"
         )
         raise typer.Exit(1)
-    instruction = f"scan {' '.join(expanded_targets)}"
-    if nmap_args:
-        instruction += f" flags {nmap_args}"
-    if tool:
-        instruction += f" with {tool}"
+    instruction = _build_scan_instruction(
+        " ".join(expanded_targets), tool=tool, nmap_args=nmap_args
+    )
     audit.log(
         event_type=AuditEventType.SCAN_START,
         severity=AuditSeverity.INFO,
@@ -1620,23 +2098,27 @@ def _execute_scan_core(
         action="scan",
         result="started",
         target=",".join(expanded_targets),
-        details={"tool": tool, "mode": mode, "targets": expanded_targets},
+        details={
+            "tool": tool,
+            "mode": mode,
+            "targets": expanded_targets,
+            "parallel": parallel,
+        },
     )
     if len(expanded_targets) > 1:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold cyan]Scanning {task.description}[/bold cyan]"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task_id = progress.add_task(
-                f"{len(expanded_targets)} targets", total=len(expanded_targets)
+        # Always one engine.execute per target (parallel workers or sequential).
+        # Avoids the old join-all-targets single instruction that lost per-host tagging.
+        result = run_async(
+            _execute_targets_parallel(
+                expanded_targets,
+                mode=mode,
+                tool=tool,
+                nmap_args=nmap_args,
+                parallel=parallel,
+                dry_run=dry_run,
+                persist=save,
             )
-            engine = _get_engine(mode)
-            result = run_async(
-                engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
-            )
-            progress.update(task_id, advance=len(expanded_targets))
+        )
     else:
         engine = _get_engine(mode)
         result = run_async(
@@ -1645,23 +2127,40 @@ def _execute_scan_core(
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
         return result
-    if result.all_findings:
-        if output in ("json", "yaml", "csv"):
+    summary_text = str(getattr(result, "summary", None) or "")
+    if output != "quiet" and len(expanded_targets) > 1 and parallel > 1 and summary_text:
+        console.print(Panel(summary_text, title="Parallel Scan Summary", border_style="cyan"))
+    if output == "quiet":
+        pass
+    elif result.all_findings:
+        if output in ("json", "yaml", "csv", "html"):
             try:
                 from ..output import OutputEngine
 
                 output_engine = OutputEngine(output_format=output)
+
+                def _as_dict(finding: Any) -> dict[str, Any]:
+                    if isinstance(finding, dict):
+                        return finding
+                    if hasattr(finding, "to_dict"):
+                        return finding.to_dict()
+                    try:
+                        return vars(finding)
+                    except TypeError:
+                        return {"value": finding}
+
+                findings_dicts = [_as_dict(f) for f in result.all_findings]
                 if output == "json":
-                    output_engine.print_json(result.all_findings)
+                    output_engine.print_json(findings_dicts)
                 elif output == "yaml":
-                    output_engine.print_yaml(result.all_findings)
+                    output_engine.print_yaml(findings_dicts)
                 elif output == "csv":
-                    if result.all_findings:
-                        findings_dicts = [
-                            f.to_dict() if hasattr(f, "to_dict") else vars(f)
-                            for f in result.all_findings
-                        ]
-                        output_engine.print_csv(findings_dicts)
+                    output_engine.print_csv(findings_dicts)
+                elif output == "html":
+                    if hasattr(output_engine, "print_html"):
+                        output_engine.print_html(findings_dicts)
+                    else:
+                        output_engine.print_json(findings_dicts)
             except ImportError:
                 _display_findings_table(result.all_findings)
         else:
@@ -1815,9 +2314,7 @@ def discover(
         raise typer.Exit(1)
 
     if deep:
-        from ..deep_scan import DeepScanEngine
-
-        engine = DeepScanEngine(registry=registry)
+        engine = _make_deep_scan_engine()
         result = run_async(engine.scan(target, persist=True))
 
         if export:
@@ -1849,7 +2346,9 @@ def discover(
 @app.command()
 def run(
     ctx: typer.Context,
-    command: str = typer.Argument(help="Natural language command or tool name"),
+    command: str | None = typer.Argument(
+        None, help="Natural language command or tool name (optional with --resume)"
+    ),
     target: str = typer.Option("", "--target", "-t", help="Target for the command"),
     mode: str = typer.Option(
         None,
@@ -1895,8 +2394,16 @@ def run(
                 raise typer.Exit(1)
         engine = _get_engine(mode)
         console.print(f"[cyan]Resuming plan: {resolved_id}[/cyan]")
-        run_async(engine.resume(resolved_id, interactive=True))
+        resume_result = run_async(engine.resume(resolved_id, interactive=True))
+        if resume_result is not None and not getattr(resume_result, "success", True):
+            raise typer.Exit(1)
         return
+
+    if not command:
+        console.print(
+            "[red]Missing command. Pass an instruction, or use --resume <id|latest>.[/red]"
+        )
+        raise typer.Exit(2)
 
     instruction = command
     if target:
@@ -1996,6 +2503,8 @@ def run(
         artifact=result.plan_id or "",
     )
     session_kernel.save(session)
+    if not result.success:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -2157,6 +2666,273 @@ def ci_gate(
             raise typer.Exit(3)
 
     console.print("[green]✓ CI gate passed[/green]")
+
+
+@app.command("production-check")
+@app.command("doctor")
+def production_check(
+    output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
+    strict: bool = typer.Option(
+        False, "--strict", help="Exit nonzero when any check is warn/fail"
+    ),
+) -> None:
+    """Production readiness checklist (security gates, offline posture, config).
+
+    Alias: ``siyarix doctor``.
+    """
+    import os as _os
+
+    from ..shell_review import is_preauthorized
+    from ..webhooks import _validate_url
+
+    checks: list[dict[str, str]] = []
+
+    def _add(name: str, status: str, detail: str) -> None:
+        checks.append({"name": name, "status": status, "detail": detail})
+
+    _add(
+        "python",
+        "pass" if sys.version_info >= (3, 11) else "fail",
+        f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+    )
+
+    preauth = is_preauthorized()
+    _add(
+        "shell_review",
+        "warn" if preauth else "pass",
+        "SIYARIX_PREAUTHORIZED=1 (non-interactive auto-approve)"
+        if preauth
+        else "fail-closed unless preauthorized",
+    )
+
+    from ..registry_factory import make_tool_registry, permission_gate_enabled
+
+    gate_on = permission_gate_enabled()
+    _add(
+        "permission_gate",
+        "pass" if gate_on else "warn",
+        "SIYARIX_SAFE_MODE on (PermissionGate default)"
+        if gate_on
+        else "SIYARIX_SAFE_MODE disabled — lab mode only",
+    )
+    try:
+        reg = make_tool_registry()
+        _add(
+            "tool_registry",
+            "pass" if getattr(reg, "_permission_gate", None) is not None or not gate_on else "fail",
+            "make_tool_registry() builds gated registry",
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        _add("tool_registry", "fail", f"registry factory error: {exc}")
+
+    offline = _os.environ.get("SIYARIX_OFFLINE", "").strip().lower() in {"1", "true", "yes"}
+    _add(
+        "offline_mode",
+        "pass" if offline else "info",
+        "SIYARIX_OFFLINE enabled" if offline else "online (CDN fonts optional in reports)",
+    )
+
+    webhook = _os.environ.get("SIYARIX_WEBHOOK_URL", "").strip()
+    if not webhook:
+        _add("webhook", "info", "SIYARIX_WEBHOOK_URL unset")
+    else:
+        try:
+            _validate_url(webhook, allow_ip=False)
+            _add("webhook", "pass", "destination URL policy ok")
+        except ValueError as exc:
+            _add("webhook", "fail", str(exc))
+
+    redis_url = _os.environ.get("REDIS_URL") or _os.environ.get("SIYARIX_REDIS_URL")
+    _add(
+        "redis",
+        "info" if not redis_url else "pass",
+        "not configured (compose profile optional)" if not redis_url else "REDIS_URL set",
+    )
+
+    scope = (_os.environ.get("SIYARIX_ALLOWED_SCOPE") or "").strip()
+    _add(
+        "allowed_scope",
+        "pass",
+        (
+            f"engagement scope active ({scope[:60]}{'…' if len(scope) > 60 else ''})"
+            if scope
+            else "unset — research tooling unrestricted; set for engagement-bound automation"
+        ),
+    )
+
+    cmd_review = bool(config.get("command_review", True))
+    _add(
+        "command_review",
+        "pass" if cmd_review else "warn",
+        "prompt before raw shell commands"
+        if cmd_review
+        else "disabled — enable for production (CTF profile opts out)",
+    )
+
+    try:
+        from ..destructive import assert_command_not_destructive
+        from ..exceptions import PermissionDeniedError as _PermDenied
+        from ..target_scope import assert_command_in_scope as _assert_scope
+
+        assert_command_not_destructive("echo ok")
+        _probe_blocks = (
+            "chmod -Rf 777 /",
+            "curl -o /dev/sda http://example.com/x",
+            "rsync -a --delete /tmp/ /",
+            "python -c \"Path('/dev/sda').write_bytes(b'x')\"",
+            "python -c \"__import__('os').system('rm -rf /')\"",
+            "nwipe /dev/sda",
+            "chmod -R 777 /tmp/../",
+            "dd if=/dev/zero of=/dev/mmcblk0",
+            "7z x /tmp/a.7z -o/",
+            "bsdtar xf /tmp/x -C /",
+            "gdd if=/dev/zero of=/dev/sda",
+            "mke2fs /dev/sda",
+            "gtar -C / -xf evil.tar",
+            "unar -o / evil.rar",
+            "cp -t /etc/cron.d /tmp/pwn",
+            "rpm --root=/ -ivh evil.rpm",
+            "dd_rescue /dev/zero /dev/sda",
+            "apk -p / add x",
+            "debootstrap stable /",
+            "mount -B /tmp/e /etc/passwd",
+            "shuf -o /etc/passwd /tmp/x",
+            "cp -t/etc/cron.d /tmp/pwn",
+            "mount -o rw,bind /tmp/evil /etc/passwd",
+            "tar -P -xf evil.tar",
+            "ddrescue /tmp/x /etc/passwd",
+            "simg2img a.img /dev/sda",
+            "bmaptool copy a.img /dev/sda",
+            "ginstall -m4755 /tmp/sh /bin/bash",
+        )
+        for _probe in _probe_blocks:
+            try:
+                assert_command_not_destructive(_probe)
+                raise RuntimeError(f"expected hard-block for: {_probe}")
+            except _PermDenied:
+                pass
+        try:
+            _assert_scope("nmap 0177.1", scope_env="10.0.0.0/8")
+            raise RuntimeError("expected scope deny for inet_aton 0177.1")
+        except _PermDenied:
+            pass
+        try:
+            _assert_scope("curl file:///etc/passwd", scope_env="10.0.0.0/8")
+            raise RuntimeError("expected scope deny for file:// under authorized scope")
+        except _PermDenied:
+            pass
+        try:
+            _assert_scope("smbclient //evil-host/share", scope_env="10.0.0.0/8,example.com")
+            raise RuntimeError("expected scope deny for smbclient UNC host")
+        except _PermDenied:
+            pass
+        try:
+            _assert_scope(
+                "ansible -i evilhost, all -m ping",
+                scope_env="10.0.0.0/8,example.com",
+            )
+            raise RuntimeError("expected scope deny for ansible inventory host")
+        except _PermDenied:
+            pass
+        # Unset scope must not hobble research tooling (engagement boundary is optional).
+        _assert_scope("nmap evilhost", scope_env="")
+        _add(
+            "destructive_guard",
+            "pass",
+            "operator-safety hard-blocks + engagement-scope probes ok "
+            "(unset scope leaves research tooling unrestricted)",
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        _add("destructive_guard", "fail", f"unavailable: {exc}")
+
+    try:
+        from ..credential_store import CredentialStore
+
+        store = CredentialStore()
+        backend = type(store).__name__
+        _add("credentials", "pass", f"store={backend}")
+    except Exception as exc:  # pragma: no cover - defensive
+        _add("credentials", "warn", f"unavailable: {exc}")
+
+    health = run_async(get_health().check_all())
+    _add("health", health.state.value, f"{len(health.components)} components checked")
+
+    fails = sum(1 for c in checks if c["status"] in {"fail", "unhealthy"})
+    warns = sum(1 for c in checks if c["status"] in {"warn", "degraded"})
+    # Weighted readiness score: fail=-25, warn=-8, else full credit per check.
+    _n = max(len(checks), 1)
+    _penalties = fails * 25 + warns * 8
+    score = max(0, min(100, int(round(100 - (_penalties * 100 / (_n * 25))))))
+    if fails == 0 and warns == 0:
+        score = 100
+    grade = (
+        "production-ready"
+        if fails == 0 and warns == 0
+        else "needs-attention"
+        if fails == 0
+        else "not-ready"
+    )
+    remediations: list[str] = []
+    _hints = {
+        "allowed_scope": (
+            "optional engagement boundary for authorized tests — "
+            "export SIYARIX_ALLOWED_SCOPE='10.0.0.0/8,*.lab.example' "
+            "(unset = no scope restriction on research tooling)"
+        ),
+        "permission_gate": "unset SIYARIX_SAFE_MODE (or set to 1) for production",
+        "command_review": "enable command_review in settings / profile",
+        "shell_review": "unset SIYARIX_PREAUTHORIZED for interactive review",
+        "webhook": "use https:// webhook URLs only (SIYARIX_WEBHOOK_URL)",
+        "destructive_guard": (
+            "operator-safety hard-blocks failed — reinstall siyarix "
+            "(guards accidental wipe of your disks/auth files, not research tools)"
+        ),
+    }
+    for c in checks:
+        if c["status"] in {"fail", "unhealthy", "warn", "degraded"}:
+            hint = _hints.get(c["name"])
+            if hint:
+                remediations.append(f"{c['name']}: {hint}")
+
+    payload = {
+        "checks": checks,
+        "fails": fails,
+        "warns": warns,
+        "score": score,
+        "grade": grade,
+        "remediations": remediations,
+    }
+    if output == "json":
+        # Avoid Rich line-wrap (invalidates JSON); machine-readable stdout.
+        print(json.dumps(payload, indent=2), flush=True)
+    else:
+        table = Table(title="Siyarix Production Check", header_style="bold cyan")
+        table.add_column("Check", style="cyan")
+        table.add_column("Status", style="magenta")
+        table.add_column("Detail", style="white")
+        for c in checks:
+            table.add_row(c["name"], c["status"], c["detail"])
+        console.print(table)
+        console.print(f"[bold]Readiness score:[/bold] {score}/100 ({grade})")
+        console.print(
+            "[dim]Siyarix accelerates authorized security research; "
+            "guards protect the operator (optional engagement scope).[/dim]"
+        )
+        if remediations:
+            console.print("[dim]Remediation hints:[/dim]")
+            for tip in remediations:
+                console.print(f"  • {tip}")
+        if fails:
+            console.print(f"[red]{fails} failing check(s)[/red]")
+        elif warns:
+            console.print(f"[yellow]{warns} warning(s) — review before production[/yellow]")
+        else:
+            console.print("[green]✓ Production checks look good[/green]")
+
+    if strict and (fails or warns):
+        raise typer.Exit(2)
+    if fails:
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -2348,7 +3124,7 @@ def tool_registry_update_metadata(
     output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON"),
 ) -> None:
     """Regenerate the tool metadata file by scanning all binaries on PATH."""
-    reg = ToolRegistry()
+    reg = make_tool_registry()
     count = reg.update_metadata(Path(output_path))
     console.print(f"[green]Successfully updated metadata: {count} tools recorded.[/green]")
 
@@ -3011,7 +3787,11 @@ def compliance_run(
     engine = ComplianceEngine()
 
     async def _run() -> None:
-        console.print(f"[green]Starting {framework} compliance assessment for {target}...[/green]")
+        console.print(
+            f"[cyan]Starting {framework} compliance mapping for {target}...[/cyan]\n"
+            "[yellow]Note: checks are a control-mapping scaffold. "
+            "NOT_EVALUATED means insufficient automated evidence — not a pass.[/yellow]"
+        )
         try:
             report = await engine.run_assessment(framework, target)
             table = Table(
@@ -3031,9 +3811,26 @@ def compliance_run(
                     res.message,
                 )
             console.print(table)
+            summary = report.summary()
+            uneval = summary.get("NOT_EVALUATED", 0)
+            fails = summary.get("FAIL", 0)
             console.print(
-                f"[green]Assessment complete! Evidence saved to {report.evidence_path}[/green]"
+                f"[cyan]Evidence written to {report.evidence_path}[/cyan]\n"
+                f"[dim]summary: PASS={summary.get('PASS', 0)} "
+                f"FAIL={fails} NOT_EVALUATED={uneval}[/dim]"
             )
+            if fails:
+                console.print("[red]One or more local probes FAILED.[/red]")
+                raise typer.Exit(2)
+            if uneval:
+                console.print(
+                    "[yellow]Assessment incomplete: NOT_EVALUATED controls remain "
+                    "(scaffold — not an attestation).[/yellow]"
+                )
+                raise typer.Exit(3)
+            console.print("[green]All evaluated local probes passed.[/green]")
+        except typer.Exit:
+            raise
         except Exception as e:
             console.print(f"[red]Assessment failed: {e}[/red]")
             raise typer.Exit(1)
@@ -3096,6 +3893,49 @@ playbook_app = typer.Typer(help="Manage and run YAML playbooks.")
 app.add_typer(playbook_app, name="playbook")
 
 
+def _builtin_playbook_dir() -> Path:
+    """Directory of playbooks shipped inside the installed package."""
+    return Path(__file__).resolve().parents[1] / "data" / "playbooks"
+
+
+def _resolve_playbook_path(path: str, dir_path: str | None = None) -> Path | None:
+    """Resolve a playbook from an explicit path, cwd, or built-in package data."""
+    candidate = Path(path)
+    if candidate.exists():
+        return candidate
+    search_roots = []
+    if dir_path:
+        search_roots.append(Path(dir_path))
+    search_roots.extend([Path("playbooks"), _builtin_playbook_dir()])
+    names = [path, f"{path}.yaml", f"{path}.yml"]
+    for root in search_roots:
+        for name in names:
+            hit = root / name
+            if hit.exists():
+                return hit
+    return None
+
+
+def _iter_playbook_files(dir_path: str | None = None) -> list[Path]:
+    """List playbooks from an explicit dir, else cwd + built-in package data."""
+    roots: list[Path] = []
+    if dir_path and dir_path != "playbooks":
+        roots.append(Path(dir_path))
+    else:
+        roots.extend([Path("playbooks"), _builtin_playbook_dir()])
+    files: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for pattern in ("*.yaml", "*.yml"):
+            for f in sorted(root.glob(pattern)):
+                if f.name not in seen:
+                    files.append(f)
+                    seen.add(f.name)
+    return files
+
+
 @playbook_app.command("run")
 def playbook_run(
     path: str = typer.Argument(..., help="Path to playbook YAML file"),
@@ -3114,16 +3954,10 @@ def playbook_run(
             k, val = v.split("=", 1)
             variables[k] = val
 
-    p = Path(path)
-    if not p.exists():
-        for candidate in (
-            Path("playbooks") / path,
-            Path("playbooks") / f"{path}.yaml",
-            Path("playbooks") / f"{path}.yml",
-        ):
-            if candidate.exists():
-                p = candidate
-                break
+    p = _resolve_playbook_path(path)
+    if p is None:
+        console.print(f"[red]Playbook '{path}' not found (checked cwd and built-in package).[/red]")
+        raise typer.Exit(1)
 
     engine = PlaybookEngine(WorkflowEngine())
     core = AgentCore()
@@ -3131,7 +3965,7 @@ def playbook_run(
     async def _run() -> None:
         await core.start()
         try:
-            await engine.execute(p, variables)
+            await engine.execute(p, variables, executor=core)
         finally:
             await core.shutdown()
 
@@ -3140,26 +3974,34 @@ def playbook_run(
 
 @playbook_app.command("list")
 def playbook_list(
-    dir_path: str = typer.Option("playbooks", "--dir", "-d", help="Directory containing playbooks"),
+    dir_path: str = typer.Option(
+        "playbooks",
+        "--dir",
+        "-d",
+        help="Directory containing playbooks (also searches built-in package data)",
+    ),
 ) -> None:
     """List available playbooks."""
-    p = Path(dir_path)
-    if not p.exists() or not p.is_dir():
-        console.print(f"[yellow]Directory '{dir_path}' not found.[/yellow]")
-        return
-    files = sorted(set(list(p.glob("*.yaml")) + list(p.glob("*.yml"))))
+    files = _iter_playbook_files(dir_path)
     if not files:
-        console.print(f"[yellow]No playbooks found in '{dir_path}'.[/yellow]")
+        if dir_path and dir_path != "playbooks" and not Path(dir_path).is_dir():
+            console.print(f"[yellow]Directory '{dir_path}' not found.[/yellow]")
+        else:
+            console.print(
+                f"[yellow]No playbooks found in '{dir_path}' or built-in package data.[/yellow]"
+            )
         return
 
-    import yaml  # type: ignore[import-untyped]
+    import yaml
 
-    table = Table(title=f"Available Playbooks ({dir_path})", header_style="bold cyan")
+    table = Table(title="Available Playbooks", header_style="bold cyan")
     table.add_column("File", style="cyan", no_wrap=True)
     table.add_column("Name", style="white")
     table.add_column("Description", style="dim")
     table.add_column("Steps", justify="right", style="green")
+    table.add_column("Source", style="dim")
 
+    builtin = _builtin_playbook_dir()
     for f in files:
         name = f.stem
         desc = "—"
@@ -3172,7 +4014,8 @@ def playbook_list(
                 steps_count = str(len(data.get("steps", [])))
         except Exception:
             pass
-        table.add_row(f.name, name, desc[:60], steps_count)
+        source = "builtin" if builtin in f.parents or f.parent == builtin else str(f.parent)
+        table.add_row(f.name, name, desc[:60], steps_count, source)
 
     console.print(table)
 
@@ -3186,17 +4029,8 @@ def playbook_show(
     """Show detailed structure and execution DAG of a playbook."""
     import yaml
 
-    p = Path(name)
-    if not p.exists():
-        candidate = Path(dir_path) / name
-        if candidate.exists():
-            p = candidate
-        elif (Path(dir_path) / f"{name}.yaml").exists():
-            p = Path(dir_path) / f"{name}.yaml"
-        elif (Path(dir_path) / f"{name}.yml").exists():
-            p = Path(dir_path) / f"{name}.yml"
-
-    if not p.exists() or not p.is_file():
+    p = _resolve_playbook_path(name, dir_path)
+    if p is None or not p.is_file():
         console.print(f"[red]Playbook '{name}' not found.[/red]")
         raise typer.Exit(1)
 
@@ -3256,16 +4090,10 @@ def playbook_validate(
     from siyarix.playbook import PlaybookEngine
     from siyarix.workflow import WorkflowEngine
 
-    p = Path(path)
-    if not p.exists():
-        for candidate in (
-            Path("playbooks") / path,
-            Path("playbooks") / f"{path}.yaml",
-            Path("playbooks") / f"{path}.yml",
-        ):
-            if candidate.exists():
-                p = candidate
-                break
+    p = _resolve_playbook_path(path)
+    if p is None:
+        console.print(f"[red]Playbook '{path}' not found.[/red]")
+        raise typer.Exit(1)
 
     engine = PlaybookEngine(WorkflowEngine())
     try:

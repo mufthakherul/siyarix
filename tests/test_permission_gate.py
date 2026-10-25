@@ -46,8 +46,11 @@ class TestPermissionGate:
         result = gate.check("rm -rf /")
         assert result.allowed is False
         assert result.stage == "forbidden"
-        # Restricted pattern check intercepts before danger analyzer
-        assert "Payload verification failed" in result.reason
+        # Shared destructive hard-block (or restricted-pattern fallback) before analyzer
+        assert (
+            "Payload verification failed" in result.reason
+            or "Deleting system directory" in result.reason
+        )
 
     @patch("siyarix.permission_gate.DangerAnalyzer")
     def test_high_danger_returns_review(self, MockDA: MagicMock) -> None:

@@ -89,6 +89,69 @@ def test_resolve_vars_env_var(playbook_engine: PlaybookEngine) -> None:
     assert result == "env_value"
 
 
+def test_resolve_vars_blocks_secret_env(playbook_engine: PlaybookEngine) -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "SIYARIX_SUDO_PASSWORD": "s3cret",
+            "SIYARIX_WEBHOOK_URL": "https://hooks.example/x",
+            "SIYARIX_MASTER_PASSWORD": "vault",
+            "SIYARIX_AUTH_HEADER": "Bearer abc",
+            "SIYARIX_BEARER_TOKEN": "tok",
+            "SIYARIX_COOKIE": "sid=1",
+            "SIYARIX_SESSION_ID": "sess",
+            "SIYARIX_AUTHORIZATION": "Basic x",
+        },
+        clear=False,
+    ):
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SUDO_PASSWORD }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_WEBHOOK_URL }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_MASTER_PASSWORD }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_AUTH_HEADER }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_BEARER_TOKEN }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_COOKIE }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SESSION_ID }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_AUTHORIZATION }}", {}) == "[REDACTED]"
+
+
+def test_resolve_vars_redacts_provider_and_ssh_keys(playbook_engine: PlaybookEngine) -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "SIYARIX_GROQ_KEY": "gsk_LEAK",
+            "SIYARIX_OPENAI_KEY": "sk_LEAK",
+            "SIYARIX_ANTHROPIC_KEY": "ak_LEAK",
+            "SIYARIX_SSH_PASS": "ssh_LEAK",
+        },
+        clear=False,
+    ):
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_GROQ_KEY }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_OPENAI_KEY }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_ANTHROPIC_KEY }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SSH_PASS }}", {}) == "[REDACTED]"
+
+
+def test_resolve_vars_redacts_database_dsn_and_url(playbook_engine: PlaybookEngine) -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "SIYARIX_DATABASE_URL": "postgres://u:p@h/db",
+            "SIYARIX_DSN": "user:pass@host/db",
+            "SIYARIX_CONNECTION_STRING": "Server=h;Pwd=x",
+            "SIYARIX_SSLKEYLOG": "/tmp/ssl.log",
+            "SIYARIX_REPORT_URL": "https://hooks.example/report",
+        },
+        clear=False,
+    ):
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_DATABASE_URL }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_DSN }}", {}) == "[REDACTED]"
+        assert (
+            playbook_engine._resolve_vars("{{ env.SIYARIX_CONNECTION_STRING }}", {}) == "[REDACTED]"
+        )
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_SSLKEYLOG }}", {}) == "[REDACTED]"
+        assert playbook_engine._resolve_vars("{{ env.SIYARIX_REPORT_URL }}", {}) == "[REDACTED]"
+
+
 def test_resolve_vars_missing_var(playbook_engine: PlaybookEngine) -> None:
     result = playbook_engine._resolve_vars("{{ missing }}", {})
     assert result == "{{ missing }}"

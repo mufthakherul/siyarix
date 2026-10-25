@@ -30,6 +30,10 @@ def test_is_safe_url():
     assert _is_safe_url("https://8.8.8.8") is False
     assert _is_safe_url("ftp://localhost") is False
     assert _is_safe_url("invalid_url") is False
+    # Link-local / IPv4-mapped metadata must not pass as "private local provider".
+    assert _is_safe_url("http://169.254.169.254/") is False
+    assert _is_safe_url("http://[fe80::1]/") is False
+    assert _is_safe_url("http://[::ffff:169.254.169.254]/") is False
 
 
 @respx.mock
@@ -45,6 +49,20 @@ def test_safe_http_get():
     # Test error
     respx.get("http://localhost:9999").mock(side_effect=httpx.ConnectError("Connection refused"))
     assert safe_http_get("http://localhost:9999") is None
+
+
+@respx.mock
+def test_safe_http_get_does_not_follow_redirects_to_metadata() -> None:
+    """Local-provider URLs must not pivot via redirects onto link-local metadata."""
+    url = "http://127.0.0.1:11434/pivot"
+    respx.get(url).mock(
+        return_value=httpx.Response(302, headers={"Location": "http://169.254.169.254/latest"})
+    )
+    assert safe_http_get(url) is None
+    # Confirm the metadata host was never requested.
+    assert not any(
+        "169.254.169.254" in str(call.request.url) for call in respx.calls
+    )
 
 
 @respx.mock

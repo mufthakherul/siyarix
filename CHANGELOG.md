@@ -4,6 +4,178 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- True multi-target `siyarix scan --parallel N` concurrency with merged, target-tagged findings.
+- Shared `make_tool_registry()` factory (PermissionGate on by default) for CLI/chat/core/plugins/deep-scan.
+- Compliance CLI exits `2` on FAIL probes and `3` when `NOT_EVALUATED` remain.
+- `production-check` surfaces `permission_gate` and `tool_registry` status.
+
+### Security
+
+- Shared `assert_command_not_destructive` used by executor, ToolRegistry, PermissionGate, and subprocess (closes registry/deep-scan bypass of `dd of=` / `fdisk`).
+- CLI deep-scan injects PermissionGate-aware `RegistryExecutor`; alt-tool fallbacks re-check permissions.
+- Threat-intel (OTX/NVD) and stealth decoy traffic use IP-pinned HTTPS (`_https_request_pinned`); cleartext decoys skipped.
+- Default `command_review` is `true` (safer production posture; CTF profile still opts out).
+- Registry review EDIT re-runs destructive hard-blocks (SX-002 parity with BaseExecutor).
+- `production-check` reports `command_review` + `destructive_guard` status.
+- Webhook SSRF `_is_blocked_ip` unwraps IPv4-mapped IPv6 before private/CGNAT checks.
+- IP-pinned HTTPS (`_https_request_pinned`) refuses HTTP 3xx (no Location chase).
+- Hard-block `find … -delete`/`-exec rm` on system roots; block `cp`/`tee`/`wipefs`/`sgdisk`/`blkdiscard`/`shred` onto disks.
+- Normalize `rm` root tokens (`/.`, `//`, quoted `"/"`); extend system roots (`/boot`, `/root`, `/opt`, `/lib`).
+- Block interpreter wipes (`shutil.rmtree('/')`); scope extract decodes `%2e` / hex / decimal / octal IPv4.
+- Interactive shell review defaults to `cancel` (Enter no longer auto-approves).
+- Hard-block `truncate`/`install`/`openssl` onto disks; perl/ruby/node interpreter wipes; recursive `chmod`/`chown` on `/`.
+- Scope extract expands short IPv4 (`127.1`, `127.0.1`) without mangling full dotted-quads.
+- Parallel multi-target scan progress shows ok/fail counts, bar, and in-flight targets.
+- Hard-block `hdparm`/`nvme`/`cryptsetup`/`sfdisk`/`gdisk`/`cfdisk`, `tar`/`dc3dd`/`badblocks`/`fio` onto disks, and `zpool`/`zfs`/`lvremove`/`mdadm --zero-superblock`.
+- Strip shell quotes before destructive matching (`m'k'fs` → `mkfs`).
+- Scope: whole-integer octal IPv4 (`017700000001`) and hex-dotted (`0x7f.1` / `0x7f.0.0.1` → `127.0.0.1`).
+- Hard-block `btrfs` destructive ops, `pvremove`/`dmsetup remove`, `xfs_repair -L`, `debugfs -w`.
+- Normalize recursive `chmod`/`chown` root equivalents (`/*`, `/.`, `//`).
+- Hard-block `rsync` onto block devices; `ntfsformat`/`mkntfs`/`newfs(_*)` formatters.
+- Hard-block interpreter writes to block devices (`open`/`File.write`/`IO.write`/`writeFile`/`Path.write_*`/`file_put_contents`).
+- Hard-block `qemu-img` onto disks; `rsync --delete` on system roots; `mv` of system directories.
+- Scope: short/octal inet_aton IPv4 (`0177.1` → `127.0.0.1`); hex-dotted requires a `0x` octet.
+- Scope: scrub hex-dotted forms before short-IP parse (no phantom `0.0.0.0` from `0x7f.0x0…`).
+- Hard-block combined-flag `chmod -Rf` / `chgrp -R` on `/`; `curl`/`wget` `-o` onto disks; `ln -sf /dev/null` and `cp` onto auth files.
+- Hard-block `chmod`/`chown` with `-R` after mode/owner; wget `--output-document=` onto disks; redirect/tee/truncate/shred/install onto auth files.
+- `siyarix doctor` / `production-check` probes live hard-blocks + inet_aton scope deny.
+- SecretRedactor/DLP URL-password redaction handles embedded `@` in passwords.
+- Hard-block `curl -o/dev` (no space), `dd of=/etc/passwd`, and interpreter writes to auth files.
+- Hard-block `urlretrieve` onto disks; `gpg`/`openssl` output onto disks/auth; `tar -C /` / `unzip -d /`.
+- Hard-block nwipe/scrub/dcfldd/srm/wipe/sg_unmap; `/dev/disk/by-*`; path `..` to `/`; `__import__` rmtree; find `-exec shred`.
+- Hard-block aria2c `--out`/`--index-out`, axel, socat `OPEN:`, lwp-download, Windows `PhysicalDrive`/`format`.
+- `.env` skips `SIYARIX_SAFE_MODE`/`PREAUTHORIZED`/`COMMAND_REVIEW`/`ALLOWED_SCOPE` and inject/proxy vars.
+- Playbook `env.*` redacts provider/SSH `*_KEY`/`*_PASS` names.
+- Strip trailing punctuation / backslash escapes so `os.system('rm -rf /')` and `exec(rmtree)` hard-block.
+- Hard-block `rsync --remove-source-files` on system paths; `dwipe`/`mop` wipe tools.
+- `siyarix doctor` reports readiness score/grade plus remediation hints.
+- SecretRedactor/DLP: Groq `gsk_` keys and prefixed `*_KEY=` / `*_API_KEY=` assignments.
+- Hard-block macOS `diskutil`/`asr --erase`; Windows Clear-Disk/Format-Volume/sdelete/cipher `/w`.
+- Cover `/dev/diskN`/`rdisk`/`sg`/`nbd`; download `--dir=/dev` + `-o` splits; httpie/rclone/yt-dlp.
+- `find -exec unlink`; `.env` skips `PRIVATE_KEY`/`SSLKEYLOGFILE`/`GIT_ASKPASS`/`SIYARIX_CONFIG`.
+- Normalize list-argv commas so `subprocess.call(['rm','-rf','/'])` hard-blocks; `hdiutil`/`wmic format`.
+- Parallel scan completion rollup: ok/fail counts, findings total, elapsed ms.
+- Cover `/dev/mmcblk*`/`md*`/`zram*` (+ flash/RAID/virt nodes); `bsdtar -C /` and `7z -o/` extract-to-root.
+- `.env` skips `*_URL`/`*_DSN`/`DATABASE_URL`/`SSLKEYLOGFILE` (incl. `SIYARIX_DATABASE_URL`).
+- Playbook `env.*` redacts database/DSN/URL/connection/sslkeylog names.
+- SecretRedactor/DLP redact full PEM private-key bodies (RSA/EC/OPENSSH BEGIN…END).
+- `SIYARIX_ALLOWED_SCOPE` fails closed on `file:`/`ftp:`/`data:`/`gopher:`/`unix:` URLs.
+- `siyarix doctor` / `production-check` probes mmcblk/`7z`/`bsdtar` hard-blocks and `file://` scope deny.
+- Hard-block glued `tar -C/` / `tar --directory=/` / `unzip -d/`; Windows `Clear-Partition`/`Reset-PhysicalDisk`; `lftp`/`scp`/`cmake -E copy` onto disks.
+- Normalize extract destinations (`/tmp/../`, `/.`, `//`); `bsdtar --chdir`; `7zz`/`cpio`/`star`/`unrar`; `zstd`/`split`/`csplit` onto disks.
+- Scope fail-closed on smb/nfs/ldap/dict/… schemes and single-label hosts (`ssh bastion`).
+- SecretRedactor/DLP redact ENCRYPTED/DSA/ED25519 PEM bodies.
+- `.env` skips `OPENSSL_CONF`/`LD_AUDIT`/`DOCKER_HOST`/`KUBECONFIG`/`GIT_SSH_COMMAND`/`PGPASSFILE`/`SIYARIX_CONFIG_DIR`.
+- `rm` recursive+force detected in any option order (`rm --no-preserve-root -rf /`).
+- Hard-block downloads/copies/gpg/base64/`sed -i`/`sponge` onto auth files; misc writers (`xxd`/`ffmpeg`/`fallocate`/`flash_erase`/`socat`) onto disks.
+- `python -m zipfile|tarfile` extract-to-root; scope integer hosts (`curl 0`) + IDN homoglyphs.
+- `.env` also skips `HOME`/`NETRC`/`SSL_CERT_FILE`/`CURL_CA_BUNDLE`/`GIT_CONFIG_*`/`DSN`/…
+- SecretRedactor/DLP: Stripe `sk_live_`/`sk_test_` and `Authorization: Token`.
+- Hard-block `mv`/`rsync`/`ln -sf`, pathlib/shutil/os.rename, and persistence paths (`ld.so.preload`, `authorized_keys`, crontab/systemd) overwrites.
+- `ruby -i` / `awk -i inplace`; `cabextract`/`jar`/`pax` extract-to-root; `chmod` on auth + setuid on system bins.
+- Scope basenames path-qualified host tools (`/usr/bin/curl`); reject command-substitution argv0.
+- `.env` skips `GIT_SSL_NO_VERIFY`/`NODE_EXTRA_CA_CERTS`/`AWS_CA_BUNDLE`/`DOCKER_CERT_PATH`/…
+- Hard-block `tee -a`/`--append` onto auth; `dpkg`/`unsquashfs` extract-to-root; `mount --bind` onto auth.
+- Hard-block `gdd`/`ddr`/`dd_rescue` onto disks/auth; `gtar -C /`; `mke2fs`/`mkdosfs`; `unar`/`unrar -o|-d|-op` extract-to-root.
+- Hard-block `cp`/`install -t`/`--target-directory` onto auth dirs; package `--root`/`--installroot`/`-r` onto `/`.
+- Hard-block apk `-p /`, `debootstrap`/`pacstrap` onto `/`, `mount -B` onto auth, `shuf -o` onto auth.
+- Hard-block glued `cp -t/auth`, `mount -o rw,bind`, `tar -P`/`--absolute-names`, `__import__('shutil').copy` auth, ddrescue→auth.
+- Scope: ssh `-o` options no longer hide the real host; bare `sftp`/`rsync` remotes; aria2c `-i` config-from-file.
+- `.env` skips `*_KEY` provider keys, `GIT_SSH`/`GIT_PROXY_COMMAND`/`GIT_CONFIG_*`, `LESSOPEN`/`SUDO_ASKPASS`/`NPM_CONFIG_SCRIPT_SHELL`.
+- Scope: wget `--config`; curl `-x`/`--proxy` hosts; ssh/scp `-J`/`ProxyJump=` hops; reject `ProxyCommand=`.
+- Executor scope fold always prefixes tool + target (benign `command` cannot hide kwargs hosts).
+- Hard-block `appendFile(Sync)` onto auth; `pip`/`npm --root`/`--prefix` onto `/`; `git --separate-git-dir` onto auth.
+- Fix `python -m zipfile|tarfile -e archive /home` dest capture; block `os).symlink` / `symlinkSync` onto auth.
+- Expand ANSI-C `$ '/'` and `/{etc,var}` before rm system-path checks; recursive `fn(){ fn|fn &}` fork bombs.
+- Scope: unwrap `bash/sh -c` payloads; socat `SOCKS4A/PROXY:proxy:dest` checks dest host.
+- Scope: glued `-oProxyJump=`/`-xIP`/`-Jhost`, quoted `-o'ProxyJump=…'`; socat SOCKS proxy hop.
+- Hard-block clustered `tar -xPf`; `gawk -iinplace`; `install -m 4xxx` setuid onto system bins.
+- `.env` skips `GIT_HTTP(S)_PROXY`/`FTP_PROXY`/`SOCKS_PROXY`/`KUBE_CONFIG_PATH`/`GIT_EXEC_PATH`.
+- Expand mid-path braces (`/et{c,}`, `/usr{,/local}`); block `opkg -o`/`--offline-root` onto `/`.
+- Scope unwraps `su`/`sudo`/`script -c` payloads; `.env` skips `RSYNC_RSH`/`RSYNC_CONNECT_PROG`/`RSYNC_PROXY`.
+- Scrub `$IFS`/`${IFS}` before destructive matching (`rm$IFS-rf$IFS/`); glued `install -m4755` setuid.
+- Scope: comma-hop `-J evil,other` / glued `-Jevil,other` via ProxyJump splitter; `rpcclient -U '' evil` keeps scanning.
+- Hard-block `zstd`/`xz`/`split`/`socat OPEN|CREATE|APPEND` onto auth files.
+- `.env` skips `_JAVA_OPTIONS`/`JDK_JAVA_OPTIONS`/`JAVA_OPTS`/`PERL5DB`/`SOCKS5_PROXY`/`OPENSSL_MODULES`/`OPENSSL_ENGINES`/`WGETRC`/`KUBE_CONFIG`.
+- Brace suffix expand (`/{e,}tc`); ANSI-C octal `$'\057'`; hard-block `sg_dd`/`integritysetup`/`veritysetup`.
+- Scope: `--preproxy`, ssh `-L`/`-R` forward hosts, `openssl -connect`/`-proxy`, `git://`, `rpcclient -U user%pass`.
+- `.env` skips `DOTNET_STARTUP_HOOKS`/`CORECLR_PROFILER_PATH`/`HOSTFILE`/`CVS_RSH`/`ZDOTDIR`/`CONTAINER_HOST`/`DOCKER_CONFIG`/`RAILS_MASTER_KEY`/`ENCRYPTION_KEY`/`APP_KEY`.
+- gpg/openssl `-out` covers full auth set; xxd/iconv/ffmpeg/gs/fallocate/uudecode/objcopy/lzop/lzma auth writers; `ginstall` + setgid modes.
+- Scope: mysql/psql/redis/mongosh/docker/podman/host/nslookup/xfreerdp/evil-winrm; wget `-e http_proxy=`.
+- `.env` skips `CLASSPATH`/`JAVA_OPTIONS`/`MSBUILDSTARTUPHOOKS`/`SOCKS5_SERVER`/`GIT_SSL_CAPATH`/`DOCKER_CONTEXT`/`NODE_PATH`/`PHPRC`/`MAVEN_OPTS`.
+- Document operator-safety mission: optional `SIYARIX_ALLOWED_SCOPE` engagement bounds; unset scope leaves research tooling unrestricted.
+- Hard-block `simg2img`/`bmaptool` onto disks; engagement-scope ansible `-i host,`; doctor probes + clearer remediations for researchers.
+- Multi-target scan always runs one execute per host (incl. `--parallel 1`); `--parallel` defaults from `default_parallel`/`SIYARIX_PARALLEL`.
+- Doctor: unset engagement scope is `pass` (not warn); JSON stdout not Rich-wrapped.
+- Hard-block partclone/ntfsclone/fsarchiver/flashcp; lz4/zstd positional→auth; setcap; `rm`/File.delete auth; sshuttle/chisel/cme/nikto scope; dotenv ANSIBLE_SSH_ARGS/VIMINIT/GRADLE_OPTS.
+- `.env` skips `GCONV_PATH`/`HOSTALIASES`.
+- `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
+- Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.
+- Block procfs hijacks (`core_pattern`/`modprobe`/`hotplug`/`binfmt_misc`); git `--prefix=/`/`--work-tree=/`.
+- Scope fail-closed on curl `--config`/`-K` and wget `-i`/`--input-file`; hardlink `ln` onto auth.
+- Fork-bomb detector accepts whitespace (`:() {`).
+- CLI alias `siyarix doctor` → `production-check`.
+- Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
+- Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).
+- Broaden `.env` credential skips (bearer/cookie/session/webhook/auth/…) in CLI and chat loaders.
+- Non-TTY permission-gate refusals no longer report "Cancelled by user"; surface `SIYARIX_PREAUTHORIZED` guidance.
+- Playbook env secret regex also blocks auth/bearer/cookie/session/authorization names.
+- Fix SecretRedactor URL-password pattern so the password is redacted (was preserved via bad capture group).
+- Onboarding llama.cpp install: sanitize release tags; follow GitHub redirects only onto allowlisted hosts.
+- Refuse HTTP redirects on Gemini openai_compat clients and onboarding provider API probes.
+- `tty_confirm` fails closed (returns False) when no TTY is attached — never auto-approves.
+- Autonomous/chat paths surface non-TTY review refusal guidance instead of "cancelled by user".
+- Plugin install rejects cleartext `http://` git remotes with an explicit https-only error.
+- RegistryExecutor / workflow mark cyclic deps SKIPPED (no busy-wait hang).
+- Harden `dd of=` (last wins) and hard-block `mkfs`/`fdisk`/`parted`/`mkswap`.
+- Executor re-checks destructive/scope/gate after review EDIT (SX-002 parity).
+- Reject URL userinfo; block CGNAT `100.64.0.0/10` and `198.18.0.0/15` in webhook SSRF.
+- Broaden `.env` skips (PGPASSWORD, DATABASE_URL, bare API_KEY/TOKEN, …).
+- Cache disk TTL uses wall clock; cache filenames are SHA-256 (no `..` escape).
+- Generic tool handlers share `_run()` injection validation; skills default `command_review=True`.
+- Offline queue `dequeue` honors dependency readiness (fail-closed until deps complete).
+- Webhook/notification dispatch pins resolved public IPs (DNS-rebinding TOCTOU shrink).
+- Legacy `PluginLoader` delegates to sandboxed PluginManager; deep-scan runs executor permission checks.
+- Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
+- Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
+- Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).
+- Stealth decoy HTTP uses SSRF validation and refuses redirects.
+- Playbook tool/agent steps run via gated ToolRegistry / AgentCore (no `sh -c` JSON).
+- Threat-intel IP/CVE lookups validate inputs and refuse redirects.
+- Local-provider URL checks reject link-local and IPv4-mapped metadata addresses.
+- Workflow soft `status=error` results mark FAILED and skip dependents.
+- Always fold `target`/`args`/`flags` into `SIYARIX_ALLOWED_SCOPE` checks (even when `command` is set).
+- Compliance local probes for PermissionGate (`A.12.1`) and webhook SSRF policy (`Req-1.1`).
+- Webhook/notification dispatch re-validates destinations immediately before connect.
+- Fail closed on non-interactive command review unless `SIYARIX_PREAUTHORIZED=1` (SX-001).
+- Execute permission-gate edits and revalidate them before handlers run (SX-002).
+- Enforce permission checks and dependency-aware scheduling in the autonomous executor (SX-003, SX-010).
+- Harden target scope validation for IPv6/CIDR/domain boundaries without public-domain exemptions (SX-004).
+- Autoescape HTML reports with CSP and contrasting severity badges (SX-005, SX-023).
+- Commit offline-queue SQLite writes; version credential envelopes; canonicalize audit hashes before chaining (SX-006–SX-009).
+- Correct CVSS 3.1 Roundup / PR-by-scope weights; stop inventing critical scores for informational findings (SX-011).
+- Make Redis compose opt-in with auth and loopback bind; upgrade AnyIO past 4.14.1 advisories (SX-027, SX-032).
+- Reject IP/metadata/loopback webhook destinations (SX-012 SSRF).
+
+### Fixed
+
+- Honor `--config` TOML/JSON/YAML overrides on the live settings store (SX-013).
+- Emit machine-parseable JSON/YAML/CSV on stdout; nonzero exits for failed scan/run (SX-014–SX-017).
+- Allow `siyarix run --resume latest` without a positional command; package built-in playbooks (SX-018, SX-019).
+- Fix Rich Tree rendering (`Tree.add`) and Docker production target / entrypoint settings detection (SX-021, SX-028).
+- Repair hanging `execute_subagent` test isolation (SX-030).
+- Enforce Bandit/pip-audit report gates in CI instead of silently continuing (SX-029).
+- Pin hatchling so release Twine validation accepts wheel metadata; ship built-in playbooks in the wheel (SX-020).
+- Discover `siyarix_rust_parsers` function exports via Python adapters (SX-026).
+- Skip public connectivity probes in offline REPL mode; label compliance as mapping scaffold (SX-024/025).
+- Fix webhook `_validate_url` so IP/metadata destinations are rejected (SX-012 SSRF).
+- Consolidate mypy config (`.mypy.ini` + `[tool.mypy]`), clear `src/siyarix` type errors, and run project mypy in CI (SX-031).
+- Default HTML reports to offline system fonts; widen CSP only when CDN fonts are explicitly enabled (SX-024).
+- Add `siyarix production-check` readiness command for production gates.
+- Evaluate compliance controls with local technical probes (audit chain, shell review, credential store) while keeping unmapped controls `NOT_EVALUATED` (SX-025).
+
 ### Release
 
 - Prepare release metadata and automation for v1.1.0.

@@ -7,7 +7,11 @@ import json
 import pytest
 from pathlib import Path
 
-from siyarix.plugins.manager import PluginManager
+from siyarix.plugins.manager import (
+    PluginManager,
+    _validate_git_clone_url,
+    _validate_plugin_fetch_url,
+)
 from siyarix.plugins.models import (
     PluginManifest,
     PluginType,
@@ -319,3 +323,16 @@ def test_semantic_tool_selection_with_plugin_tools():
     )
     ad_names = [s["name"] for s in selected_ad]
     assert "active_directory_inspector" in ad_names
+
+
+def test_plugin_fetch_url_rejects_http_and_ssh() -> None:
+    with pytest.raises(ValueError, match="https"):
+        _validate_plugin_fetch_url("http://github.com/org/plugin.git")
+    with pytest.raises(ValueError, match="SSH"):
+        _validate_git_clone_url("git@github.com:org/plugin.git")
+
+
+def test_plugin_install_rejects_cleartext_http(temp_plugins_env) -> None:
+    manager, *_ = temp_plugins_env
+    with pytest.raises(ValueError, match="https://"):
+        manager.install("http://github.com/org/plugin.git")

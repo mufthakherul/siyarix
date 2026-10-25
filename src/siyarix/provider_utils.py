@@ -107,9 +107,15 @@ def _is_safe_url(url: str) -> bool:
 
         try:
             addr = ipaddress.ip_address(host)
-            return bool(addr.is_private or addr.is_loopback)
         except ValueError:
             return False
+        # Unwrap IPv4-mapped IPv6 (::ffff:x.x.x.x) before classifying.
+        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped is not None:
+            addr = addr.ipv4_mapped
+        # Local providers may use RFC1918/loopback only — not link-local/metadata.
+        if addr.is_link_local or addr.is_reserved or addr.is_multicast or addr.is_unspecified:
+            return False
+        return bool(addr.is_private or addr.is_loopback)
     except Exception as exc:
         logger.debug("URL safety check failed for %s: %s", url, exc)
         return False
@@ -132,8 +138,16 @@ def _verify_tls(url: str) -> bool:
         import ipaddress
 
         try:
-            addr = ipaddress.ip_address(host)
-            if addr.is_private or addr.is_loopback:
+            addr2 = ipaddress.ip_address(host)
+            if isinstance(addr2, ipaddress.IPv6Address) and addr2.ipv4_mapped is not None:
+                addr2 = addr2.ipv4_mapped
+            if (
+                addr2.is_private
+                or addr2.is_loopback
+                or addr2.is_link_local
+                or addr2.is_reserved
+                or addr2.is_multicast
+            ):
                 return False
         except ValueError:
             pass
@@ -143,12 +157,14 @@ def _verify_tls(url: str) -> bool:
 
 
 def safe_http_get(url: str, timeout: float = 10.0) -> Any:
-    """SSRF-safe HTTP GET — only allows localhost/private IPs."""
+    """SSRF-safe HTTP GET — only allows localhost/private IPs (no redirects)."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url))
+        resp = httpx.get(
+            url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False
+        )
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPError as exc:
@@ -162,12 +178,18 @@ def safe_http_get(url: str, timeout: float = 10.0) -> Any:
 def safe_http_post(
     url: str, payload: dict[str, Any], timeout: float = 10.0
 ) -> httpx.Response | None:
-    """SSRF-safe HTTP POST."""
+    """SSRF-safe HTTP POST (no redirects)."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe POST: %s", url)
         return None
     try:
-        return httpx.post(url, json=payload, timeout=timeout, verify=_verify_tls(url))
+        return httpx.post(
+            url,
+            json=payload,
+            timeout=timeout,
+            verify=_verify_tls(url),
+            follow_redirects=False,
+        )
     except httpx.HTTPError as exc:
         logger.debug("HTTP POST failed for %s: %s", url, exc)
         return None
@@ -177,12 +199,14 @@ def safe_http_post(
 
 
 def safe_http_get_raw(url: str, timeout: float = 10.0) -> httpx.Response | None:
-    """SSRF-safe HTTP GET returning raw response."""
+    """SSRF-safe HTTP GET returning raw response (no redirects)."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url))
+        resp = httpx.get(
+            url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False
+        )
         resp.raise_for_status()
         return resp
     except httpx.HTTPError as exc:

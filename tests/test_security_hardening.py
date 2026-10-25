@@ -379,13 +379,68 @@ class TestSecretRedactorRedact:
     def test_url_password(self) -> None:
         text = "http://user:password123@example.com"
         result = self.r.redact(text)
-        assert "password123" in result
-        assert "http" in result
+        assert "password123" not in result
+        assert "[REDACTED]" in result
+        assert result.startswith("http://user:")
+        assert "@example.com" in result
+
+    def test_url_password_with_embedded_at(self) -> None:
+        text = "postgres://user:p@ss@host/db"
+        result = self.r.redact(text)
+        assert "p@ss" not in result
+        assert "[REDACTED]" in result
+        assert result.startswith("postgres://user:")
+        assert "@host/db" in result
+        mongo = self.r.redact("mongodb+srv://u:s3cret@cluster.mongodb.net/db")
+        assert "s3cret" not in mongo
+        assert "@cluster.mongodb.net/db" in mongo
+
+    def test_groq_and_prefixed_key_assignments(self) -> None:
+        text = "export SIYARIX_GROQ_KEY=gsk_test_ABC123XYZ999"
+        result = self.r.redact(text)
+        assert "gsk_test_ABC123XYZ999" not in result
+        assert "[REDACTED]" in result
+        assert "SIYARIX_GROQ_KEY" in result
+        openai = self.r.redact("OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz12")
+        assert "sk-abcdefghijklmnopqrstuvwxyz12" not in openai
+        assert "OPENAI_API_KEY" in openai
 
     def test_private_key_marker(self) -> None:
-        text = "-----BEGIN RSA PRIVATE KEY-----"
+        text = (
+            "-----BEGIN RSA PRIVATE KEY-----\n"
+            "MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF6PZGFwoda2N4s\n"
+            "-----END RSA PRIVATE KEY-----"
+        )
         result = self.r.redact(text)
         assert "[REDACTED]" in result
+        assert "MIIEowIBAAKCAQEA" not in result
+        ec = (
+            "-----BEGIN EC PRIVATE KEY-----\n"
+            "MHQCAQEEIOleakbody\n"
+            "-----END EC PRIVATE KEY-----"
+        )
+        assert "MHQCAQEEIOleakbody" not in self.r.redact(ec)
+        openssh = (
+            "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+            "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n"
+            "-----END OPENSSH PRIVATE KEY-----"
+        )
+        assert "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=" not in self.r.redact(openssh)
+        for kind, body in (
+            ("ENCRYPTED", "encbodyLEAK"),
+            ("DSA", "dsabodyLEAK"),
+            ("ED25519", "edbodyLEAK"),
+        ):
+            pem = f"-----BEGIN {kind} PRIVATE KEY-----\n{body}\n-----END {kind} PRIVATE KEY-----"
+            assert body not in self.r.redact(pem)
+
+    def test_stripe_and_authorization_token_redacted(self) -> None:
+        stripe = self.r.redact("STRIPE_SECRET_KEY=sk_live_51ABCDEFghijklmnopQRST")
+        assert "sk_live_51ABCDEFghijklmnopQRST" not in stripe
+        assert "[REDACTED]" in stripe
+        tok = self.r.redact("Authorization: Token secrettoken1234567890")
+        assert "secrettoken1234567890" not in tok
+        assert "[REDACTED]" in tok
 
     def test_secret_kv_redacted(self) -> None:
         text = "password = super_secret_123"
@@ -622,6 +677,22 @@ class TestDangerAnalyzerAnalyze:
         r = self.da.analyze("chmod 777 /etc")
         assert r.severity == "critical"
 
+    def test_critical_chmod_recurse_root_equiv(self) -> None:
+        r = self.da.analyze("chmod -R 777 /*")
+        assert r.severity == "critical"
+
+    def test_critical_ntfsformat(self) -> None:
+        r = self.da.analyze("ntfsformat /dev/sda1")
+        assert r.severity == "critical"
+
+    def test_critical_rsync_block_device(self) -> None:
+        r = self.da.analyze("rsync -a /tmp/x /dev/sda")
+        assert r.severity == "critical"
+
+    def test_critical_interpreter_dev_write(self) -> None:
+        r = self.da.analyze("python -c \"open('/dev/sda','wb').write(b'x')\"")
+        assert r.severity == "critical"
+
     def test_high_shutdown(self) -> None:
         r = self.da.analyze("shutdown -h now")
         assert r.severity == "high"
@@ -769,7 +840,7 @@ class TestDangerAnalyzerAnalyze:
 
     def test_windows_cipher(self) -> None:
         r = self.da.analyze("cipher /w:C:")
-        assert r.severity == "medium"
+        assert r.severity == "critical"
 
     def test_windows_net_user_delete(self) -> None:
         r = self.da.analyze("net user /delete baduser")

@@ -25,11 +25,13 @@ import json
 import logging
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
 import sys
 import textwrap
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -58,6 +60,38 @@ from siyarix.templates.wizard_text import (
 from siyarix.tool_installer import ToolInstaller
 
 logger = logging.getLogger(__name__)
+
+# GitHub release downloads may redirect to CDN hosts; never follow off-allowlist.
+_GITHUB_RELEASE_HOSTS = frozenset(
+    {
+        "github.com",
+        "api.github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+        "github-releases.githubusercontent.com",
+    }
+)
+_SAFE_RELEASE_TAG_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+
+def _sanitize_release_tag(tag: str) -> str:
+    """Return a path-safe GitHub release tag or raise ``ValueError``."""
+    cleaned = (tag or "").strip()
+    if not _SAFE_RELEASE_TAG_RE.fullmatch(cleaned):
+        raise ValueError(f"Unsafe or empty release tag: {tag!r}")
+    return cleaned
+
+
+def _assert_github_release_url(url: str) -> str:
+    """Require https + allowlisted GitHub/CDN host for release downloads."""
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https":
+        raise ValueError(f"Release URL must use https: {url!r}")
+    host = (parsed.hostname or "").strip().lower()
+    if host not in _GITHUB_RELEASE_HOSTS and not host.endswith(".githubusercontent.com"):
+        raise ValueError(f"Release URL host not allowlisted: {host!r}")
+    return url
+
 
 # ── Cybersecurity model tiers for recommended setup ──────────────────────
 # Ordered by free RAM tiers. All models are security-focused.
@@ -1964,7 +1998,7 @@ class OnboardingWizard:
             try:
                 import httpx
 
-                r = httpx.get(url, timeout=5)
+                r = httpx.get(url, timeout=5, follow_redirects=False)
                 ok = r.status_code < 500
                 detail = f"{r.elapsed.total_seconds():.1f}s"
             except httpx.ConnectError:
@@ -2031,7 +2065,9 @@ class OnboardingWizard:
                         }
                         url = api_urls.get(provider_name, "")
                         if url:
-                            r = httpx.get(url, headers=headers, timeout=10)
+                            r = httpx.get(
+                                url, headers=headers, timeout=10, follow_redirects=False
+                            )
                             ok = r.status_code < 500
                             detail = f"HTTP {r.status_code} ({r.elapsed.total_seconds():.1f}s)"
                         else:
@@ -2850,7 +2886,11 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             import httpx
 
-            r = httpx.get(f"{url}/api/tags", timeout=5)
+            from siyarix.provider_utils import _is_safe_url
+
+            if not _is_safe_url(url):
+                return False
+            r = httpx.get(f"{url.rstrip('/')}/api/tags", timeout=5, follow_redirects=False)
             return bool(r.status_code < 500)
         except Exception:
             return False
@@ -2963,15 +3003,13 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         machine = _platform.machine().lower()
         system = _platform.system().lower()
 
-        # Fetch the latest release tag from GitHub API
+        # Fetch the latest release tag from GitHub API (no redirects → SSRF-safe).
         try:
             api_url = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
-            resp = httpx.get(api_url, timeout=15)
+            resp = httpx.get(api_url, timeout=15, follow_redirects=False)
             resp.raise_for_status()
             release_data = resp.json()
-            tag = release_data.get("tag_name", "")
-            if not tag:
-                raise ValueError("No tag_name in release data")
+            tag = _sanitize_release_tag(str(release_data.get("tag_name", "")))
         except Exception as exc:
             self._console.print(f"  [red]Failed to fetch latest release: {exc}[/red]")
             self._console.print(
@@ -3003,7 +3041,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             return False
 
         asset_name = f"llama-{tag}-bin-{suffix}"
-        download_url = f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
+        download_url = (
+            f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
+        )
+        _assert_github_release_url(download_url)
 
         bin_dir = Path.home() / ".siyarix" / "bin"
         bin_dir.mkdir(parents=True, exist_ok=True)
@@ -3011,25 +3052,63 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             self._console.print(f"  Downloading [cyan]{asset_name}[/cyan]...")
             archive_path = bin_dir / asset_name
-            with httpx.stream("GET", download_url, timeout=300, follow_redirects=True) as r:
-                r.raise_for_status()
-                with open(archive_path, "wb") as fh:
-                    for chunk in r.iter_bytes(chunk_size=65536):
-                        fh.write(chunk)
+            # Follow redirects manually so each hop stays on allowlisted GitHub hosts.
+            current_url = download_url
+            for _hop in range(5):
+                with httpx.stream(
+                    "GET", current_url, timeout=300, follow_redirects=False
+                ) as r:
+                    if r.status_code in {301, 302, 303, 307, 308}:
+                        loc = (r.headers.get("location") or "").strip()
+                        if not loc:
+                            raise ValueError("Redirect without Location header")
+                        current_url = _assert_github_release_url(
+                            str(httpx.URL(current_url).join(loc))
+                        )
+                        continue
+                    r.raise_for_status()
+                    with open(archive_path, "wb") as fh:
+                        for chunk in r.iter_bytes(chunk_size=65536):
+                            fh.write(chunk)
+                    break
+            else:
+                raise ValueError("Too many redirects while downloading llama.cpp")
             self._console.print("  [green]\u2713 Downloaded[/green]")
 
-            # Extract
+            # Extract (resolve final paths under bin_dir to block zip/tar slip)
             self._console.print("  Extracting...")
+            bin_resolved = bin_dir.resolve()
+
+            def _safe_under_bin(member_name: str) -> bool:
+                candidate = (bin_dir / member_name).resolve()
+                try:
+                    candidate.relative_to(bin_resolved)
+                    return True
+                except ValueError:
+                    return False
+
             if asset_name.endswith(".zip"):
                 with zipfile.ZipFile(archive_path, "r") as zf:
                     for zinfo in zf.infolist():
                         if zinfo.filename.startswith("/") or ".." in zinfo.filename:
+                            continue
+                        # Skip symlink/external members (zip-slip via link target).
+                        if getattr(zinfo, "is_symlink", lambda: False)():
+                            continue
+                        mode = zinfo.external_attr >> 16
+                        if mode & 0o120000 == 0o120000:  # S_IFLNK
+                            continue
+                        if not _safe_under_bin(zinfo.filename):
                             continue
                         zf.extract(zinfo, bin_dir)
             else:
                 with tarfile.open(archive_path, "r:gz") as tf:
                     for tinfo in tf.getmembers():
                         if tinfo.name.startswith("/") or ".." in tinfo.name:
+                            continue
+                        if tinfo.issym() or tinfo.islnk():
+                            continue
+                        if not _safe_under_bin(tinfo.name):
                             continue
                         if sys.version_info >= (3, 12):
                             tf.extract(tinfo, bin_dir, filter="data")
@@ -3087,7 +3166,11 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             import httpx
 
-            r = httpx.get(f"{url}/health", timeout=5)
+            from siyarix.provider_utils import _is_safe_url
+
+            if not _is_safe_url(url):
+                return False
+            r = httpx.get(f"{url.rstrip('/')}/health", timeout=5, follow_redirects=False)
             return bool(r.status_code < 500)
         except Exception:
             return False
@@ -3148,16 +3231,16 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _restore_tty() -> None:
         """Restore TTY to cooked mode if it was put in raw mode (e.g. by prompt_toolkit)."""
         try:
-            import termios  # type: ignore[import-not-found]
-            import tty  # type: ignore[import-not-found]
+            import termios
+            import tty
 
             fd = sys.stdin.fileno()
-            attrs = termios.tcgetattr(fd)  # type: ignore[attr-defined]
+            attrs = termios.tcgetattr(fd)
             # Only restore if currently in raw mode
-            if attrs[3] & (termios.ECHO | termios.ICANON) == 0:  # type: ignore[attr-defined]
-                tty.setcbreak(fd)  # type: ignore[attr-defined]
-                attrs[3] |= termios.ECHO | termios.ICANON  # type: ignore[attr-defined]
-                termios.tcsetattr(fd, termios.TCSANOW, attrs)  # type: ignore[attr-defined]
+            if attrs[3] & (termios.ECHO | termios.ICANON) == 0:
+                tty.setcbreak(fd)
+                attrs[3] |= termios.ECHO | termios.ICANON
+                termios.tcsetattr(fd, termios.TCSANOW, attrs)
         except Exception:
             pass
 

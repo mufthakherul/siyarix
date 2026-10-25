@@ -27,7 +27,7 @@ def _reset_bus() -> None:
 @pytest.fixture
 def dispatcher_with_url() -> WebhookDispatcher:
     with patch.dict(
-        os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com/alerts"}, clear=True
+        os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks/alerts"}, clear=True
     ):
         reset_event_bus()
         return WebhookDispatcher()
@@ -48,11 +48,11 @@ def dispatcher_without_url() -> WebhookDispatcher:
 class TestInit:
     def test_reads_webhook_url_from_env(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://discord.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/discord"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            assert d.webhook_url == "https://discord.example.com"
+            assert d.webhook_url == "https://example.com/discord"
 
     def test_no_webhook_url(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
@@ -172,56 +172,50 @@ class TestDispatchAlert:
     @pytest.mark.asyncio
     async def test_dispatches_with_url(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            fake_response = MagicMock()
-            fake_response.__enter__.return_value = fake_response
-
-            with patch.object(
-                urllib.request, "urlopen", return_value=fake_response
-            ) as mock_urlopen:
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 finding = {"id": "vuln-1", "target": "example.com", "type": "sql injection"}
                 await d.dispatch_alert(finding)
 
-            mock_urlopen.assert_called_once()
-            req = mock_urlopen.call_args[0][0]
-            assert req.get_method() == "POST"
-            sent = json.loads(req.data)
-            assert "CRITICAL VULNERABILITY" in sent["text"]
+            mock_post.assert_called_once()
+            url, payload = mock_post.call_args[0][:2]
+            assert url == "https://example.com/hooks"
+            assert "CRITICAL VULNERABILITY" in payload["text"]
 
     @pytest.mark.asyncio
     async def test_no_url_configured(self, dispatcher_without_url: WebhookDispatcher) -> None:
-        with patch.object(urllib.request, "urlopen") as mock_urlopen:
+        with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
             await dispatcher_without_url.dispatch_alert({"target": "x"})
-            mock_urlopen.assert_not_called()
+            mock_post.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_urlerror_on_dispatch(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            with patch.object(
-                urllib.request, "urlopen", side_effect=urllib.error.URLError("connection failed")
+            with patch(
+                "siyarix.webhooks._https_post_json_pinned",
+                side_effect=urllib.error.URLError("connection failed"),
             ):
                 await d.dispatch_alert({"id": "vuln-1", "target": "x", "type": "open port"})
 
     @pytest.mark.asyncio
     async def test_finding_with_title_fallback(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            fake_response = MagicMock()
-            fake_response.__enter__.return_value = fake_response
-            with patch.object(urllib.request, "urlopen", return_value=fake_response):
+            with patch("siyarix.webhooks._https_post_json_pinned") as mock_post:
                 await d.dispatch_alert(
                     {"id": "vuln-1", "title": "XSS Vulnerability", "target": "x"}
                 )
+            mock_post.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

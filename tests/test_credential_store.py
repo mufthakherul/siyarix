@@ -332,7 +332,12 @@ class TestMigration:
         if not HAS_AESGCM:
             pytest.skip("AESGCM not available")
         store.store(name="migrate_me", value="migrate_val")
-        store._master_key = b"k" * 32
+        # Force legacy v1 envelopes so migration has work to do
+        from siyarix.credential_store import _ENVELOPE_V1
+
+        for cred in store._credentials.values():
+            plain = "migrate_val"
+            cred.value_encrypted = _ENVELOPE_V1 + store._fernet.encrypt(plain.encode()).decode()
         result = store.migrate_to_aesgcm()
         assert result is True
 
@@ -755,9 +760,13 @@ class TestCredentialStoreEncryption:
         s = cred_store
         s._salt_file = tmp_path / "salt"
         s._key_file = tmp_path / "key"
+        # Seed an unprotected key that password mode must remove
+        s._key_file.write_bytes(b"k" * 32)
         key = s._generate_fernet_key("mypassword")
+        assert isinstance(key, bytes)
         assert s._salt_file.exists()
-        assert s._key_file.exists()
+        # Password mode must NOT leave an unprotected key file
+        assert not s._key_file.exists()
 
     def test_generate_fernet_key_no_password(self, cred_store):
         key = cred_store._generate_fernet_key(None)
@@ -797,11 +806,13 @@ class TestCredentialStoreEncryption:
 
     def test_encrypt_no_fernet_raises(self, cred_store):
         cred_store._fernet = None
+        cred_store._master_key = None
         with pytest.raises(RuntimeError, match="encryption not initialized"):
             cred_store._encrypt("data")
 
     def test_decrypt_no_fernet_raises(self, cred_store):
         cred_store._fernet = None
+        cred_store._master_key = None
         with pytest.raises(RuntimeError, match="encryption not initialized"):
             cred_store._decrypt("data")
 
@@ -810,24 +821,26 @@ class TestCredentialStoreEncryption:
             pytest.skip("AESGCM not available")
         cred_store.store(name="aes_test", value="val")
         cred_store._master_key = None
-        result = cred_store.migrate_to_aesgcm()
-        assert result is True
+        with pytest.raises(RuntimeError, match="master key is not initialized"):
+            cred_store.migrate_to_aesgcm()
 
     def test_migrate_to_aesgcm_exception_logged(self, cred_store):
         if not HAS_AESGCM:
             pytest.skip("AESGCM not available")
+        from siyarix.credential_store import _ENVELOPE_V1
+
         cred_store.store(name="bad_migrate", value="val")
-        cred_store._master_key = b"k" * 32
+        for cred in cred_store._credentials.values():
+            cred.value_encrypted = _ENVELOPE_V1 + cred_store._fernet.encrypt(b"val").decode()
         with patch.object(cred_store, "_decrypt", side_effect=Exception("decrypt fail")):
             with patch("siyarix.credential_store.logger") as mock_log:
-                cred_store.migrate_to_aesgcm()
-                mock_log.warning.assert_called()
+                assert cred_store.migrate_to_aesgcm() is False
+                mock_log.error.assert_called()
 
     def test_rotate_key_snapshot_rollback(self, cred_store):
         if not HAS_AESGCM:
             pytest.skip("AESGCM not available")
         cred_store.store(name="rollback_test", value="val")
-        cred_store._master_key = b"k" * 32
         with patch.object(cred_store, "_save", side_effect=RuntimeError("save failed")):
             result = cred_store.rotate_key()
             assert result is False
@@ -836,10 +849,10 @@ class TestCredentialStoreEncryption:
         if not HAS_AESGCM:
             pytest.skip("AESGCM not available")
         cred_store.store(name="fallback_test", value="val")
-        cred_store._master_key = b"k" * 32
-        with patch.object(cred_store, "_decrypt_aesgcm", side_effect=Exception("aesgcm fail")):
+        # If AEAD decrypt fails, rotation must abort rather than lose data
+        with patch.object(cred_store, "_decrypt", side_effect=Exception("aesgcm fail")):
             result = cred_store.rotate_key()
-            assert result is True
+            assert result is False
 
     def test_encrypt_aesgcm_derives_key_via_hkdf(self, cred_store):
         if not HAS_AESGCM:
@@ -995,10 +1008,11 @@ class TestCredentialStorePersistence:
         if not HAS_AESGCM:
             pytest.skip("AESGCM not available")
         cred_store.store(name="rk_test", value="val")
-        cred_store._master_key = None
+        assert cred_store._master_key is not None
         with patch.object(cred_store, "_save"):
             result = cred_store.rotate_key(new_master_password="new_pw")
             assert result is True
+        assert cred_store.get_by_name("rk_test") == "val"
 
     def test_load_legacy_credentials_invalid_json(self, cred_store):
         cred_store._creds_file.write_text("not valid json")

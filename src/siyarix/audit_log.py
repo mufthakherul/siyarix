@@ -34,11 +34,16 @@ from typing import Any
 
 from .security_hardening import redactor
 
+tomllib: Any
 try:
-    import tomllib
+    import tomllib as _tomllib
+
+    tomllib = _tomllib
 except ImportError:
     try:
-        import tomli as tomllib
+        import tomli as _tomli
+
+        tomllib = _tomli
     except ImportError:
         tomllib = None
 
@@ -106,9 +111,31 @@ _SEVERITY_COLORS: dict[str, str] = {
 }
 
 
+def _canonicalize_details(details: dict[str, Any] | None) -> dict[str, Any]:
+    """Redact then round-trip through sorted JSON for a stable representation.
+
+    The same canonical dict is hashed, persisted, and re-verified on reload.
+    """
+    if not details:
+        return {}
+    redacted = redactor.redact_dict(details)
+    # Round-trip through JSON so float/datetime edge cases match disk form.
+    return json.loads(json.dumps(redacted, sort_keys=True, default=str))
+
+
+def _canonicalize_user(user: str) -> str:
+    if user in ("system", ""):
+        return user
+    return redactor.redact(user)
+
+
 @dataclass
 class AuditEvent:
-    """Structured audit event"""
+    """Structured audit event.
+
+    ``user`` and ``details`` MUST already be redacted/canonicalized before
+    ``compute_hash`` — hashing and persistence share that single representation.
+    """
 
     event_id: str
     timestamp: datetime
@@ -125,11 +152,11 @@ class AuditEvent:
     hash_current: str | None = None
 
     def compute_hash(self, prev_hash: str | None = None) -> str:
-        """Compute tamper-evident SHA-256 hash (first 16 hex chars)."""
-        try:
-            details_str = json.dumps(self.details, sort_keys=True, default=str)
-        except Exception:
-            details_str = str(self.details)
+        """Compute tamper-evident SHA-256 hash (first 16 hex chars).
+
+        Hashes the exact canonical representation that ``to_dict`` persists.
+        """
+        details_str = json.dumps(self.details, sort_keys=True, separators=(",", ":"), default=str)
         data = (
             f"{self.timestamp.isoformat()}{self.event_type}{self.severity}"
             f"{self.user}{self.session_id}{self.source_ip}{self.target}"
@@ -138,30 +165,32 @@ class AuditEvent:
         return hashlib.sha256(data.encode()).hexdigest()[:16]
 
     def to_dict(self) -> dict[str, Any]:
+        # Fields are already redacted/canonicalized at log time — do not
+        # re-redact (that would diverge from the hashed representation).
         return {
             "event_id": self.event_id,
             "timestamp": self.timestamp.isoformat(),
             "event_type": self.event_type,
             "severity": self.severity,
-            "user": redactor.redact(self.user) if self.user not in ("system", "") else self.user,
+            "user": self.user,
             "session_id": self.session_id,
             "source_ip": self.source_ip,
             "target": self.target,
             "action": self.action,
             "result": self.result,
-            "details": self._redact_details(),
+            "details": self.details,
             "hash_prev": self.hash_prev,
             "hash_current": self.hash_current,
         }
 
     def _redact_details(self) -> dict[str, Any]:
-        """Redact sensitive values in details dict."""
+        """Return stored details (already redacted at log time)."""
         if not self.details:
             return {}
-        return redactor.redact_dict(self.details)
+        return self.details
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"), default=str)
 
     def __repr__(self) -> str:
         return (
@@ -206,7 +235,7 @@ class AuditLogger:
         self._unflushed_events: list[AuditEvent] = []
         self._sessions: dict[str, AuditSession] = {}
         self._dirty = False
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         self._retention_days = 365
         self._cached_source_ip: str | None = None
@@ -273,36 +302,41 @@ class AuditLogger:
                 logger.warning("Failed to parse event: %s", exc)
 
     def _save_events(self) -> None:
-        """Save events to disk atomically with secure permissions."""
-        if not self._unflushed_events:
-            return
+        """Save events to disk atomically with secure permissions.
 
-        try:
-            from siyarix.opsec import opsec_manager
-
-            if opsec_manager.status.memory_only:
-                self._unflushed_events.clear()
-                self._dirty = False
+        Must run under ``self._lock`` (RLock) so concurrent ``log()`` calls
+        cannot interleave append + flush of the unflushed buffer.
+        """
+        with self._lock:
+            if not self._unflushed_events:
                 return
-        except Exception:
-            pass
 
-        try:
-            self._config_dir.mkdir(parents=True, exist_ok=True)
-            lines = [json.dumps(e.to_dict()) + "\n" for e in self._unflushed_events]
-            with self._audit_db.open("a", encoding="utf-8") as f:
-                f.writelines(lines)
             try:
-                if os.name != "nt":
-                    current = stat.S_IMODE(self._audit_db.stat().st_mode)
-                    if current & 0o077:
-                        self._audit_db.chmod(current & 0o700)
+                from siyarix.opsec import opsec_manager
+
+                if opsec_manager.status.memory_only:
+                    self._unflushed_events.clear()
+                    self._dirty = False
+                    return
             except Exception:
                 pass
-            self._unflushed_events.clear()
-            self._dirty = False
-        except Exception as exc:
-            logger.error("Failed to save audit events: %s", exc)
+
+            try:
+                self._config_dir.mkdir(parents=True, exist_ok=True)
+                lines = [json.dumps(e.to_dict()) + "\n" for e in self._unflushed_events]
+                with self._audit_db.open("a", encoding="utf-8") as f:
+                    f.writelines(lines)
+                try:
+                    if os.name != "nt":
+                        current = stat.S_IMODE(self._audit_db.stat().st_mode)
+                        if current & 0o077:
+                            self._audit_db.chmod(current & 0o700)
+                except Exception:
+                    pass
+                self._unflushed_events.clear()
+                self._dirty = False
+            except Exception as exc:
+                logger.error("Failed to save audit events: %s", exc)
 
     def _flush_on_exit(self) -> None:
         with self._lock:
@@ -373,7 +407,14 @@ class AuditLogger:
         session_id: str = "",
         details: dict[str, Any] | None = None,
     ) -> AuditEvent:
-        """Log audit event."""
+        """Log audit event.
+
+        Redacts and canonicalizes user/details once before hashing so the
+        persisted JSONL record verifies identically after reload.
+        """
+        safe_user = _canonicalize_user(user)
+        safe_details = _canonicalize_details(details)
+
         with self._lock:
             prev_hash = self._events[-1].hash_current if self._events else None
 
@@ -382,13 +423,13 @@ class AuditLogger:
                 timestamp=datetime.now(timezone.utc),
                 event_type=event_type,
                 severity=severity,
-                user=user,
+                user=safe_user,
                 session_id=session_id,
                 source_ip=self._get_source_ip(),
                 target=target,
                 action=action,
                 result=result,
-                details=details or {},
+                details=safe_details,
             )
 
             event.hash_prev = prev_hash
@@ -398,11 +439,17 @@ class AuditLogger:
             self._unflushed_events.append(event)
             self._dirty = True
 
-        self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
-        self._count_by_severity[event.severity] = self._count_by_severity.get(event.severity, 0) + 1
+            self._count_by_type[event.event_type] = (
+                self._count_by_type.get(event.event_type, 0) + 1
+            )
+            self._count_by_severity[event.severity] = (
+                self._count_by_severity.get(event.severity, 0) + 1
+            )
 
-        if session_id and session_id in self._sessions:
-            self._sessions[session_id].events_count += 1
+            if session_id and session_id in self._sessions:
+                self._sessions[session_id].events_count += 1
+
+            self._save_events()
 
         if RICH_AVAILABLE and os.getenv("SIYARIX_AUDIT_VERBOSE", "0") == "1":
             console = Console(stderr=True)
@@ -411,8 +458,6 @@ class AuditLogger:
                 f"[{color}]{event.timestamp.strftime('%H:%M:%S')} | "
                 f"{event.user} | {event.action} | {event.target}[/{color}]"
             )
-
-        self._save_events()
 
         return event
 

@@ -679,7 +679,18 @@ class TestParsersInitConcurrency:
             with patch.dict("sys.modules", {"siyarix_parsers": mock_mod}):
                 with patch.object(reg, "register") as mock_register:
                     reg.discover()
-                    mock_register.assert_called_once()
+                    rust_nmap = [
+                        c
+                        for c in mock_register.call_args_list
+                        if c.args and c.args[0] == "nmap" and len(c.args) >= 3 and c.args[2] == "rust"
+                    ]
+                    rust_nuclei = [
+                        c
+                        for c in mock_register.call_args_list
+                        if c.args and c.args[0] == "nuclei" and len(c.args) >= 3 and c.args[2] == "rust"
+                    ]
+                    assert len(rust_nmap) == 1
+                    assert rust_nuclei == []
 
     def test_class_to_tool_names_no_parser_suffix(self):
         names = _class_to_tool_names("CustomClass")

@@ -1,0 +1,22 @@
+name: compliance-audit
+description: Automated baseline compliance and configuration review
+vars:
+  benchmark: "cis-level-1"
+  system: "local"
+steps:
+  - id: system-info
+    description: Inspect host system details and runtime environment
+    type: tool
+    tool: hostname
+    args: {}
+    depends_on: []
+    timeout: 30.0
+
+  - id: compliance-check
+    description: Evaluate host system against compliance controls
+    type: agent
+    role: compliance_auditor
+    goal: "Evaluate system baseline against {{benchmark}} controls on {{system}} host"
+    depends_on:
+      - system-info
+    timeout: 300.0

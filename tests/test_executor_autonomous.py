@@ -36,18 +36,23 @@ async def test_execute_plan_empty(executor):
 
 @pytest.mark.asyncio
 async def test_execute_plan_mock_task(executor):
-    plan = MagicMock()
-    task = MagicMock()
-    task.tool = "nmap"
-    task.args = {"target": "127.0.0.1"}
-    task.command = "nmap 127.0.0.1"
-    plan.steps = [task]
+    task = PlanStep(id="s1", tool="nmap", args={"target": "127.0.0.1"}, command="nmap 127.0.0.1")
+    plan = ExecutionPlan(goal="scan", steps=[task])
 
-    with patch.object(executor, "_exec_one", new_callable=AsyncMock) as mock_exec_task:
-        with patch("siyarix.shell_review.review_and_confirm", return_value="run"):
-            mock_exec_task.return_value = (task, {"status": "success", "output": "test"})
+    async def _fake_exec(step, state):
+        from siyarix.models import StepStatus
+
+        step.status = StepStatus.COMPLETED
+        step.result = {"status": "success", "output": "test"}
+        state.done = True
+        state.exit_code = 0
+        return step, step.result
+
+    with patch.object(executor, "_exec_one", side_effect=_fake_exec) as mock_exec_task:
+        with patch("siyarix.shell_review.review_and_confirm", return_value="nmap 127.0.0.1"):
             res = await executor.execute_plan(plan, live_display=False)
             mock_exec_task.assert_called_once()
+            assert res.status == PlanStatus.COMPLETED
 
 
 @pytest.mark.asyncio

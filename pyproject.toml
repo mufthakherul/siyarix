@@ -3,8 +3,10 @@
 [build-system]
 build-backend = "hatchling.build"
 
+# Cap hatchling below the releases that emit Metadata-Version 2.5 until the
+# Twine/pkginfo validation stack used in release CI accepts 2.5 (SX-020).
 requires = [
-  "hatchling>=1.21.1",
+  "hatchling>=1.21.1,<1.27",
 ]
 
 [project]
@@ -109,6 +111,11 @@ optional-dependencies.dev = [
   "ruff>=0.5",
   "siyarix[terminal]",
   "twine>=5",
+  "types-PyYAML>=6.0",
+  "types-psutil>=5.9",
+  "types-psycopg2>=2.9",
+  "types-redis>=4.6",
+  "types-pyperclip>=1.8",
 ]
 optional-dependencies.gemini = [
   "google-generativeai>=0.8",
@@ -145,6 +152,11 @@ scripts.siyarix = "siyarix.cli:app"
 [tool.hatch.build.targets.wheel]
 packages = [
   "src/siyarix",
+]
+# Built-in playbooks ship inside the package (resolved via data_loader / importlib paths),
+# never from the caller's working directory alone.
+artifacts = [
+  "src/siyarix/data/playbooks/*.yaml",
 ]
 
 [tool.ruff]
@@ -220,6 +232,15 @@ module = [
   "scripts.*",
 ]
 ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+  "pyperclip",
+  "redis",
+  "google.generativeai.*",
+  "httpx.*",
+]
+ignore_missing_imports = true
 
 [tool.bandit]
 exclude_dirs = [

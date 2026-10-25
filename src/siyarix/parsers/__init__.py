@@ -185,7 +185,7 @@ class ParserRegistry:
         for name, obj in list(globals().items()):
             if not isinstance(obj, type):
                 continue
-            if name in ("BaseParser", "Parser"):
+            if name in ("BaseParser", "Parser") or name.startswith("_"):
                 continue
             if not name.endswith("Parser") and not issubclass(obj, BaseParser):
                 continue
@@ -216,17 +216,61 @@ class ParserRegistry:
                 for tool_name in set(tool_names):
                     self.register(tool_name, instance, version)
 
-        try:
-            import siyarix_parsers  # type: ignore
+        # Optional Rust acceleration (packages/rust_parsers → siyarix_rust_parsers).
+        # Prefer the historical import name for compatibility, then the Cargo/PyO3 name.
+        # Class adapters win; otherwise wrap real function exports (not auto-mocks).
+        for module_name in ("siyarix_parsers", "siyarix_rust_parsers"):
+            try:
+                rust_mod = __import__(module_name)
+            except ImportError:
+                continue
 
-            if hasattr(siyarix_parsers, "NmapRustParser"):
-                self.register("nmap", siyarix_parsers.NmapRustParser(), "rust")
-            if hasattr(siyarix_parsers, "NucleiRustParser"):
-                self.register("nuclei", siyarix_parsers.NucleiRustParser(), "rust")
-        except ImportError:
-            pass
+            registered = False
+            if hasattr(rust_mod, "NmapRustParser"):
+                self.register("nmap", rust_mod.NmapRustParser(), "rust")
+                registered = True
+            else:
+                nmap_fn = getattr(rust_mod, "parse_nmap_xml", None)
+                if callable(nmap_fn) and getattr(nmap_fn, "__module__", "").startswith("siyarix"):
+                    self.register("nmap", _RustFnAdapter(nmap_fn, "nmap"), "rust")
+                    registered = True
+
+            if hasattr(rust_mod, "NucleiRustParser"):
+                self.register("nuclei", rust_mod.NucleiRustParser(), "rust")
+                registered = True
+            else:
+                nuclei_fn = getattr(rust_mod, "parse_nuclei_json", None)
+                if callable(nuclei_fn) and getattr(nuclei_fn, "__module__", "").startswith(
+                    "siyarix"
+                ):
+                    self.register("nuclei", _RustFnAdapter(nuclei_fn, "nuclei"), "rust")
+                    registered = True
+
+            if registered:
+                break
 
         return self._parsers
+
+
+class _RustFnAdapter:
+    """Adapt a Rust pyfunction (``parse_*(output) → list[dict]``) to the parser API."""
+
+    def __init__(self, fn: Any, tool: str) -> None:
+        self._fn = fn
+        self.TOOL_NAME = tool
+
+    def parse(self, output: str, **_kwargs: Any) -> list[dict[str, Any]]:
+        raw = self._fn(output)
+        findings: list[dict[str, Any]] = []
+        for item in raw or []:
+            if isinstance(item, dict):
+                findings.append(item)
+            else:
+                try:
+                    findings.append(dict(item))
+                except Exception:
+                    continue
+        return findings
 
 
 def _class_to_tool_names(class_name: str) -> list[str]:

@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -37,6 +38,83 @@ OFFICIAL_REGISTRY_URL = "https://raw.githubusercontent.com/siyarix/siyarix-plugi
 OFFICIAL_REPO_URL = "https://github.com/siyarix/siyarix-plugins.git"
 
 
+def _safe_plugin_name(name: str) -> str:
+    """Reject path separators / traversal so install destinations stay sandboxed."""
+    cleaned = (name or "").strip()
+    if not cleaned:
+        raise ValueError("Plugin name must not be empty")
+    if cleaned in {".", ".."} or "/" in cleaned or "\\" in cleaned or ".." in cleaned:
+        raise ValueError(f"Invalid plugin name (path traversal rejected): {name!r}")
+    return cleaned
+
+
+def _assert_under_dir(path: Path, root: Path, *, what: str) -> Path:
+    resolved = path.resolve()
+    root_resolved = root.resolve()
+    try:
+        resolved.relative_to(root_resolved)
+    except ValueError as err:
+        raise ValueError(f"{what} escapes plugin sandbox: {path}") from err
+    return resolved
+
+
+def _validate_plugin_fetch_url(url: str) -> str:
+    """Require https plugin/registry URLs and reject SSRF destinations."""
+    from siyarix.webhooks import _validate_url
+
+    cleaned = (url or "").strip()
+    if not cleaned.lower().startswith("https://"):
+        raise ValueError(f"Plugin fetch URL must use https: {url!r}")
+    _validate_url(cleaned, allow_ip=False)
+    return cleaned
+
+
+class _PinnedHttpResponse:
+    """Minimal file-like response for callers that expect ``urlopen`` semantics."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+
+    def read(self, n: int = -1) -> bytes:
+        if n is None or n < 0:
+            out, self._data = self._data, b""
+            return out
+        out, self._data = self._data[:n], self._data[n:]
+        return out
+
+    def __enter__(self) -> _PinnedHttpResponse:
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        return None
+
+
+def _safe_urlopen(url: str, *, timeout: float = 8.0, headers: dict[str, str] | None = None):
+    """Fetch a validated https URL with IP pinning (SSRF / rebinding-safe)."""
+    from siyarix.webhooks import _https_request_pinned
+
+    safe = _validate_plugin_fetch_url(url)
+    data = _https_request_pinned(
+        safe,
+        method="GET",
+        timeout=timeout,
+        headers=headers or {"User-Agent": "Siyarix-PluginManager/1.0"},
+    )
+    return _PinnedHttpResponse(data)
+
+
+def _validate_git_clone_url(url: str) -> str:
+    """Allow only https git remotes (no git@ / file / local SSRF pivots)."""
+    cleaned = (url or "").strip()
+    if cleaned.startswith("git@"):
+        raise ValueError("SSH git remotes are not allowed for plugin install; use https://")
+    # Reject embedded credentials so tokens never appear on `git clone` argv.
+    parsed = urllib.parse.urlparse(cleaned)
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Git remotes must not include embedded credentials (userinfo)")
+    return _validate_plugin_fetch_url(cleaned)
+
+
 class PluginManager:
     """Enterprise manager for discovery, loading, lifecycle, and remote registry."""
 
@@ -49,7 +127,11 @@ class PluginManager:
         plugins_dir: Path | None = None,
         config_dir: Path | None = None,
     ) -> None:
-        self.registry = registry or ToolRegistry()
+        if registry is None:
+            from ..registry_factory import make_tool_registry
+
+            registry = make_tool_registry()
+        self.registry = registry
         self.provider_manager = provider_manager or ProviderManager.get_instance()
         self.config_dir = config_dir or get_config_dir()
         self.plugins_dir = plugins_dir or (self.config_dir / "plugins")
@@ -239,11 +321,24 @@ class PluginManager:
             meta.status = PluginStatus.DISABLED
             return False
 
-        entry_path = (
-            meta.path
-            if meta.plugin_type == PluginType.SINGLE_FILE
-            else meta.path / meta.manifest.entrypoint
-        )
+        if meta.plugin_type == PluginType.SINGLE_FILE:
+            entry_path = meta.path
+        else:
+            entry = Path(meta.manifest.entrypoint)
+            if entry.is_absolute():
+                meta.status = PluginStatus.ERROR
+                meta.error_message = f"Absolute entrypoint rejected: {entry}"
+                logger.error(meta.error_message)
+                return False
+            try:
+                entry_path = _assert_under_dir(
+                    meta.path / entry, meta.path, what="plugin entrypoint"
+                )
+            except ValueError as exc:
+                meta.status = PluginStatus.ERROR
+                meta.error_message = str(exc)
+                logger.error(meta.error_message)
+                return False
 
         if not entry_path.exists():
             meta.status = PluginStatus.ERROR
@@ -414,15 +509,14 @@ class PluginManager:
             except Exception:
                 pass
 
-        # 3. Fetch from GitHub remote registry
-        urls = [OFFICIAL_REGISTRY_URL] + self._config_data.get("registry_mirrors", [])
+        # 3. Fetch from GitHub remote registry (https + SSRF checks, no redirects)
+        mirrors = self._config_data.get("registry_mirrors", [])
+        if not isinstance(mirrors, list):
+            mirrors = []
+        urls = [OFFICIAL_REGISTRY_URL] + [str(u) for u in mirrors if isinstance(u, str)]
         for url in urls:
             try:
-                req = urllib.request.Request(
-                    url,
-                    headers={"User-Agent": "Siyarix-PluginManager/1.0"},
-                )
-                with urllib.request.urlopen(req, timeout=6) as resp:
+                with _safe_urlopen(url, timeout=6.0) as resp:
                     raw = resp.read().decode("utf-8")
                     parsed = json.loads(raw)
                     plugins = parsed if isinstance(parsed, list) else parsed.get("plugins", [])
@@ -501,16 +595,20 @@ class PluginManager:
         local_path = Path(name_or_url)
         if local_path.exists():
             if local_path.is_dir():
-                target_name = local_path.name
-                dest = self.plugins_dir / target_name
+                target_name = _safe_plugin_name(local_path.name)
+                dest = _assert_under_dir(
+                    self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
+                )
                 if dest.exists():
                     if not force:
                         raise FileExistsError(f"Plugin '{target_name}' already exists.")
                     shutil.rmtree(dest)
                 shutil.copytree(local_path, dest)
             else:
-                target_name = local_path.stem
-                dest = self.plugins_dir / local_path.name
+                target_name = _safe_plugin_name(local_path.stem)
+                dest = _assert_under_dir(
+                    self.plugins_dir / local_path.name, self.plugins_dir, what="plugin install dest"
+                )
                 if dest.exists() and not force:
                     raise FileExistsError(f"Plugin '{target_name}' already exists.")
                 shutil.copy2(local_path, dest)
@@ -519,13 +617,20 @@ class PluginManager:
             self.load_plugin(target_name)
             return self._installed_plugins[target_name]
 
-        # Case B: Git Repository URL
+        # Case B: Git Repository URL (https only; SSRF-checked host)
         if name_or_url.startswith(("http://", "https://", "git@")):
-            repo_url = name_or_url
+            if name_or_url.startswith("http://"):
+                raise ValueError(
+                    "Plugin git remotes must use https:// (cleartext http:// is rejected)"
+                )
+            repo_url = _validate_git_clone_url(name_or_url)
             target_name = repo_url.rstrip("/").split("/")[-1]
             if target_name.endswith(".git"):
                 target_name = target_name[:-4]
-            dest = self.plugins_dir / target_name
+            target_name = _safe_plugin_name(target_name)
+            dest = _assert_under_dir(
+                self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
+            )
 
             if dest.exists():
                 if not force:
@@ -543,13 +648,15 @@ class PluginManager:
             return self._installed_plugins[target_name]
 
         # Case C: Registry Plugin Name
-        target_name = name_or_url.strip()
+        target_name = _safe_plugin_name(name_or_url.strip())
         catalog = self.fetch_registry_index()
         entry = next((i for i in catalog if i.get("name") == target_name), None)
 
         # Check local plugins repo first
         local_plugins_repo = Path.cwd() / "siyarix-plugins" / "plugins" / target_name
-        dest = self.plugins_dir / target_name
+        dest = _assert_under_dir(
+            self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
+        )
 
         if local_plugins_repo.exists():
             if dest.exists():
@@ -560,8 +667,8 @@ class PluginManager:
         elif entry:
             # Check if entry provides a direct source git or subdirectory
             source_url = entry.get("source", "")
-            if source_url and source_url.startswith("http"):
-                return self.install(source_url, force=force)
+            if source_url and str(source_url).startswith("http"):
+                return self.install(str(source_url), force=force)
 
             # Download plugin package from official siyarix-plugins repository
             dest.mkdir(parents=True, exist_ok=True)
@@ -572,10 +679,7 @@ class PluginManager:
             for filename in files_to_fetch:
                 file_url = f"{raw_base}/{filename}"
                 try:
-                    req = urllib.request.Request(
-                        file_url, headers={"User-Agent": "Siyarix-PluginManager/1.0"}
-                    )
-                    with urllib.request.urlopen(req, timeout=8) as resp:
+                    with _safe_urlopen(file_url, timeout=8.0) as resp:
                         (dest / filename).write_bytes(resp.read())
                         fetched_any = True
                 except Exception as e:
@@ -602,15 +706,47 @@ class PluginManager:
     def _install_dependencies(self, plugin_dir: Path) -> None:
         """Safely resolve plugin python dependencies."""
         req_file = plugin_dir / "requirements.txt"
-        if req_file.exists():
-            try:
-                subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-q", "-r", str(req_file)],
-                    capture_output=True,
-                    timeout=60,
+        if not req_file.exists():
+            return
+        # Block common pip abuse switches / VCS URLs in requirements files.
+        try:
+            req_text = req_file.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            logger.warning("Could not read requirements for %s: %s", plugin_dir.name, exc)
+            return
+        for line in req_text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            lower = stripped.lower()
+            if lower.startswith("-") or "://" in lower or lower.startswith("git+"):
+                raise RuntimeError(
+                    f"Refusing unsafe requirements line in {plugin_dir.name}: {stripped!r}"
                 )
-            except Exception as e:
-                logger.warning("Dependency installation warning for %s: %s", plugin_dir.name, e)
+        try:
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-q",
+                    "--disable-pip-version-check",
+                    "-r",
+                    str(req_file),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+            if res.returncode != 0:
+                raise RuntimeError(
+                    f"pip install failed for {plugin_dir.name}: {res.stderr.strip() or res.stdout.strip()}"
+                )
+        except Exception as e:
+            logger.warning("Dependency installation failed for %s: %s", plugin_dir.name, e)
+            raise
 
     def uninstall(self, name: str) -> bool:
         """Uninstall a plugin, removing files and deregistering tools."""

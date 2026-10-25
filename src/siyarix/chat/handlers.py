@@ -812,12 +812,12 @@ class CommandHandlersMixin:
                 return
 
             # Default: list tools
-            from ..registry import ToolRegistry
+            from ..registry_factory import make_tool_registry
             from ..tool_config import ToolConfigManager
             from ..tool_installer import ToolInstaller
             from ..tool_models import ToolCategory, ToolCapability
 
-            reg = ToolRegistry()
+            reg = make_tool_registry()
             cfg_mgr = ToolConfigManager.get_instance()
             installer = ToolInstaller()
 
@@ -2529,7 +2529,7 @@ class CommandHandlersMixin:
 
             agent = AgentCore(mode=AgentMode.REGISTRY)
             await agent.initialize()
-            agent.executor_autonomous.command_review = self._settings.get("command_review", False)
+            agent.executor_autonomous.command_review = self._settings.get("command_review", True)
             res = await agent.executor_autonomous.execute_plan(plan, live_display=True)
             skill.usage_count += 1
             if res.status.name == "COMPLETED":
@@ -3297,7 +3297,7 @@ class CommandHandlersMixin:
         path = self._alias_store_path()
         if path.exists():
             try:
-                return json.loads(path.read_text(encoding="utf-8"))  # type: ignore[no-any-return]
+                return json.loads(path.read_text(encoding="utf-8"))
             except Exception:
                 pass
         return {}
@@ -3961,7 +3961,7 @@ class CommandHandlersMixin:
                 console.print(f"[red]Playbook not found: {name}[/red]")
                 return
             try:
-                import yaml  # type: ignore[import-untyped]
+                import yaml
 
                 playbook = yaml.safe_load(pb_path.read_text(encoding="utf-8"))
                 steps = playbook.get("steps", []) if isinstance(playbook, dict) else []

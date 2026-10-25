@@ -183,7 +183,7 @@ DEFAULT_PREFERENCES = {
     "output_format": "table",
     "notifications": True,
     "stealth_mode": False,
-    "command_review": False,
+    "command_review": True,
     "history_days": 90,
     "log_level": "warning",
     "auto_update": True,

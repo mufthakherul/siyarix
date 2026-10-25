@@ -407,6 +407,46 @@ class TestDLPEngine:
         assert result["flag"] is True
         assert result["none"] is None
 
+    def test_redact_openai_and_anthropic_keys(self):
+        engine = DLPEngine(redact_secrets=True, redact_pii=False)
+        openai = engine.redact("key sk-abcdefghijklmnopqrstuvwxyz0123")
+        anthropic = engine.redact("key sk-ant-abcdefghijklmnopqrstuvwxyz0123")
+        assert "sk-abcdefghijklmnopqrstuvwxyz0123" not in openai
+        assert "[REDACTED OPENAI_KEY]" in openai
+        assert "sk-ant-" not in anthropic
+        assert "[REDACTED ANTHROPIC_KEY]" in anthropic
+
+    def test_redact_jwt_and_preserve_aws_secret_key_name(self):
+        engine = DLPEngine(redact_secrets=True, redact_pii=False)
+        jwt = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4ifQ."
+            "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+        )
+        assert "[REDACTED JWT_TOKEN]" in engine.redact(f"token {jwt}")
+        aws_secret = engine.redact("aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+        assert aws_secret.startswith("aws_secret_access_key=")
+        assert "wJalrXUtnFEMI" not in aws_secret
+        assert "[REDACTED AWS_SECRET_KEY]" in aws_secret
+
+    def test_redact_pem_private_key_body(self):
+        engine = DLPEngine(redact_secrets=True, redact_pii=False)
+        pem = (
+            "-----BEGIN RSA PRIVATE KEY-----\n"
+            "MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF6PZGFwoda2N4s\n"
+            "-----END RSA PRIVATE KEY-----"
+        )
+        result = engine.redact(pem)
+        assert "MIIEowIBAAKCAQEA" not in result
+        assert "[REDACTED PRIVATE_KEY]" in result
+        openssh = (
+            "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+            "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=\n"
+            "-----END OPENSSH PRIVATE KEY-----"
+        )
+        assert "b3BlbnNzaC1rZXktdjEAAAAABG5vbmU=" not in engine.redact(openssh)
+        assert "[REDACTED PRIVATE_KEY]" in engine.redact(openssh)
+
 
 # ═══════════════════════════════════════════════════════════════════
 # 2. chat/platform_utils.py (37% - missing 124-131, 139, 152-167, 180-201)

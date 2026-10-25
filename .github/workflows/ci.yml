@@ -71,7 +71,7 @@ jobs:
 
       - name: MyPy
         if: steps.changes.outputs.changed != ''
-        run: mypy --ignore-missing-imports --no-error-summary --no-warn-unused-ignores --follow-imports=silent ${{ steps.changes.outputs.changed }}
+        run: mypy src/siyarix
 
       - name: Pre-commit hooks
         env:
@@ -195,35 +195,22 @@ jobs:
       - name: Bandit
         run: |
           uv pip install --system bandit
-          bandit -r src/ -f json -o bandit-report.json -ll || true
-          python -c "import json; d=__import__('json').load(open('bandit-report.json')) if __import__('os').path.exists('bandit-report.json') else {'results':[]}; s={'version':'2.1.0','runs':[{'tool':{'driver':{'name':'bandit'}},'results':[{'ruleId':r.get('test_id','B000'),'level':'error' if r.get('issue_severity')=='HIGH' else 'warning','message':{'text':r.get('issue_text','')},'locations':[{'physicalLocation':{'artifactLocation':{'uri':r.get('filename','')},'region':{'startLine':r.get('line_number',0)}}}]} for r in d.get('results',[])]}]}; __import__('json').dump(s,open('bandit-report.sarif','w'))"
+          set +e
+          bandit -r src/ -f json -o bandit-report.json -ll
+          bandit_rc=$?
+          set -e
+          python scripts/ci_security_gate.py bandit bandit-report.json
+          if [ "$bandit_rc" -gt 1 ]; then exit "$bandit_rc"; fi
 
       - name: pip-audit
         run: |
           uv pip install --system pip-audit
-          pip-audit --format json --output pip-audit.json || true
-          python -c "
-          import json, sys
-          try:
-              with open('pip-audit.json') as f:
-                  data = json.load(f)
-          except (FileNotFoundError, json.JSONDecodeError):
-              data = []
-          if isinstance(data, dict):
-              nested = data.get('dependencies', []) or data.get('results', []) or []
-              data = nested if isinstance(nested, list) else []
-          vulns = []
-          for dep in (data or []):
-              if isinstance(dep, dict):
-                  vulns.extend(dep.get('vulns', []))
-          critical_high = [v for v in vulns if isinstance(v, dict) and v.get('severity', '').lower() in ('high', 'critical')]
-          if critical_high:
-              print(f'::error::{len(critical_high)} high/critical vulnerabilities found')
-              for v in critical_high:
-                  print(f'  - {v.get(\"id\", \"?\")}: {v.get(\"description\", \"\")[:200]}')
-              sys.exit(2)
-          print(f'{len(vulns)} total vulnerabilities (none critical/high)')
-          "
+          set +e
+          pip-audit --format json --output pip-audit.json
+          audit_rc=$?
+          set -e
+          python scripts/ci_security_gate.py pip-audit pip-audit.json
+          if [ "$audit_rc" -gt 1 ]; then exit "$audit_rc"; fi
 
       - name: Upload security reports
         if: always()
@@ -302,7 +289,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::MyPy"
-          mypy src tests || true
+          mypy src/siyarix
           echo "::endgroup::"
 
   notify:

@@ -83,9 +83,10 @@ class TestRun:
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     @patch("siyarix.security_hardening.InputValidator", side_effect=ImportError("no module"))
     async def test_with_exception_in_validator(self, mock_validator_cls, mock_safe_run):
-        mock_safe_run.return_value = _mock_result(exit_code=0, stdout="fallback")
-        result = await _run("nmap", ["nmap", "target"])
-        assert result.stdout == "fallback"
+        # Fail closed: validator import/runtime errors must not skip sanitization.
+        with pytest.raises(ValueError, match="Command validation unavailable"):
+            await _run("nmap", ["nmap", "target"])
+        mock_safe_run.assert_not_awaited()
 
 
 class TestMakeResult:
@@ -238,14 +239,16 @@ class TestMakeWebHandler:
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     @patch("siyarix.stealth.StealthEngine")
-    @patch("urllib.request.urlopen")
-    @patch("urllib.request.Request")
+    @patch("siyarix.webhooks._https_request_pinned", return_value=b"")
     async def test_stealth_mode(
-        self, mock_urllib_req, mock_urllib_open, MockStealth, mock_safe_run
+        self,
+        mock_pinned,
+        MockStealth,
+        mock_safe_run,
     ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = [
-            {"url": "http://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
+            {"url": "https://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
         ]
         MockStealth.return_value = mock_engine
         mock_safe_run.return_value = _mock_result()
@@ -254,18 +257,21 @@ class TestMakeWebHandler:
         await handler(target="example.com", stealth={"rotate_user_agents": True})
         mock_engine.set_config.assert_called_once_with(rotate_user_agents=True)
         mock_engine.get_decoy_requests.assert_called_once_with("example.com")
+        mock_pinned.assert_called()
 
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
-    @patch("urllib.request.Request")
-    @patch("urllib.request.urlopen", side_effect=Exception("Connection refused"))
+    @patch("siyarix.webhooks._https_request_pinned", side_effect=ValueError("blocked"))
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_stealth_mode_decoy_fail(
-        self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req
+        self,
+        mock_safe_run,
+        MockStealth,
+        mock_pinned,
     ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = [
-            {"url": "http://example.com/decoy", "method": "GET", "user_agent": "Mozilla"},
+            {"url": "https://127.0.0.1/decoy", "method": "GET", "user_agent": "Mozilla"},
         ]
         MockStealth.return_value = mock_engine
         mock_safe_run.return_value = _mock_result()
@@ -274,14 +280,15 @@ class TestMakeWebHandler:
         result = await handler(target="example.com")
         assert result["status"] == "success"
         mock_engine.get_decoy_requests.assert_called_once_with("example.com")
+        # Private IP blocked by pinned HTTPS policy; tool still succeeds.
+        mock_pinned.assert_called()
 
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
-    @patch("urllib.request.Request")
-    @patch("urllib.request.urlopen")
+    @patch("siyarix.webhooks._https_request_pinned")
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     async def test_stealth_mode_no_stealth_kwarg(
-        self, mock_safe_run, MockStealth, mock_urllib_open, mock_urllib_req
+        self, mock_safe_run, MockStealth, mock_pinned
     ):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = []
@@ -291,6 +298,7 @@ class TestMakeWebHandler:
         handler = make_web_handler("nuclei")
         await handler(target="example.com")
         mock_engine.set_config.assert_not_called()
+        mock_pinned.assert_not_called()
 
     @patch.dict("os.environ", {"SIYARIX_STEALTH": "1"})
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)

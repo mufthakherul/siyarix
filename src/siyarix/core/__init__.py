@@ -101,7 +101,11 @@ class AgentCore(ExecutionMixin, GraphMixin):
     ) -> None:
         self._mode = mode
         self._status = AgentStatus.IDLE
-        self._registry = registry or ToolRegistry()
+        if registry is None:
+            from ..registry_factory import make_tool_registry
+
+            registry = make_tool_registry()
+        self._registry = registry
         self._planner_registry = RegistryPlanner()
         self._planner_autonomous = AutonomousPlanner()
         self._planner = Planner(
@@ -109,11 +113,14 @@ class AgentCore(ExecutionMixin, GraphMixin):
             registry_planner=self._planner_registry,
         )
 
-        # PermissionGate — enforce safe mode boundaries
-        _settings = SettingsStore()
-        _safe_mode = os.getenv("SIYARIX_SAFE_MODE", "0") == "1" or _settings.get(
-            "_safe_mode", default=False
-        )
+        # PermissionGate — on by default for production; set SIYARIX_SAFE_MODE=0 for labs.
+        _env_raw = os.getenv("SIYARIX_SAFE_MODE")
+        if _env_raw is not None:
+            _safe_mode = _env_raw.strip().lower() not in {"0", "false", "no", "off"}
+        else:
+            _store = SettingsStore()
+            _settings_flag = _store.get("_safe_mode", default=False) if _store.has("_safe_mode") else None
+            _safe_mode = True if _settings_flag is None else bool(_settings_flag)
         self._permission_gate = PermissionGate() if _safe_mode else None
 
         self._executor_registry = RegistryExecutor(

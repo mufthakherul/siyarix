@@ -160,7 +160,7 @@ Review command [edit/run/step/cancel] (run):
 - **`cancel`**: Skip it entirely.
 
 !!! note
-    In automated environments (like CI/CD pipelines), Shell Review automatically approves commands so it doesn't get stuck waiting for human input.
+    In automated environments (like CI/CD pipelines), Shell Review **fails closed**: gated commands are refused unless `SIYARIX_PREAUTHORIZED=1` is set (opt-in, logged, and audited).
 
 ---
 

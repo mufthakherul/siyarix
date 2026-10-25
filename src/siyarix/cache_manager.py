@@ -9,6 +9,7 @@ and speeds up repeated scans.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import threading
@@ -49,11 +50,12 @@ class CacheEntry:
 
     @property
     def expired(self) -> bool:
-        return time.monotonic() - self.created_at > self.ttl
+        # Wall clock: disk-persisted entries must survive process restarts.
+        return time.time() - self.created_at > self.ttl
 
     @property
     def age_seconds(self) -> float:
-        return time.monotonic() - self.created_at
+        return time.time() - self.created_at
 
 
 class CacheManager:
@@ -109,8 +111,14 @@ class CacheManager:
         return CACHE_DOMAINS.get(domain, {"ttl": 600, "max_entries": 200})
 
     def _data_path(self, key: str) -> Path:
-        safe = key.replace("/", "_").replace("\\", "_").replace(":", "_")
-        return self._dir / f"{safe[:200]}.cache"
+        # Hash keys so `..` / path separators cannot escape CACHE_DIR.
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        path = (self._dir / f"{digest}.cache").resolve()
+        try:
+            path.relative_to(self._dir.resolve())
+        except ValueError as exc:
+            raise ValueError(f"Cache path escapes cache dir: {key!r}") from exc
+        return path
 
     def get(self, key: str, domain: str = "tool_output") -> str | None:
         with self._lock:
@@ -142,7 +150,7 @@ class CacheManager:
 
     def set(self, key: str, data: str, domain: str = "tool_output") -> None:
         config = self._domain_config(domain)
-        now = time.monotonic()
+        now = time.time()
 
         try:
             from siyarix.opsec import opsec_manager

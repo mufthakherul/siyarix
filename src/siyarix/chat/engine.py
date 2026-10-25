@@ -101,8 +101,6 @@ class LLMEngineMixin:
         show_plan: bool = False,
     ) -> None:
         """Execute an instruction — AgentCore for LLM modes, engine for registry modes."""
-        from ..registry import ToolRegistry
-
         # ── Route by mode ──
         if self._mode in ("registry", "offline"):
             pass  # skip agent, go straight to registry engine below
@@ -143,7 +141,9 @@ class LLMEngineMixin:
             "gemini_model": self._settings.get("gemini_model"),
         }
 
-        reg = ToolRegistry()
+        from ..registry_factory import make_tool_registry
+
+        reg = make_tool_registry()
         from ..session_log import session_logger
 
         engine = ExecutionEngine(
@@ -254,32 +254,26 @@ class LLMEngineMixin:
         except Exception as exc:
             logger.debug("Ensemble integration skipped: %s", exc)
 
-        # Auto-queue plan for retry if in offline mode and plan has steps but execution may fail
-        if self._mode in ("registry", "offline") and plan.steps:
-            try:
-                from ..offline_queue import OfflineCommandQueue
-
-                queue = OfflineCommandQueue()
-                queue.enqueue(
-                    instruction=instruction,
-                    target=self._session.target or target,
-                    mode=self._mode,
-                    max_attempts=2,
-                )
-            except Exception:
-                pass
-
         # Adversarial plan review
         try:
             from .stubs import AdversarialTester, AdversarialSeverity
 
             tester = AdversarialTester()
-            plan_lines = [
-                f"{getattr(s, 'tool', '') or ''} {' '.join(str(a) for a in getattr(s, 'args', []))} {getattr(s, 'target', '') or ''}".strip()
-                or getattr(s, "command", "")
-                or ""
-                for s in plan.steps
-            ]
+            plan_lines = []
+            for s in plan.steps:
+                cmd = str(getattr(s, "command", "") or "").strip()
+                tool = str(getattr(s, "tool", "") or "").strip()
+                args = getattr(s, "args", None)
+                if isinstance(args, dict):
+                    arg_bits = " ".join(f"{k}={v}" for k, v in sorted(args.items()))
+                elif isinstance(args, (list, tuple)):
+                    arg_bits = " ".join(str(a) for a in args)
+                else:
+                    arg_bits = str(args or "")
+                target = str(getattr(s, "target", "") or "").strip()
+                # Prefer the real shell command so CRITICAL abort cannot miss it.
+                line = cmd or f"{tool} {arg_bits} {target}".strip()
+                plan_lines.append(line)
             findings = tester.review_plan(plan_lines)
             critical = [f for f in findings if f.severity == AdversarialSeverity.CRITICAL]
             high = [f for f in findings if f.severity == AdversarialSeverity.HIGH]
@@ -287,10 +281,10 @@ class LLMEngineMixin:
                 console.print(
                     Panel(
                         "\n".join(
-                            f"[{'red' if f.severity in ('critical', 'high') else 'yellow'}]"
-                            f"{'🔴' if f.severity == 'critical' else '⚠'} "
-                            f"[{f.severity.upper()}] {f.message}[/]\n"
-                            f"  [dim]Suggestion: {f.suggestion}[/dim]"
+                            f"[{'red' if f.severity in (AdversarialSeverity.CRITICAL, AdversarialSeverity.HIGH) else 'yellow'}]"
+                            f"{'!' if f.severity == AdversarialSeverity.CRITICAL else '*'} "
+                            f"[{f.severity.value.upper()}] {f.message}[/]\n"
+                            f"  [dim]Suggestion: {f.suggestion or 'Review this step carefully.'}[/dim]"
                             for f in findings[:5]
                         )
                         + (
@@ -298,12 +292,21 @@ class LLMEngineMixin:
                             if len(findings) > 5
                             else ""
                         ),
-                        title=f"[bold {'red' if critical else 'yellow'}]🔍 Adversarial Review ({len(findings)} findings)"
+                        title=f"[bold {'red' if critical else 'yellow'}]Adversarial Review ({len(findings)} findings)"
                         f"{' — ' + str(len(critical)) + ' critical' if critical else ''}"
                         f"{' — ' + str(len(high)) + ' high' if high else ''}[/bold {'red' if critical else 'yellow'}]",
                         border_style="red" if critical else "yellow",
                     )
                 )
+            if critical:
+                console.print(
+                    "[red]Execution blocked: adversarial review found critical destructive patterns.[/red]"
+                )
+                self._session.add_message(
+                    "assistant",
+                    "Plan blocked by adversarial review due to critical destructive commands.",
+                )
+                return
         except ModuleNotFoundError:
             pass
         except Exception as exc:
@@ -337,6 +340,17 @@ class LLMEngineMixin:
             logger.error("Execution failed: %s", exc, exc_info=True)
             error_msg = str(exc)
             if self._mode in ("registry", "offline"):
+                try:
+                    from ..offline_queue import OfflineCommandQueue
+
+                    OfflineCommandQueue().enqueue(
+                        instruction=instruction,
+                        target=self._session.target or target,
+                        mode=self._mode,
+                        max_attempts=2,
+                    )
+                except Exception:
+                    logger.debug("Failed to enqueue offline retry", exc_info=True)
                 self._print_assistant(
                     f"**Execution Error:** {error_msg}\n\n"
                     "This command has been queued for retry. "
@@ -937,7 +951,9 @@ class LLMEngineMixin:
 
                     base_url = PROVIDER_CONFIG.get(provider_name, ("", "", ""))[0]
                     if base_url:
-                        async with httpx.AsyncClient(timeout=5) as _client:
+                        async with httpx.AsyncClient(
+                            timeout=5, follow_redirects=False
+                        ) as _client:
                             await _client.get(base_url.rstrip("/v1"))
                         llm_connected = True
                     else:
@@ -1004,14 +1020,11 @@ class LLMEngineMixin:
                                 plan_type=PlanType.SEQUENTIAL,
                                 context={"source": "cls_prerun"},
                             )
-                            _saved_cr = agent.executor_autonomous.command_review
-                            agent.executor_autonomous.command_review = False
-                            try:
-                                _prerun_executed = await agent.executor_autonomous.execute_plan(
-                                    _prerun_plan, live_display=True
-                                )
-                            finally:
-                                agent.executor_autonomous.command_review = _saved_cr
+                            # Keep the user's command_review setting — learned skills
+                            # must not silently bypass interactive/safety review.
+                            _prerun_executed = await agent.executor_autonomous.execute_plan(
+                                _prerun_plan, live_display=True
+                            )
                             console.print()
                             _prerun_outputs: list[str] = []
                             for _ps in _prerun_executed.steps:
@@ -1340,7 +1353,16 @@ class LLMEngineMixin:
             last_executed_plan = plan
 
             if plan.status.name == "CANCELLED":
-                console.print("[yellow]⚠ Command cancelled by user[/yellow]")
+                from siyarix.shell_review import is_interactive, PREAUTHORIZED_ENV_VAR
+
+                if is_interactive():
+                    console.print("[yellow]⚠ Command cancelled by user[/yellow]")
+                else:
+                    console.print(
+                        "[yellow]⚠ Command review refused (non-interactive). "
+                        f"Set {PREAUTHORIZED_ENV_VAR}=1 to pre-authorize, "
+                        "or run from an interactive shell.[/yellow]"
+                    )
                 return True
 
             # Separate Live display output from summary panels
@@ -1618,9 +1640,20 @@ class LLMEngineMixin:
                         and "{param_" in _learned_skill.intent_pattern
                     ):
                         if _learned_skill.confidence >= 0.80 or _has_param_accum:
-                            asyncio.create_task(
+                            _compile_task = asyncio.create_task(
                                 self._compile_universal_skill(_learned_skill, llm_call_fn)
                             )
+
+                            def _log_compile_result(task: asyncio.Task[Any]) -> None:
+                                try:
+                                    task.result()
+                                except Exception:
+                                    logger.debug(
+                                        "CLS universal skill compile failed",
+                                        exc_info=True,
+                                    )
+
+                            _compile_task.add_done_callback(_log_compile_result)
             except Exception as _exc:
                 logger.debug("CLS LLM observation failed: %s", _exc)
 
@@ -1900,7 +1933,7 @@ class LLMEngineMixin:
                             async for text in stream_ctx.text_stream:
                                 yield text
 
-                    return _gen()  # type: ignore[no-any-return]
+                    return _gen()
                 hist_msgs = [m for m in (history or []) if m.get("role") != "system"]
                 msgs = hist_msgs + [{"role": "user", "content": user_prompt}]
                 msg = await anthropic_client.messages.create(

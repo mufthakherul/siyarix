@@ -9,16 +9,49 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# Basic patterns for secret detection
+# Keep in sync with siyarix.security_hardening._REDACT_PATTERNS (SecretRedactor).
+# Named tags are stable for callers/tests; more-specific sk-* forms precede OPENAI_KEY.
 SECRET_PATTERNS = {
+    "ANTHROPIC_KEY": re.compile(r"sk-ant-[A-Za-z0-9_-]{20,}"),
+    "DEEPSEEK_KEY": re.compile(r"sk-ds[A-Za-z0-9_-]{20,}"),
+    "STRIPE_KEY": re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{16,}"),
+    "OPENAI_KEY": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    "XAI_KEY": re.compile(r"xai-[A-Za-z0-9_-]{20,}"),
+    "GROQ_KEY": re.compile(r"gsk_[A-Za-z0-9_-]{16,}"),
+    "PROVIDER_KEY_KV": re.compile(
+        r"(?i)((?:siyarix_[\w-]+|openai|anthropic|groq|gemini|xai|mistral|ssh)"
+        r"[_-]?(?:api[_-]?)?key\s*[=:]\s*)\S+"
+    ),
     "AWS_KEY": re.compile(r"AKIA[0-9A-Z]{16}"),
-    "GCP_KEY": re.compile(r"AIza[0-9A-Za-z-_]{35}"),
-    "SLACK_TOKEN": re.compile(r"xox[baprs]-[0-9]{12}-[0-9]{12}-[a-zA-Z0-9]{24}"),
-    "GITHUB_TOKEN": re.compile(r"gh[pousr]_[A-Za-z0-9_]{36}"),
-    "GENERIC_BEARER": re.compile(r"Bearer\s+[a-zA-Z0-9_\-\.]+"),
+    # Group 1 = key-name prefix (preserved); value is redacted (H-10).
+    "AWS_SECRET_KEY": re.compile(r"(?i)(aws[_-]?secret[_-]?access[_-]?key\s*[=:]\s*)\S+"),
+    "GCP_KEY": re.compile(r"AIza[0-9A-Za-z_-]{35}"),
+    "GCP_SERVICE_ACCOUNT": re.compile(r'"type"\s*:\s*"service_account"'),
+    "AZURE_CONNECTION": re.compile(
+        r"(?i)(?:DefaultEndpointsProtocol|AccountKey|SharedAccessSignature)=[A-Za-z0-9+/=]+"
+    ),
+    "MISTRAL_KEY": re.compile(r"(?i)mistral[_-]?api[_-]?key\s*[=:]\s*\S+"),
+    "SLACK_TOKEN": re.compile(r"xox[bporas]-[0-9A-Za-z-]+"),
+    "GITHUB_TOKEN": re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}"),
+    "GENERIC_BEARER": re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}"),
+    "AUTH_TOKEN_HEADER": re.compile(r"(?i)Authorization:\s*Token\s+[A-Za-z0-9_.~+/=-]{8,}"),
+    "BASIC_AUTH": re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}"),
+    "GENERIC_API_KEY": re.compile(
+        r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"
+    ),
+    # Group 1 = `://user:` prefix; password redacted; `@` kept via lookahead.
+    "URL_PASSWORD": re.compile(r"(://[^:/?#]+:)(.{3,})(?=@)"),
+    "JWT_TOKEN": re.compile(
+        r"\beyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"
+    ),
+    "SECRET_KV": re.compile(
+        r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+"
+    ),
     "PRIVATE_KEY": re.compile(
-        r"-----BEGIN [A-Z ]*PRIVATE KEY-----[a-zA-Z0-9+/=\s]*?(?:-----END [A-Z ]*PRIVATE KEY-----)?",
-        re.DOTALL,
+        r"-----BEGIN\s+(?:(?:RSA|DSA|EC|OPENSSH|ED25519|ENCRYPTED)\s+)?PRIVATE\s+KEY-----"
+        r"[\s\S]+?"
+        r"-----END\s+(?:(?:RSA|DSA|EC|OPENSSH|ED25519|ENCRYPTED)\s+)?PRIVATE\s+KEY-----",
+        re.IGNORECASE,
     ),
 }
 
@@ -38,7 +71,7 @@ class DLPEngine:
     def redact(self, text: str) -> str:
         """Redact sensitive information from a string."""
         if not isinstance(text, str):
-            return text  # type: ignore[unreachable]
+            return text
         if not text:
             return text
 
@@ -46,7 +79,12 @@ class DLPEngine:
 
         if self.redact_secrets:
             for name, pattern in SECRET_PATTERNS.items():
-                redacted = pattern.sub(f"[REDACTED {name}]", redacted)
+                placeholder = f"[REDACTED {name}]"
+                if pattern.groups >= 1:
+                    # Preserve key-name prefix capture groups (aligned with SecretRedactor).
+                    redacted = pattern.sub(rf"\g<1>{placeholder}", redacted)
+                else:
+                    redacted = pattern.sub(placeholder, redacted)
 
         if self.redact_pii:
             for name, pattern in PII_PATTERNS.items():

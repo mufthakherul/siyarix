@@ -178,7 +178,8 @@ class TestExecutePlan:
         plan = make_plan(steps=[s1], plan_type=PlanType.SEQUENTIAL)
         ex = Executor()
         await ex.execute_plan(plan, make_async_executor())
-        assert s1.status == StepStatus.PENDING
+        # Unresolvable deps are fail-closed to SKIPPED (no busy-wait).
+        assert s1.status == StepStatus.SKIPPED
 
     @pytest.mark.asyncio
     async def test_dependency_chain_resolves(self):
@@ -197,7 +198,7 @@ class TestExecutePlan:
         ex = Executor()
         await ex.execute_plan(plan, fail_executor)
         assert s1.status == StepStatus.FAILED
-        assert s2.status == StepStatus.PENDING
+        assert s2.status == StepStatus.SKIPPED
 
     @pytest.mark.asyncio
     async def test_no_executor_fn_uses_registry(self):

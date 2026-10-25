@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
+import logging
 import shlex
 from typing import Any
 
 from .tool_models import ToolHandler
+
+logger = logging.getLogger(__name__)
 
 
 def _empty_target_result(tool: str) -> dict:
@@ -36,8 +39,10 @@ async def _run(
                 duration_ms=0.0,
             )
         cmd = validator.sanitize_args(cmd)
-    except Exception:
-        pass
+    except Exception as exc:
+        # Fail closed: never skip injection sanitization on validator errors.
+        logger.warning("Command injection validation failed closed: %s", exc)
+        raise ValueError(f"Command validation unavailable: {exc}") from exc
 
     if on_stdout or on_stderr:
         from .subprocess_utils import safe_run_async_stream as _run_async_stream
@@ -98,7 +103,6 @@ def make_web_handler(tool_name: str) -> ToolHandler:
 
             if target and os.getenv("SIYARIX_STEALTH") == "1":
                 import urllib.parse
-                import urllib.request
 
                 from .stealth import StealthEngine
 
@@ -109,15 +113,25 @@ def make_web_handler(tool_name: str) -> ToolHandler:
                 reqs = engine.get_decoy_requests(target)
                 for req in reqs:
                     try:
-                        _parsed = urllib.parse.urlparse(req["url"])
-                        if _parsed.scheme not in ("http", "https"):
+                        decoy_url = str(req.get("url") or "")
+                        _parsed = urllib.parse.urlparse(decoy_url)
+                        # HTTPS-only: cleartext decoys are skipped (SSRF / MITM).
+                        if _parsed.scheme != "https":
                             continue
-                        r = urllib.request.Request(
-                            req["url"],
-                            method=req["method"],
-                            headers={"User-Agent": req["user_agent"]},
+                        from .webhooks import _https_request_pinned
+
+                        method = str(req.get("method") or "GET").upper()
+                        body = None
+                        data = req.get("data")
+                        if data and method in ("POST", "PUT", "PATCH"):
+                            body = str(data).encode("utf-8")
+                        _https_request_pinned(
+                            decoy_url,
+                            method=method,
+                            body=body,
+                            timeout=1.0,
+                            headers={"User-Agent": str(req.get("user_agent") or "Siyarix")},
                         )
-                        urllib.request.urlopen(r, timeout=1)  # nosec B310
                     except Exception:
                         pass
         except Exception:
@@ -737,8 +751,6 @@ def make_generic_handler(
     timeout: int | None = None,
 ) -> ToolHandler:
     async def handler(**kwargs: Any) -> dict[str, Any]:
-        from .subprocess_utils import safe_run_async
-
         exec_bin = binary or tool_name
         extra_defaults = list(default_args or [])
         tool_timeout = timeout
@@ -773,18 +785,16 @@ def make_generic_handler(
             cmd.extend(flags.split())
         if target:
             cmd.append(target)
-        cmd_timeout = kwargs.get("timeout") or tool_timeout or 120
-        on_stdout = kwargs.get("on_stdout")
-        on_stderr = kwargs.get("on_stderr")
+        cmd_timeout = int(kwargs.get("timeout") or tool_timeout or 120)
         try:
-            if on_stdout or on_stderr:
-                from .subprocess_utils import safe_run_async_stream
-
-                result = await safe_run_async_stream(
-                    cmd, timeout=cmd_timeout, on_stdout=on_stdout, on_stderr=on_stderr
-                )
-            else:
-                result = await safe_run_async(cmd, timeout=cmd_timeout)
+            # Share curated-handler injection validation / sanitization.
+            result = await _run(
+                tool_name,
+                cmd,
+                timeout=cmd_timeout,
+                on_stdout=kwargs.get("on_stdout"),
+                on_stderr=kwargs.get("on_stderr"),
+            )
             return _make_result(tool_name, result)
         except Exception as exc:
             return {"status": "error", "error": str(exc), "tool": tool_name}

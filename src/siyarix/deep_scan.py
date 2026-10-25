@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from .exceptions import ToolExecutionError, ToolNotFoundError
+from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor
 from .models import PlanStep
 from .offline_store import OfflineStore
@@ -175,7 +175,11 @@ class DeepScanEngine:
         store: OfflineStore | None = None,
         planner: RegistryPlanner | None = None,
     ) -> None:
-        self._registry = registry or ToolRegistry()
+        if registry is None:
+            from .registry_factory import make_tool_registry
+
+            registry = make_tool_registry()
+        self._registry = registry
         self._executor = executor
         self._store = store or OfflineStore()
         self._planner = planner or RegistryPlanner()
@@ -189,9 +193,21 @@ class DeepScanEngine:
         persist: bool = True,
     ) -> dict[str, Any]:
         """Run a deep scan against the given target."""
-        passes = [p for p in _DEEP_SCAN_PASSES if profiles is None or p.name in profiles]
-        if not passes:
-            passes = _DEEP_SCAN_PASSES
+        from .target_scope import assert_command_in_scope
+
+        # Enforce SIYARIX_ALLOWED_SCOPE even when deep scan bypasses the planner.
+        assert_command_in_scope(f"scan {target}")
+
+        if profiles is None:
+            passes = list(_DEEP_SCAN_PASSES)
+        else:
+            wanted = {str(p).strip() for p in profiles if str(p).strip()}
+            passes = [p for p in _DEEP_SCAN_PASSES if p.name in wanted]
+            if not passes:
+                raise ValueError(
+                    f"Unknown deep-scan profile(s): {sorted(wanted)}. "
+                    f"Valid: {[p.name for p in _DEEP_SCAN_PASSES]}"
+                )
 
         all_findings: dict[str, list[dict[str, Any]]] = {}
         scan_id = f"deep_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{target.replace('.', '_').replace(':', '_')}"
@@ -242,16 +258,16 @@ class DeepScanEngine:
         return self._aggregate(target, all_findings, scan_id)
 
     async def _execute_tool(self, step: PlanStep, pass_name: str) -> dict[str, Any]:
-        if self._executor:
-            try:
-                result = await self._registry.execute(step.tool, **step.args)
-                return {"status": "completed", "findings": self._wrap_result(result, step.tool)}
-            except Exception as exc:
-                return {"status": "error", "error": str(exc), "tool": step.tool}
-
+        # Prefer ToolRegistry (PermissionGate-aware). When an executor is injected,
+        # run its permission/scope/destructive checks before dispatch.
+        _ = pass_name
         try:
+            if self._executor is not None:
+                await self._executor._check_permissions(step)
             result = await self._registry.execute(step.tool, **step.args)
             return {"status": "completed", "findings": self._wrap_result(result, step.tool)}
+        except PermissionDeniedError as e:
+            return {"status": "error", "error": str(e), "tool": step.tool}
         except ToolNotFoundError:
             alt_result = await self._try_alternatives(step)
             if alt_result.get("status") != "error":
@@ -270,9 +286,21 @@ class DeepScanEngine:
         alt_tools = TOOL_ALTERNATIVES.get(step.tool, [])
         for alt in alt_tools:
             try:
+                # Re-run permission/scope/destructive checks for the alternate tool
+                # so fallbacks cannot bypass the injected executor gate.
+                if self._executor is not None:
+                    alt_step = PlanStep(
+                        tool=alt,
+                        args=dict(step.args),
+                        command=step.command,
+                        timeout=step.timeout,
+                    )
+                    await self._executor._check_permissions(alt_step)
                 result = await self._registry.execute(alt, **step.args)
                 if result.get("status") != "error":
                     return {"status": "completed", "findings": self._wrap_result(result, alt)}
+            except PermissionDeniedError:
+                continue
             except (ToolNotFoundError, ToolExecutionError):
                 continue
         return {"status": "error", "error": f"No alternatives succeeded for {step.tool}"}

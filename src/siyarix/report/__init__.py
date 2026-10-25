@@ -42,20 +42,28 @@ class ReportEngine:
         """Build a report from a KnowledgeGraph by extracting finding nodes."""
         findings = []
         for node_id, node in knowledge_graph.nodes.items():
-            if node.properties.get("category") == "finding":
-                findings.append(
-                    {
-                        "severity": node.properties.get("severity", "info"),
-                        "type": node.properties.get("type", "unknown"),
-                        "target": node.properties.get("target", ""),
-                        "description": node.label,
-                        "evidence": node.properties.get("evidence", ""),
-                        "port": node.properties.get("port"),
-                        "service": node.properties.get("service"),
-                        "cve": node.properties.get("cve"),
-                        "cvss_score": node.properties.get("cvss_score"),
-                    }
-                )
+            props = getattr(node, "properties", {}) or {}
+            nt = getattr(node, "node_type", None)
+            nt_val = getattr(nt, "value", nt) if nt is not None else None
+            is_finding = isinstance(nt_val, str) and nt_val in {"finding", "vulnerability"}
+            if not is_finding:
+                is_finding = props.get("category") == "finding"
+            if not is_finding:
+                continue
+            findings.append(
+                {
+                    "severity": props.get("severity", "info"),
+                    "type": props.get("type", props.get("cve", "unknown")),
+                    "target": props.get("target", ""),
+                    "description": getattr(node, "label", "") or props.get("description", ""),
+                    "evidence": props.get("evidence", ""),
+                    "port": props.get("port"),
+                    "service": props.get("service"),
+                    "cve": props.get("cve"),
+                    "cvss_score": props.get("cvss_score"),
+                    "title": getattr(node, "label", "") or props.get("title", ""),
+                }
+            )
         return self.build_report(findings, target, config)
 
     def build_report(
@@ -310,219 +318,249 @@ class ReportEngine:
                     lines.append("")
         return "\n".join(lines)
 
+    _SEVERITY_CSS_CLASS = {
+        "critical": "critical",
+        "high": "high",
+        "medium": "medium",
+        "low": "low",
+        "info": "info",
+    }
+
+    _HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'{% if not offline %} https://fonts.googleapis.com{% endif %};{% if not offline %} font-src https://fonts.gstatic.com;{% endif %} script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none';">
+<title>{{ title }}</title>
+{% if not offline %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&amp;family=Fira+Code&amp;display=swap" rel="stylesheet">
+{% endif %}
+<style>
+{% if offline %}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+code,pre{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace}
+{% endif %}
+{{ css|safe }}
+</style>
+<script>
+{{ js|safe }}
+</script>
+</head>
+<body>
+<div class="dashboard">
+  <div class="header">
+    <h1>{{ title }}</h1>
+    <div class="meta-tags">
+      <span>Target: <b>{{ target }}</b></span> |
+      <span>Generated: {{ generated_at }}</span> |
+      <span>ID: {{ report_id }}</span>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-val">{{ total }}</div><div class="stat-label">Total Findings</div></div>
+    <div class="stat-card"><div class="stat-val crit">{{ counts.critical }}</div><div class="stat-label">Critical</div></div>
+    <div class="stat-card"><div class="stat-val high">{{ counts.high }}</div><div class="stat-label">High</div></div>
+    <div class="stat-card"><div class="stat-val med">{{ counts.medium }}</div><div class="stat-label">Medium</div></div>
+    <div class="stat-card"><div class="stat-val low">{{ counts.low }}</div><div class="stat-label">Low</div></div>
+  </div>
+
+  <div class="filter-bar">
+    <button type="button" class="filter-btn active" data-sev="all">All Findings</button>
+    <button type="button" class="filter-btn" data-sev="critical">Critical</button>
+    <button type="button" class="filter-btn" data-sev="high">High</button>
+    <button type="button" class="filter-btn" data-sev="medium">Medium</button>
+    <button type="button" class="filter-btn" data-sev="low">Low</button>
+    <button type="button" class="filter-btn" data-sev="info">Info</button>
+  </div>
+
+  <div class="findings-list">
+  {% for f in findings %}
+    <details class="finding-card {{ f.sev_class }}">
+      <summary>{{ f.title }} <span class="badge badge-{{ f.sev_class }}">{{ f.severity_label }}</span></summary>
+      <div class="finding-details">
+        <div class="detail-row"><span class="detail-label">Description</span>{{ f.description }}</div>
+        {% if f.cvss %}
+        <div class="detail-row"><span class="detail-label">CVSS Score</span>{{ f.cvss.score }} ({{ f.cvss.vector }})</div>
+        {% endif %}
+        <div class="detail-row"><span class="detail-label">Tool</span><code>{{ f.tool }}</code> targeting <code>{{ f.target }}</code></div>
+        {% if f.evidence %}
+        <div class="detail-row"><span class="detail-label">Evidence Snapshot</span><pre>{{ f.evidence }}</pre></div>
+        {% endif %}
+      </div>
+    </details>
+  {% endfor %}
+  </div>
+
+  <h2 style="margin-top: 4rem; margin-bottom: 1rem;">Raw Data Table</h2>
+  <table>
+    <thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>Target</th></tr></thead>
+    <tbody>
+    {% for f in findings %}
+      <tr>
+        <td>{{ f.severity_label }}</td>
+        <td>{{ f.title }}</td>
+        <td>{{ f.tool }}</td>
+        <td>{{ f.target }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>
+"""
+
+    _HTML_CSS = """
+:root {
+    --bg-main: #0B0F19; --bg-card: rgba(20, 25, 40, 0.6);
+    --border-glow: rgba(0, 255, 170, 0.2);
+    --text-main: #E2E8F0; --text-muted: #94A3B8;
+    --crit: #FF2A55; --high: #FF8B3D; --med: #FFD166; --low: #4DABF7; --info: #A8B2C1;
+    --crit-fg: #FFFFFF; --high-fg: #1A1A1A; --med-fg: #1A1A1A;
+    --low-fg: #0B0F19; --info-fg: #0B0F19;
+    --accent: #00F0FF;
+}
+body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-main) radial-gradient(circle at 50% 0%, rgba(0,240,255,0.05) 0%, transparent 50%);
+    color: var(--text-main); margin: 0; padding: 2rem;
+    line-height: 1.6;
+}
+.dashboard { max-width: 1200px; margin: 0 auto; }
+.header { text-align: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
+h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #FFF; text-shadow: 0 0 20px var(--border-glow); }
+.meta-tags { display: flex; justify-content: center; gap: 1rem; color: var(--text-muted); font-size: 0.9rem; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+.stat-card {
+    background: var(--bg-card); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;
+    padding: 1.5rem; text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+.stat-val { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+.stat-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+.crit { color: var(--crit); text-shadow: 0 0 15px rgba(255,42,85,0.4); }
+.high { color: var(--high); text-shadow: 0 0 15px rgba(255,139,61,0.4); }
+.med { color: var(--med); }
+.low { color: var(--low); }
+.info { color: var(--info); }
+.filter-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+.filter-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: var(--text-main); padding: 0.5rem 1.5rem; border-radius: 20px;
+    cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+}
+.filter-btn:hover, .filter-btn.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+.finding-card {
+    background: var(--bg-card); border-left: 4px solid var(--info);
+    border-radius: 8px; margin-bottom: 1rem; overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.finding-card.critical { border-color: var(--crit); }
+.finding-card.high { border-color: var(--high); }
+.finding-card.medium { border-color: var(--med); }
+.finding-card.low { border-color: var(--low); }
+.finding-card.info { border-color: var(--info); }
+summary {
+    padding: 1.2rem 1.5rem; cursor: pointer; list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 600; font-size: 1.1rem;
+}
+summary::-webkit-details-marker { display: none; }
+summary:hover { background: rgba(255,255,255,0.02); }
+.badge {
+    font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 12px;
+    margin-left: 1rem; font-weight: 700; letter-spacing: 0.03em;
+}
+.badge-critical { background: var(--crit); color: var(--crit-fg); }
+.badge-high { background: var(--high); color: var(--high-fg); }
+.badge-medium { background: var(--med); color: var(--med-fg); }
+.badge-low { background: var(--low); color: var(--low-fg); }
+.badge-info { background: var(--info); color: var(--info-fg); }
+.finding-details { padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
+.detail-row { margin-bottom: 1rem; }
+.detail-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 0.3rem; }
+code, pre { font-family: 'Fira Code', monospace; background: rgba(0,0,0,0.4); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
+pre { padding: 1rem; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05); }
+table { width: 100%; border-collapse: collapse; margin: 2rem 0; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
+th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 500; }
+"""
+
+    _HTML_JS = """
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.filter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var sev = btn.getAttribute('data-sev') || 'all';
+      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.finding-card').forEach(function (card) {
+        if (sev === 'all' || card.classList.contains(sev)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+  });
+});
+"""
+
     def _render_html(self, report: Report) -> str:
-        """Renders a premium, interactive HTML Dashboard."""
-        # --- 1. CSS Styles ---
-        css = """
-        :root {
-            --bg-main: #0B0F19; --bg-card: rgba(20, 25, 40, 0.6);
-            --border-glow: rgba(0, 255, 170, 0.2);
-            --text-main: #E2E8F0; --text-muted: #94A3B8;
-            --crit: #FF2A55; --high: #FF8B3D; --med: #FFD166; --low: #4DABF7; --info: #A8B2C1;
-            --accent: #00F0FF;
+        """Render an HTML dashboard with autoescaped finding/metadata fields."""
+        from jinja2 import Environment
+
+        counts_raw = self._count_severities(report.findings)
+        counts = {
+            "critical": counts_raw.get("critical", 0),
+            "high": counts_raw.get("high", 0),
+            "medium": counts_raw.get("medium", 0),
+            "low": counts_raw.get("low", 0),
+            "info": counts_raw.get("info", 0),
         }
-        body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: var(--bg-main) radial-gradient(circle at 50% 0%, rgba(0,240,255,0.05) 0%, transparent 50%);
-            color: var(--text-main); margin: 0; padding: 2rem;
-            line-height: 1.6;
-        }
-        .dashboard { max-width: 1200px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: #FFF; text-shadow: 0 0 20px var(--border-glow); }
-        .meta-tags { display: flex; justify-content: center; gap: 1rem; color: var(--text-muted); font-size: 0.9rem; }
 
-        /* Stats Grid */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
-        .stat-card {
-            background: var(--bg-card); backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.05); border-radius: 12px;
-            padding: 1.5rem; text-align: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
-        .stat-val { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
-        .stat-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
-
-        /* Severities */
-        .crit { color: var(--crit); text-shadow: 0 0 15px rgba(255,42,85,0.4); }
-        .high { color: var(--high); text-shadow: 0 0 15px rgba(255,139,61,0.4); }
-        .med { color: var(--med); }
-        .low { color: var(--low); }
-        .info { color: var(--info); }
-
-        /* Filter Bar */
-        .filter-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
-        .filter-btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text-main); padding: 0.5rem 1.5rem; border-radius: 20px;
-            cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
-        }
-        .filter-btn:hover, .filter-btn.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
-
-        /* Findings List */
-        .finding-card {
-            background: var(--bg-card); border-left: 4px solid var(--info);
-            border-radius: 8px; margin-bottom: 1rem; overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-        .finding-card.critical { border-color: var(--crit); }
-        .finding-card.high { border-color: var(--high); }
-        .finding-card.medium { border-color: var(--med); }
-        .finding-card.low { border-color: var(--low); }
-
-        summary {
-            padding: 1.2rem 1.5rem; cursor: pointer; list-style: none;
-            display: flex; justify-content: space-between; align-items: center;
-            font-weight: 600; font-size: 1.1rem;
-        }
-        summary::-webkit-details-marker { display: none; }
-        summary:hover { background: rgba(255,255,255,0.02); }
-        .badge { font-size: 0.8rem; padding: 0.2rem 0.6rem; border-radius: 12px; background: rgba(255,255,255,0.1); margin-left: 1rem; }
-
-        .finding-details { padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.2); }
-        .detail-row { margin-bottom: 1rem; }
-        .detail-label { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 0.3rem; }
-        code, pre { font-family: 'Fira Code', monospace; background: rgba(0,0,0,0.4); padding: 0.2rem 0.4rem; border-radius: 4px; font-size: 0.9em; }
-        pre { padding: 1rem; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05); }
-
-        /* Table */
-        table { width: 100%; border-collapse: collapse; margin: 2rem 0; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
-        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 500; }
-        """
-
-        # --- 2. JavaScript ---
-        js = """
-        function filterFindings(sev) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-
-            document.querySelectorAll('.finding-card').forEach(card => {
-                if (sev === 'all' || card.classList.contains(sev)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
+        findings_ctx: list[dict[str, Any]] = []
+        for f in report.findings:
+            sev = str(f.get("severity", "info") or "info").lower()
+            sev_class = self._SEVERITY_CSS_CLASS.get(sev, "info")
+            cvss = f.get("cvss")
+            cvss_ctx = None
+            if isinstance(cvss, dict):
+                cvss_ctx = {
+                    "score": cvss.get("score", ""),
+                    "vector": cvss.get("vector", ""),
                 }
-            });
-        }
-        """
-
-        # --- 3. HTML Generation ---
-        counts = self._count_severities(report.findings)
-
-        html = [
-            "<!DOCTYPE html><html lang='en'>",
-            "<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>",
-            f"<title>{report.config.title}</title>",
-            ""
-            if not getattr(report.config, "offline", False)
-            else "<link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Fira+Code&display=swap' rel='stylesheet'>",
-            "<style>"
-            + (
-                "body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}"
-                "code,pre{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace}"
-                if getattr(report.config, "offline", False)
-                else ""
+            findings_ctx.append(
+                {
+                    "title": f.get("title", "Unknown Finding"),
+                    "description": f.get("description", "N/A"),
+                    "tool": f.get("tool", "N/A"),
+                    "target": f.get("target", "N/A"),
+                    "evidence": f.get("evidence") or "",
+                    "severity_label": sev.upper(),
+                    "sev_class": sev_class,
+                    "cvss": cvss_ctx,
+                }
             )
-            + css
-            + "</style>",
-            f"<script>{js}</script>",
-            "</head><body><div class='dashboard'>",
-        ]
 
-        # Header
-        html.extend(
-            [
-                "<div class='header'>",
-                f"<h1>{report.config.title}</h1>",
-                "<div class='meta-tags'>",
-                f"<span>Target: <b>{report.metadata.get('target', 'N/A')}</b></span> | ",
-                f"<span>Generated: {report.generated_at}</span> | ",
-                f"<span>ID: {report.report_id}</span>",
-                "</div></div>",
-            ],
+        env = Environment(autoescape=True)
+        template = env.from_string(self._HTML_TEMPLATE)
+        return template.render(
+            title=report.config.title,
+            target=report.metadata.get("target", "N/A"),
+            generated_at=report.generated_at,
+            report_id=report.report_id,
+            total=len(report.findings),
+            counts=counts,
+            findings=findings_ctx,
+            offline=bool(getattr(report.config, "offline", True)),
+            css=self._HTML_CSS,
+            js=self._HTML_JS,
         )
-
-        # Stats
-        html.extend(
-            [
-                "<div class='stats-grid'>",
-                f"<div class='stat-card'><div class='stat-val'>{len(report.findings)}</div><div class='stat-label'>Total Findings</div></div>",
-                f"<div class='stat-card'><div class='stat-val crit'>{counts.get('critical', 0)}</div><div class='stat-label'>Critical</div></div>",
-                f"<div class='stat-card'><div class='stat-val high'>{counts.get('high', 0)}</div><div class='stat-label'>High</div></div>",
-                f"<div class='stat-card'><div class='stat-val med'>{counts.get('medium', 0)}</div><div class='stat-label'>Medium</div></div>",
-                f"<div class='stat-card'><div class='stat-val low'>{counts.get('low', 0)}</div><div class='stat-label'>Low</div></div>",
-                "</div>",
-            ],
-        )
-
-        # Filters
-        html.extend(
-            [
-                "<div class='filter-bar'>",
-                "<button class='filter-btn active' onclick=\"filterFindings('all')\">All Findings</button>",
-                "<button class='filter-btn' onclick=\"filterFindings('critical')\">Critical</button>",
-                "<button class='filter-btn' onclick=\"filterFindings('high')\">High</button>",
-                "<button class='filter-btn' onclick=\"filterFindings('medium')\">Medium</button>",
-                "<button class='filter-btn' onclick=\"filterFindings('low')\">Low</button>",
-                "<button class='filter-btn' onclick=\"filterFindings('info')\">Info</button>",
-                "</div>",
-            ],
-        )
-
-        # Findings List
-        html.append("<div class='findings-list'>")
-        for f in report.findings:
-            sev = f.get("severity", "info").lower()
-            html.extend(
-                [
-                    f"<details class='finding-card {sev}'>",
-                    f"<summary>{f.get('title', 'Unknown Finding')} <span class='badge' style='background: var(--{sev[:4]})'>{sev.upper()}</span></summary>",
-                    "<div class='finding-details'>",
-                ],
-            )
-
-            # Details
-            html.append(
-                f"<div class='detail-row'><span class='detail-label'>Description</span>{f.get('description', 'N/A')}</div>",
-            )
-
-            if "cvss" in f:
-                cv = f["cvss"]
-                html.append(
-                    f"<div class='detail-row'><span class='detail-label'>CVSS Score</span>{cv.get('score')} ({cv.get('vector')})</div>",
-                )
-
-            html.append(
-                f"<div class='detail-row'><span class='detail-label'>Tool</span><code>{f.get('tool', 'N/A')}</code> targeting <code>{f.get('target', 'N/A')}</code></div>",
-            )
-
-            if f.get("evidence"):
-                html.append(
-                    f"<div class='detail-row'><span class='detail-label'>Evidence Snapshot</span><pre>{f.get('evidence')}</pre></div>",
-                )
-
-            html.append("</div></details>")
-
-        html.append("</div>")  # End findings list
-
-        # Appendix Table
-        html.extend(
-            [
-                "<h2 style='margin-top: 4rem; margin-bottom: 1rem;'>Raw Data Table</h2>",
-                "<table><thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>Target</th></tr></thead><tbody>",
-            ],
-        )
-        for f in report.findings:
-            html.append(
-                f"<tr><td>{f.get('severity', 'info').upper()}</td><td>{f.get('title')}</td><td>{f.get('tool')}</td><td>{f.get('target')}</td></tr>",
-            )
-        html.append("</tbody></table>")
-
-        html.append("</div></body></html>")
-        return "".join(html)
 
     def _render_json(self, report: Report) -> str:
         data = {

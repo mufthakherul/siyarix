@@ -331,22 +331,51 @@ class TestExecute:
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
-        with patch("siyarix.shell_review.review_and_confirm", return_value=None) as mock_review:
+        with (
+            patch("siyarix.shell_review.review_and_confirm", return_value=None),
+            patch("siyarix.shell_review.is_interactive", return_value=True),
+            patch("siyarix.shell_review._is_interactive", return_value=True),
+        ):
             with pytest.raises(PermissionDeniedError, match="Cancelled by user"):
                 await registry.execute("nmap", command="nmap target")
+
+    @patch("siyarix.registry.emit_sync")
+    async def test_execute_permission_gate_edit_rejects_destructive(
+        self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
+    ):
+        """SX-002: edited review text must clear destructive hard-blocks."""
+        gate = MagicMock()
+        # Initial check allows + requires review; recheck on edit also allows
+        # so the destructive assert (not the gate) is what blocks.
+        gate.check.return_value = MagicMock(
+            allowed=True, requires_review=True, reason="review needed"
+        )
+        registry._permission_gate = gate
+        handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
+        registry.register(sample_tool, handler)
+        with patch(
+            "siyarix.shell_review.review_and_confirm",
+            return_value="dd if=/dev/zero of=/dev/sda",
+        ):
+            with pytest.raises(PermissionDeniedError, match=r"(?i)block devices|destructive"):
+                await registry.execute("nmap", command="nmap -sV example.com")
+        handler.assert_not_called()
 
     @patch("siyarix.registry.emit_sync")
     async def test_execute_permission_gate_no_command(
         self, mock_emit, registry: ToolRegistry, sample_tool: ToolCapability
     ):
+        # Kwargs-only / no-command invokes still build a synopsis and hit the gate.
         gate = MagicMock()
+        gate.check.return_value = MagicMock(allowed=True, requires_review=False, reason="")
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
         with patch("asyncio.to_thread", new_callable=AsyncMock):
             result = await registry.execute("nmap")
             assert result["status"] == "success"
-            gate.check.assert_not_called()
+            gate.check.assert_called_once()
+            assert gate.check.call_args.args[0] == "nmap"
 
     @patch("siyarix.registry.emit_sync")
     async def test_execute_with_parser(self, mock_emit, registry: ToolRegistry):

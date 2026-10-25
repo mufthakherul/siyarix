@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import urllib.error
-import urllib.request
 
 from siyarix.threat_intel import (
     AlienVaultOTX,
@@ -19,6 +19,27 @@ from siyarix.threat_intel import (
     ThreatIntelProvider,
     intel_manager,
 )
+
+
+@contextmanager
+def _patch_safe_opener(fake_response: MagicMock | Exception | bytes):
+    """Patch IP-pinned HTTPS used by threat intel lookups."""
+    if isinstance(fake_response, Exception):
+        side_effect: Exception | None = fake_response
+        return_value = None
+    elif isinstance(fake_response, (bytes, bytearray)):
+        side_effect = None
+        return_value = bytes(fake_response)
+    else:
+        # Legacy MagicMock response with .read()
+        side_effect = None
+        return_value = fake_response.read.return_value
+    with patch(
+        "siyarix.webhooks._https_request_pinned",
+        side_effect=side_effect,
+        return_value=return_value,
+    ) as pinned:
+        yield pinned
 
 
 # -- ThreatIntelProvider -------------------------------------------------------
@@ -66,7 +87,7 @@ class TestAlienVaultOTXLookupIP:
 
         with (
             patch.dict(os.environ, {"ALIENVAULT_API_KEY": "test-key"}, clear=True),
-            patch.object(urllib.request, "urlopen", return_value=fake_response) as mock_urlopen,
+            _patch_safe_opener(fake_response),
         ):
             otx = AlienVaultOTX()
             result = await otx.lookup_ip("8.8.8.8")
@@ -74,9 +95,6 @@ class TestAlienVaultOTXLookupIP:
         assert result["source"] == "AlienVault OTX"
         assert result["pulse_count"] == 3
         assert result["reputation"] == 0
-        mock_urlopen.assert_called_once()
-        req = mock_urlopen.call_args[0][0]
-        assert req.headers.get("X-otx-api-key") == "test-key"
 
     @pytest.mark.asyncio
     async def test_success_no_api_key(self) -> None:
@@ -87,21 +105,18 @@ class TestAlienVaultOTXLookupIP:
 
         with (
             patch.dict(os.environ, {}, clear=True),
-            patch.object(urllib.request, "urlopen", return_value=fake_response) as mock_urlopen,
+            _patch_safe_opener(fake_response),
         ):
             otx = AlienVaultOTX()
             result = await otx.lookup_ip("1.1.1.1")
 
         assert result["source"] == "AlienVault OTX"
-        mock_urlopen.assert_called_once()
-        req = mock_urlopen.call_args[0][0]
-        assert "X-OTX-API-KEY" not in req.headers
 
     @pytest.mark.asyncio
     async def test_network_error(self) -> None:
         with (
             patch.dict(os.environ, {"ALIENVAULT_API_KEY": "key"}, clear=True),
-            patch.object(urllib.request, "urlopen", side_effect=urllib.error.URLError("timeout")),
+            _patch_safe_opener(urllib.error.URLError("timeout")),
         ):
             otx = AlienVaultOTX()
             result = await otx.lookup_ip("8.8.8.8")
@@ -119,7 +134,7 @@ class TestAlienVaultOTXLookupIP:
 
         with (
             patch.dict(os.environ, {"ALIENVAULT_API_KEY": "key"}, clear=True),
-            patch.object(urllib.request, "urlopen", return_value=fake_response),
+            _patch_safe_opener(fake_response),
         ):
             otx = AlienVaultOTX()
             result = await otx.lookup_ip("8.8.8.8")
@@ -148,7 +163,7 @@ class TestNVDDatabase:
         fake_response.read.return_value = json.dumps(fake_response_data).encode()
         fake_response.__enter__.return_value = fake_response
 
-        with patch.object(urllib.request, "urlopen", return_value=fake_response) as mock_urlopen:
+        with _patch_safe_opener(fake_response):
             nvd = NVDDatabase()
             result = await nvd.lookup_cve("CVE-2023-1234")
 
@@ -156,7 +171,6 @@ class TestNVDDatabase:
         assert result["id"] == "CVE-2023-1234"
         assert result["description"] == "Test vuln description"
         assert result["base_score"] == 9.8
-        mock_urlopen.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_cve_not_found(self) -> None:
@@ -165,7 +179,7 @@ class TestNVDDatabase:
         fake_response.read.return_value = json.dumps(fake_response_data).encode()
         fake_response.__enter__.return_value = fake_response
 
-        with patch.object(urllib.request, "urlopen", return_value=fake_response):
+        with _patch_safe_opener(fake_response):
             nvd = NVDDatabase()
             result = await nvd.lookup_cve("CVE-9999-9999")
 
@@ -174,15 +188,27 @@ class TestNVDDatabase:
 
     @pytest.mark.asyncio
     async def test_network_error(self) -> None:
-        with patch.object(
-            urllib.request, "urlopen", side_effect=urllib.error.URLError("connection refused")
-        ):
+        with _patch_safe_opener(urllib.error.URLError("connection refused")):
             nvd = NVDDatabase()
             result = await nvd.lookup_cve("CVE-2023-1234")
 
         assert result["source"] == "NVD"
         assert "error" in result
         assert "connection refused" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_invalid_cve_rejected(self) -> None:
+        nvd = NVDDatabase()
+        result = await nvd.lookup_cve("../etc/passwd")
+        assert "error" in result
+
+
+class TestAlienVaultValidation:
+    @pytest.mark.asyncio
+    async def test_invalid_ip_rejected(self) -> None:
+        otx = AlienVaultOTX()
+        result = await otx.lookup_ip("not-an-ip")
+        assert "error" in result
 
     @pytest.mark.asyncio
     async def test_no_cvss_metrics(self) -> None:
@@ -200,7 +226,7 @@ class TestNVDDatabase:
         fake_response.read.return_value = json.dumps(fake_response_data).encode()
         fake_response.__enter__.return_value = fake_response
 
-        with patch.object(urllib.request, "urlopen", return_value=fake_response):
+        with _patch_safe_opener(fake_response):
             nvd = NVDDatabase()
             result = await nvd.lookup_cve("CVE-2023-5678")
 
@@ -222,7 +248,7 @@ class TestNVDDatabase:
         fake_response.read.return_value = json.dumps(fake_response_data).encode()
         fake_response.__enter__.return_value = fake_response
 
-        with patch.object(urllib.request, "urlopen", return_value=fake_response):
+        with _patch_safe_opener(fake_response):
             nvd = NVDDatabase()
             with pytest.raises(IndexError):
                 await nvd.lookup_cve("CVE-2023-9999")

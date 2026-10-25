@@ -192,7 +192,9 @@ class HealthChecker:
                             "localai": (8080, "/readyz"),
                         }
                         port, path = endpoints.get(provider_name, (11434, "/api/tags"))
-                        async with httpx.AsyncClient(timeout=0.5) as client:
+                        async with httpx.AsyncClient(
+                            timeout=0.5, follow_redirects=False
+                        ) as client:
                             resp = await client.get(f"http://localhost:{port}{path}")
                             available = resp.status_code == 200
                             message = (

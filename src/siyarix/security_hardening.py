@@ -239,6 +239,8 @@ _REDACT_PLACEHOLDER = "[REDACTED]"
 
 _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # ── API keys ──────────────────────────────────────────────────────────
+    # Stripe live/test keys before generic ``sk-`` OpenAI pattern.
+    ("stripe_key", re.compile(r"sk_(?:live|test)_[A-Za-z0-9]{16,}")),
     ("openai_key", re.compile(r"sk-[A-Za-z0-9_-]{20,}")),
     ("aws_access_key", re.compile(r"AKIA[0-9A-Z]{16}")),
     # H-10: preserve the key name, only redact the value after = or :.
@@ -254,9 +256,21 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("deepseek_key", re.compile(r"sk-ds[A-Za-z0-9_-]{20,}")),
     # xAI (Grok) API keys
     ("xai_key", re.compile(r"xai-[A-Za-z0-9_-]{20,}")),
+    # Groq API keys
+    ("groq_key", re.compile(r"gsk_[A-Za-z0-9_-]{16,}")),
     # Mistral API keys
     ("mistral_key", re.compile(r"(?i)mistral[_-]?api[_-]?key\s*[=:]\s*\S+")),
+    # Named provider / SIYARIX ``*_KEY=`` assignments (preserve name, redact value).
+    # Bare ``api_key=`` is handled by ``generic_api_key`` (keeps quoting).
+    (
+        "provider_key_kv",
+        re.compile(
+            r"(?i)((?:siyarix_[\w-]+|openai|anthropic|groq|gemini|xai|mistral|ssh)"
+            r"[_-]?(?:api[_-]?)?key\s*[=:]\s*)\S+",
+        ),
+    ),
     ("bearer_token", re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}")),
+    ("auth_token_header", re.compile(r"(?i)Authorization:\s*Token\s+[A-Za-z0-9_.~+/=-]{8,}")),
     ("basic_auth", re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
     (
@@ -278,14 +292,27 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     # ── Passwords in URLs ────────────────────────────────────────────────
-    ("url_password", re.compile(r"://[^:]+:([^@]{3,})@")),
+    # Group 1 = `://user:` prefix (preserved). Password is redacted; `@` kept
+    # via lookahead so hosts stay parseable. Greedy ``.{3,}`` allows embedded
+    # ``@`` in passwords (``postgres://user:p@ss@host/db``) by consuming up to
+    # the final userinfo delimiter.
+    ("url_password", re.compile(r"(://[^:/?#]+:)(.{3,})(?=@)")),
     # ── Private key markers ──────────────────────────────────────────────
-    ("private_key", re.compile(r"-----BEGIN\s+(?:RSA\s+)?PRIVATE\s+KEY-----")),
+    (
+        "private_key",
+        re.compile(
+            r"-----BEGIN\s+(?:(?:RSA|DSA|EC|OPENSSH|ED25519|ENCRYPTED)\s+)?PRIVATE\s+KEY-----"
+            r"[\s\S]+?"
+            r"-----END\s+(?:(?:RSA|DSA|EC|OPENSSH|ED25519|ENCRYPTED)\s+)?PRIVATE\s+KEY-----",
+            re.IGNORECASE,
+        ),
+    ),
     # ── Generic secret-like key=value ────────────────────────────────────
     (
         "secret_kv",
         re.compile(
-            r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+",
+            r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|"
+            r"private[_-]?key)\s*[=:]\s*\S+",
         ),
     ),
     # ── JWT tokens ───────────────────────────────────────────────────────
@@ -456,14 +483,223 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Format disk (mkfs)",
     ),
     (
+        re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
+        "critical",
+        "Raw disk overwrite (dd of=/dev/…)",
+    ),
+    (
         re.compile(r"\bdd\s+if=", re.I),
         "critical",
         "Raw disk overwrite (dd)",
     ),
     (
-        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vda\d*)", re.I),
+        re.compile(
+            r"\b(fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+            r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
+            re.I,
+        ),
+        "critical",
+        "Partition / swap device tool",
+    ),
+    (
+        re.compile(
+            r"\b(hdparm|nvme|cryptsetup|sg_format|sg_sanitize)\b.*/dev/",
+            re.I,
+        ),
+        "critical",
+        "ATA/NVMe/LUKS wipe utility",
+    ),
+    (
+        re.compile(
+            r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
+            r"dmsetup\s+remove)\b",
+            re.I,
+        ),
+        "critical",
+        "Volume/array destroy",
+    ),
+    (
+        re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
+        "critical",
+        "mdadm zero-superblock",
+    ),
+    (
+        re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
+        "critical",
+        "btrfs destructive operation",
+    ),
+    (
+        re.compile(r"\b(?:xfs_repair\b.*-L\b|debugfs\s+-w\b)", re.I),
+        "critical",
+        "Filesystem repair/write wipe",
+    ),
+    (
+        re.compile(
+            r"\b(?:tar|dc3dd|badblocks|fio|rsync)\b.*/dev/(?:sd|nvme|vd|xvd)",
+            re.I,
+        ),
+        "critical",
+        "Archive/forensics write onto block device",
+    ),
+    (
+        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vd[a-z]|disk/|block/)", re.I),
         "critical",
         "Write to block device",
+    ),
+    (
+        re.compile(
+            r"\b(?:cp|tee|cat)\b.*/dev/(?:sd[a-z]|nvme\d+|vd[a-z]|xvd[a-z]|disk/)",
+            re.I,
+        ),
+        "critical",
+        "Copy/tee onto block device",
+    ),
+    (
+        re.compile(
+            r"\b(wipefs|sgdisk|blkdiscard|shred|nwipe|scrub|sg_unmap|dwipe|mop)\b.*/dev/",
+            re.I,
+        ),
+        "critical",
+        "Block-device wipe utility",
+    ),
+    (
+        re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.I),
+        "critical",
+        "Secure file wipe utility",
+    ),
+    (
+        re.compile(
+            r"(?:os\s*\.\s*(?:system|popen)|subprocess\s*\.\s*(?:call|run|Popen))"
+            r"\s*\([^)]*(?:\brm\b|\bdd\b|rmtree|/dev/sd)",
+            re.I,
+        ),
+        "critical",
+        "Interpreter os.system/subprocess wipe",
+    ),
+    (
+        re.compile(
+            r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
+            re.I,
+        ),
+        "critical",
+        "find -delete / -exec rm",
+    ),
+    (
+        re.compile(r"(?:shutil\s*\.\s*)?rmtree\s*\(\s*['\"]?/", re.I),
+        "critical",
+        "Python shutil.rmtree on system path",
+    ),
+    (
+        re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
+        "critical",
+        "socat OPEN onto block device",
+    ),
+    (
+        re.compile(
+            r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:|"
+            r"\bclear-disk\b|\bformat-volume\b|\binitialize-disk\b|"
+            r"\bsdelete(?:64)?\b|\bcipher\b.*/w)",
+            re.I,
+        ),
+        "critical",
+        "Windows disk wipe",
+    ),
+    (
+        re.compile(
+            r"\bdiskutil\b.*(erasedisk|secureerase|zerodisk|partitiondisk)",
+            re.I,
+        ),
+        "critical",
+        "macOS diskutil wipe",
+    ),
+    (
+        re.compile(r"\basr\b.*--erase\b", re.I),
+        "critical",
+        "macOS asr --erase",
+    ),
+    (
+        re.compile(
+            r"(?:FileUtils\s*\.\s*rm_rf|rmSync|fs\s*\.\s*rmSync)\s*\(?\s*['\"]/",
+            re.I,
+        ),
+        "critical",
+        "Interpreter recursive delete of /",
+    ),
+    (
+        re.compile(r"\b(?:truncate|openssl|install)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        "critical",
+        "truncate/openssl/install onto block device",
+    ),
+    (
+        re.compile(
+            r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/",
+            re.I,
+        ),
+        "critical",
+        "Recursive chmod/chown on /",
+    ),
+    (
+        re.compile(
+            r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
+            r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
+            r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
+            re.I,
+        ),
+        "critical",
+        "Download onto block device",
+    ),
+    (
+        re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
+        "critical",
+        "lwp-download onto block device",
+    ),
+    (
+        re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
+        "critical",
+        "Symlink /dev/null over auth file",
+    ),
+    (
+        re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
+        "critical",
+        "Redirect/tee onto auth file",
+    ),
+    (
+        re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
+        "critical",
+        "truncate/shred/install onto auth file",
+    ),
+    (
+        re.compile(
+            r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
+            r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
+            re.I,
+        ),
+        "critical",
+        "Interpreter write to block device",
+    ),
+    (
+        re.compile(
+            r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
+            r"\.write_(?:bytes|text)\s*\(",
+            re.I,
+        ),
+        "critical",
+        "pathlib write to block device",
+    ),
+    (
+        re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        "critical",
+        "qemu-img write onto block device",
+    ),
+    (
+        re.compile(r"\brsync\b.*--delete.*/", re.I),
+        "critical",
+        "rsync --delete on system path",
+    ),
+    (
+        re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
+        "critical",
+        "Move system directory",
     ),
     (
         re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),

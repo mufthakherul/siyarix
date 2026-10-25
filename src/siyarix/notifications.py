@@ -6,7 +6,6 @@ from __future__ import annotations
 import logging
 import os
 from urllib.parse import urlparse
-import httpx
 from typing import Any
 
 from siyarix.events import get_event_bus, EventType
@@ -51,9 +50,14 @@ class NotificationDispatcher:
             payload = {"text": message}
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(self.webhook_url, json=payload)
-                response.raise_for_status()
-                logger.info("Notification dispatched successfully.")
+            import asyncio
+
+            from siyarix.webhooks import _https_post_json_pinned
+
+            # Pin resolved IP under SSRF policy (same path as webhook dispatcher).
+            await asyncio.to_thread(
+                _https_post_json_pinned, self.webhook_url, payload, timeout=10.0
+            )
+            logger.info("Notification dispatched successfully.")
         except Exception as e:
             logger.error("Failed to dispatch notification: %s", e)

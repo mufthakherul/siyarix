@@ -218,13 +218,72 @@ def get_platform_shell_cmd(command: str) -> list[str]:
 
 
 _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/\s*$", re.I),
+    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/(?:\.\s*)?(?:\s|$)", re.I),
     re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.I),
+    re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
     re.compile(r"\bmkfs\.", re.I),
+    re.compile(
+        r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
+        r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
+        re.I,
+    ),
     re.compile(r"\bmkswap\b"),
-    re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
-    re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
+    re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.I),
+    re.compile(
+        r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
+        r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
+        r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
+        re.I,
+    ),
+    re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
+    re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
+    re.compile(r"\b(?:nwipe|scrub|sg_unmap|srm|wipe|bcwipe)\b", re.I),
+    re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.I),
+    re.compile(r"/dev/disk/", re.I),
+    re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(
+        r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"
+        r"sg_format|sg_sanitize|nwipe|scrub|sg_unmap)\b.*(/dev/)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:cp|tee|install|openssl|tar|dc3dd|badblocks|fio|rsync)\b"
+        r".*/dev/(?:sd|nvme|vd|xvd)",
+        re.I,
+    ),
+    re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
+    re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
+    re.compile(
+        r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
+        r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
+        re.I,
+    ),
+    re.compile(
+        r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
+        r"\.write_(?:bytes|text)\s*\(",
+        re.I,
+    ),
+    re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(r"\brsync\b.*--delete", re.I),
+    re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
+    re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
+    re.compile(
+        r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
+        r"dmsetup\s+remove)\b",
+        re.I,
+    ),
+    re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
+    re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
+    re.compile(r"\bxfs_repair\b.*-L\b", re.I),
+    re.compile(r"\bdebugfs\s+-w\b", re.I),
 ]
 
 
@@ -263,6 +322,15 @@ def _validate_cmd_list(cmd: list[str]) -> None:
     _check_path_traversal(cmd)
 
     full = " ".join(cmd)
+    # Hard-block the same disk-wipe / partition class as BaseExecutor (no prompt).
+    try:
+        from siyarix.destructive import assert_command_not_destructive
+        from siyarix.exceptions import PermissionDeniedError
+
+        assert_command_not_destructive(full)
+    except PermissionDeniedError as exc:
+        raise ValueError(str(exc)) from exc
+
     for pattern in _DESTRUCTIVE_PATTERNS:
         if pattern.search(full):
             _confirm_destructive(cmd)
@@ -362,18 +430,8 @@ def _get_sudo_password() -> str | None:
             _SudoCache.password = val
         return val
 
-    try:
-        from siyarix.config import SettingsStore
-
-        store = SettingsStore()
-        config_val = store.get("SIYARIX_SUDO_PASSWORD") or store.get("sudo_password")
-        if config_val:
-            val = str(config_val)
-            with _SUDO_PASSWORD_LOCK:
-                _SudoCache.password = val
-            return val
-    except Exception:
-        pass
+    # Intentionally do NOT read sudo passwords from settings.toml — plaintext
+    # persistence there is a production secret leak. Use SIYARIX_SUDO_PASSWORD.
 
     if sys.stdin.isatty():
         banner = (
@@ -381,8 +439,8 @@ def _get_sudo_password() -> str | None:
             "Sudo/administrator password required for this command\n"
             "(type it below -- input is hidden for security)\n"
             "\n"
-            "Tip: set SIYARIX_SUDO_PASSWORD env var or configure\n"
-            "     sudo_password in settings to skip this prompt.\n"
+            "Tip: set SIYARIX_SUDO_PASSWORD in the environment (not settings.toml)\n"
+            "     to skip this prompt.\n"
             "\n"
         )
         sys.stderr.write(banner)
@@ -421,7 +479,7 @@ def _get_sudo_password() -> str | None:
                 if not is_last
                 else "Incorrect password after 3 attempts. "
                 "The command will fail unless you configure the password "
-                "via the SIYARIX_SUDO_PASSWORD env var or settings.\n"
+                "via the SIYARIX_SUDO_PASSWORD environment variable.\n"
             )
             sys.stderr.write(msg)
             sys.stderr.flush()
@@ -431,7 +489,7 @@ def _get_sudo_password() -> str | None:
     else:
         logger.warning(
             "sudo required but no TTY available to prompt for password. "
-            "Set SIYARIX_SUDO_PASSWORD env var or configure sudo_password in settings."
+            "Set SIYARIX_SUDO_PASSWORD in the environment (never in settings.toml)."
         )
 
     return None
@@ -520,7 +578,7 @@ async def safe_run_async(
                     "sudo password is required for this command.\n"
                     "Provide it via one of:\n"
                     "  1. Set the SIYARIX_SUDO_PASSWORD environment variable\n"
-                    "  2. Configure sudo_password in settings\n"
+                    "  2. Export SIYARIX_SUDO_PASSWORD in your environment\n"
                     "  3. Run in an interactive terminal to be prompted"
                 ),
                 duration_ms=(time.monotonic() - start) * 1000,
@@ -753,7 +811,7 @@ async def safe_run_async_stream(
                     "sudo password is required for this command.\n"
                     "Provide it via one of:\n"
                     "  1. Set the SIYARIX_SUDO_PASSWORD environment variable\n"
-                    "  2. Configure sudo_password in settings\n"
+                    "  2. Export SIYARIX_SUDO_PASSWORD in your environment\n"
                     "  3. Run in an interactive terminal to be prompted"
                 ),
                 duration_ms=(time.monotonic() - start) * 1000,

@@ -44,7 +44,7 @@ siyarix report generate --format html --output report.html
 
 | Format | Best Used For |
 |--------|---------------|
-| **HTML** | Client-ready, styled reports with charts and graphs. |
+| **HTML** | Client-ready, styled reports with charts and graphs. Defaults to **offline** system fonts (air-gapped safe); set `ReportConfig(offline=False)` only when CDN fonts are acceptable. |
 | **JSON** | Pushing results directly into CI/CD pipelines or SIEMs. |
 | **Markdown**| Quick documentation or team wikis. |
 | **SARIF** | Integrating with standard static analysis tools (like GitHub Advanced Security). |

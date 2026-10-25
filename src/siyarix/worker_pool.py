@@ -74,7 +74,16 @@ class AsyncWorkerPool:
 
         task: asyncio.Task[Any] = asyncio.create_task(_guarded())
         self._tasks.add(task)
-        task.add_done_callback(self._tasks.discard)
+
+        def _cleanup(done: asyncio.Task[Any]) -> None:
+            self._tasks.discard(done)
+            if done.cancelled():
+                return
+            exc = done.exception()
+            if exc is not None:
+                logger.debug("Worker pool task ended with error: %s", exc, exc_info=exc)
+
+        task.add_done_callback(_cleanup)
 
         return await task
 

@@ -214,8 +214,14 @@ class AdversarialSeverity(Enum):
 @dataclass
 class AdversarialFinding:
     severity: AdversarialSeverity
-    description: str
+    message: str
+    suggestion: str = ""
     step_index: int = 0
+
+    @property
+    def description(self) -> str:
+        """Backward-compatible alias for ``message``."""
+        return self.message
 
 
 class AdversarialTester:
@@ -228,11 +234,30 @@ class AdversarialTester:
         findings: list[AdversarialFinding] = []
         for idx, line in enumerate(plan_lines):
             lower = line.lower()
-            if any(p in lower for p in ("rm -rf /", ":(){ :|:& };:", "dd if=/dev/zero", "mkfs.")):
+            if any(
+                p in lower
+                for p in (
+                    "rm -rf /",
+                    "rm -fr /",
+                    "rm --recursive",
+                    ":(){ :|:& };:",
+                    "dd if=/dev/zero",
+                    "of=/dev/",
+                    "mkfs.",
+                    "mkfs ",
+                    "fdisk ",
+                    "parted ",
+                    "ntfsformat",
+                    "mkntfs",
+                    "newfs",
+                    "rsync ",
+                )
+            ):
                 findings.append(
                     AdversarialFinding(
                         severity=AdversarialSeverity.CRITICAL,
-                        description="Destructive system impact command detected",
+                        message="Destructive system impact command detected",
+                        suggestion="Remove destructive filesystem/device commands from the plan.",
                         step_index=idx,
                     )
                 )
@@ -240,7 +265,8 @@ class AdversarialTester:
                 findings.append(
                     AdversarialFinding(
                         severity=AdversarialSeverity.HIGH,
-                        description="Dangerous command chaining pattern detected",
+                        message="Dangerous command chaining pattern detected",
+                        suggestion="Avoid shell chaining that can escalate into destructive side effects.",
                         step_index=idx,
                     )
                 )

@@ -3,7 +3,11 @@ import sys
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 
-from siyarix.onboarding import OnboardingWizard
+from siyarix.onboarding import (
+    OnboardingWizard,
+    _assert_github_release_url,
+    _sanitize_release_tag,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -189,3 +193,27 @@ async def test_finalize(mock_get_config, tmp_path, mock_console):
             with patch("os.execv"):
                 await wizard._finalize()
     settings.set.assert_called_with("onboarding_complete", True)
+
+
+def test_sanitize_release_tag_accepts_semver_like() -> None:
+    assert _sanitize_release_tag("b7123") == "b7123"
+    assert _sanitize_release_tag("v1.2.3-rc.1") == "v1.2.3-rc.1"
+
+
+@pytest.mark.parametrize("bad", ["", "../evil", "a/b", "tag with space", "x" * 65])
+def test_sanitize_release_tag_rejects_unsafe(bad: str) -> None:
+    with pytest.raises(ValueError):
+        _sanitize_release_tag(bad)
+
+
+def test_assert_github_release_url_allowlist() -> None:
+    ok = "https://github.com/ggml-org/llama.cpp/releases/download/b1/a.tar.gz"
+    assert _assert_github_release_url(ok) == ok
+    assert (
+        _assert_github_release_url("https://objects.githubusercontent.com/github-production-release-asset/1")
+        .startswith("https://objects.githubusercontent.com/")
+    )
+    with pytest.raises(ValueError, match="https"):
+        _assert_github_release_url("http://github.com/x")
+    with pytest.raises(ValueError, match="allowlisted"):
+        _assert_github_release_url("https://evil.example/payload")

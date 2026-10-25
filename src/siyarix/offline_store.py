@@ -491,12 +491,12 @@ class OfflineStore:
         with self._lock:
             with self._conn() as conn:
                 if tool:
-                    conn.execute("DELETE FROM command_cache WHERE tool = ?", (tool,))
+                    cur = conn.execute("DELETE FROM command_cache WHERE tool = ?", (tool,))
                 elif target:
-                    conn.execute("DELETE FROM command_cache WHERE target = ?", (target,))
+                    cur = conn.execute("DELETE FROM command_cache WHERE target = ?", (target,))
                 else:
-                    conn.execute("DELETE FROM command_cache")
-                return conn.total_changes
+                    cur = conn.execute("DELETE FROM command_cache")
+                return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 
     def cache_stats(self) -> dict[str, Any]:
         conn = self._conn()

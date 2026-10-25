@@ -94,12 +94,8 @@ class TestSafeRunSync:
             with pytest.raises(FileNotFoundError):
                 safe_run_sync(["nonexistent_tool"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_validation_error(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_validation_error(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             safe_run_sync(["rm", "-rf", "/"])
 
 
@@ -570,6 +566,16 @@ class TestExecutorErrorHandling:
         executor._permission_gate = gate
         step = PlanStep(tool="nmap", args={"command": "nmap -sS target"})
         with pytest.raises(PermissionDeniedError):
+            asyncio.run(executor._check_permissions(step))
+
+    def test_base_executor_scope_folds_tool_and_target_over_benign_command(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Benign ``command`` must not hide kwargs ``target`` from scope."""
+        monkeypatch.setenv("SIYARIX_ALLOWED_SCOPE", "10.0.0.0/8,example.com")
+        executor = BaseExecutor()
+        step = PlanStep(tool="nmap", command="ls", args={"target": "evil-host"})
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
             asyncio.run(executor._check_permissions(step))
 
     def test_base_executor_permission_check_requires_review_cancelled(self):

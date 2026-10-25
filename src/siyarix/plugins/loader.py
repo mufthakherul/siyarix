@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Dynamic Plugin Loader for Siyarix."""
+"""Legacy dynamic Plugin Loader for Siyarix.
+
+Prefer :class:`siyarix.plugins.manager.PluginManager` for installs and
+package-style plugins. This compatibility loader supports bare ``*.py`` files
+under the plugins directory only after path sandbox checks.
+"""
 
 from __future__ import annotations
 
@@ -16,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class PluginLoader:
-    """Discovers and loads external plugins."""
+    """Discovers and loads external plugins (path-sandboxed)."""
 
     def __init__(
         self,
@@ -30,7 +35,7 @@ class PluginLoader:
         self.plugins_dir.mkdir(parents=True, exist_ok=True)
 
     def load_all(self) -> None:
-        """Scan and load all .py plugins from the plugins directory."""
+        """Scan and load all ``.py`` plugins from the plugins directory."""
         if not self.plugins_dir.exists():
             return
 
@@ -43,17 +48,22 @@ class PluginLoader:
                 logger.error("Failed to load plugin %s: %s", p.name, e)
 
     def _load_plugin(self, path: Path) -> None:
-        """Dynamically load a single python file as a plugin."""
-        module_name = f"siyarix_plugin_{path.stem}"
-        spec = importlib.util.spec_from_file_location(module_name, str(path))
+        """Dynamically load a single python file as a plugin (path-sandboxed)."""
+        from siyarix.plugins.manager import _assert_under_dir
+
+        safe_path = _assert_under_dir(path, self.plugins_dir, what="legacy plugin path")
+        if safe_path.suffix != ".py" or safe_path.name.startswith("_"):
+            raise ValueError(f"Refusing to load non-plugin path: {path}")
+
+        module_name = f"siyarix_plugin_{safe_path.stem}"
+        spec = importlib.util.spec_from_file_location(module_name, str(safe_path))
         if not spec or not spec.loader:
-            raise ImportError(f"Could not load spec for {path}")
+            raise ImportError(f"Could not load spec for {safe_path}")
 
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
 
-        # Look for standard hooks
         if hasattr(module, "register_tools"):
             module.register_tools(self.registry)
             logger.info("Plugin %s registered tools", module_name)

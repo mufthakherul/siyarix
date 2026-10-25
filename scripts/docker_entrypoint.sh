@@ -12,11 +12,23 @@ set -e
 SIYARIX_HOME="${SIYARIX_HOME:-$HOME/.siyarix}"
 
 # ----  Initialise config if it does not exist yet  ---------------------------
-if [ ! -f "$SIYARIX_HOME/config.yaml" ] && [ ! -f "$SIYARIX_HOME/config.yml" ]; then
+# Canonical on-disk settings are settings.toml (see siyarix.config); YAML names
+# are retained only for older bind-mounted volumes.
+_has_config=0
+for _cfg in settings.toml config.yaml config.yml settings.yaml settings.yml; do
+    if [ -f "$SIYARIX_HOME/$_cfg" ]; then
+        _has_config=1
+        break
+    fi
+done
+if [ "$_has_config" -eq 0 ]; then
     echo "[entrypoint] No siyarix config found – running init ..."
     mkdir -p "$SIYARIX_HOME"
-    siyarix init --non-interactive 2>/dev/null || true
+    if ! siyarix init --non-interactive; then
+        echo "[entrypoint] WARNING: siyarix init failed; continuing with empty home" >&2
+    fi
 fi
+unset _has_config _cfg
 
 # ----  Ensure correct ownership  --------------------------------------------
 mkdir -p "$SIYARIX_HOME"

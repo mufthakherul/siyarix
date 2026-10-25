@@ -181,15 +181,15 @@ def tree_from_dict(data: dict[str, Any], name: str = "root") -> Tree:
         if isinstance(value, dict):
             subtree = tree.add(f"[cyan]{key}[/cyan]")
             for k, v in value.items():
-                subtree.append(f"[white]{k}[/white]: [dim]{v}[/dim]")
+                subtree.add(f"[white]{k}[/white]: [dim]{v}[/dim]")
         elif isinstance(value, list):
             subtree = tree.add(f"[cyan]{key}[/cyan] ([dim]{len(value)} items[/dim])")
             for item in value[:20]:
-                subtree.append(str(item)[:80])
+                subtree.add(str(item)[:80])
             if len(value) > 20:
-                subtree.append(f"[dim]... and {len(value) - 20} more[/dim]")
+                subtree.add(f"[dim]... and {len(value) - 20} more[/dim]")
         else:
-            tree.append(f"[cyan]{key}[/cyan]: [white]{value}[/white]")
+            tree.add(f"[cyan]{key}[/cyan]: [white]{value}[/white]")
     return tree
 
 

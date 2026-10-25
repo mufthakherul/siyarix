@@ -288,7 +288,7 @@ def resolve_model(
     else:
         raw_model = default_model
     if provider_manager and hasattr(provider_manager, "resolve_model_id"):
-        return provider_manager.resolve_model_id(provider, raw_model)  # type: ignore[no-any-return]
+        return provider_manager.resolve_model_id(provider, raw_model)
     return raw_model or default_model or provider
 
 
@@ -497,7 +497,7 @@ async def _gemini_generate(
     if not api_key:
         raise LLMProviderError("Gemini API key is required but not provided")
     url = f"{_GEMINI_API_BASE}/models/{model}:generateContent"
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
         resp = await client.post(url, params={"key": api_key}, json=body)
         resp.raise_for_status()
         data = resp.json()
@@ -546,7 +546,7 @@ async def _gemini_stream(
     if not api_key:
         raise LLMProviderError("Gemini API key is required but not provided")
     url = f"{_GEMINI_API_BASE}/models/{model}:streamGenerateContent"
-    async with httpx.AsyncClient(timeout=120) as client:
+    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
         async with client.stream(
             "POST", url, params={"key": api_key, "alt": "sse"}, json=body
         ) as resp:

@@ -310,131 +310,60 @@ class BaseExecutor:
     async def _apply_dlp(self, result: dict[str, Any]) -> dict[str, Any]:
         dlp = _get_dlp_engine()
         if dlp is not None and isinstance(result, dict):
-            return dlp.redact_dict(result)  # type: ignore[no-any-return]
+            return dlp.redact_dict(result)
         return result
 
     def check_scope(self, command: str) -> None:
-        """Enforce authorized targets check against SIYARIX_ALLOWED_SCOPE."""
-        import os
-        import ipaddress
-        import re
+        """Enforce authorized targets check against SIYARIX_ALLOWED_SCOPE.
 
-        scope_env = os.environ.get("SIYARIX_ALLOWED_SCOPE", "")
-        if not scope_env:
-            return
+        Delegates to :mod:`siyarix.target_scope` (IPv4/IPv6, no public-domain
+        exemptions, fail-closed for domains under CIDR-only scopes).
+        """
+        from .target_scope import assert_command_in_scope
 
-        allowed_items = [item.strip().lower() for item in scope_env.split(",") if item.strip()]
-        if not allowed_items:
-            return
-
-        ipv4_pattern = r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
-        domain_pattern = r"\b(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b"
-
-        found_ips = re.findall(ipv4_pattern, command)
-        found_domains = [d.lower() for d in re.findall(domain_pattern, command)]
-
-        whitelist = {
-            "github.com",
-            "python.org",
-            "pypi.org",
-            "google.com",
-            "microsoft.com",
-            "ubuntu.com",
-            "debian.org",
-            "apple.com",
-            "crt.sh",
-            "localhost",
-        }
-
-        # Verify IPs
-        for ip_str in found_ips:
-            if ip_str == "127.0.0.1":
-                continue
-            is_allowed = False
-            try:
-                ip = ipaddress.ip_address(ip_str)
-                for allowed in allowed_items:
-                    if "/" in allowed:
-                        net = ipaddress.ip_network(allowed, strict=False)
-                        if ip in net:
-                            is_allowed = True
-                            break
-                    else:
-                        try:
-                            allowed_ip = ipaddress.ip_address(allowed)
-                            if ip == allowed_ip:
-                                is_allowed = True
-                                break
-                        except ValueError:
-                            pass
-            except ValueError:
-                continue
-
-            if not is_allowed:
-                raise PermissionDeniedError(
-                    f"Target IP {ip_str} is out of authorized scope: {scope_env}"
-                )
-
-        # Verify Domains
-        for domain in found_domains:
-            if domain in whitelist or domain.endswith(".local") or domain == "localhost":
-                continue
-            is_allowed = False
-            for allowed in allowed_items:
-                if allowed.startswith("*."):
-                    suffix = allowed[1:]
-                    if domain.endswith(suffix) or domain == allowed[2:]:
-                        is_allowed = True
-                        break
-                elif domain == allowed:
-                    is_allowed = True
-                    break
-
-            has_domain_in_scope = any(not re.match(r"^[\d./]+$", x) for x in allowed_items)
-            if not is_allowed and has_domain_in_scope:
-                raise PermissionDeniedError(
-                    f"Target domain {domain} is out of authorized scope: {scope_env}"
-                )
+        assert_command_in_scope(command)
 
     def check_destructive(self, command: str) -> None:
         """Block fork bombs, block device overwrites, system dir deletions, and partitioning."""
-        cmd_clean = command.strip().lower()
+        from .destructive import assert_command_not_destructive
 
-        # Fork bomb patterns
-        if ":(){" in cmd_clean or "::&" in cmd_clean:
-            raise PermissionDeniedError(
-                "Destructive command detected: Fork bomb execution is blocked."
-            )
-
-        # Block device overwrite
-        if "dd " in cmd_clean and "of=/dev/" in cmd_clean:
-            if not any(x in cmd_clean for x in ["of=/dev/null", "of=/dev/zero"]):
-                raise PermissionDeniedError(
-                    "Destructive command detected: Overwriting block devices is blocked."
-                )
-
-        # Recursive deletion of critical paths
-        if "rm " in cmd_clean and "-rf" in cmd_clean:
-            if any(
-                path in cmd_clean
-                for path in [" /", " /*", " /etc", " /var", " /bin", " /sbin", " /usr"]
-            ):
-                raise PermissionDeniedError(
-                    "Destructive command detected: Deleting system directory is blocked."
-                )
-
-        # Partition formatting
-        if any(x in cmd_clean for x in ["mkfs ", "mkfs.", "fdisk ", "parted "]):
-            if any(flag in cmd_clean for flag in ["-d", "--destroy", "format", "delete"]):
-                raise PermissionDeniedError(
-                    "Destructive command detected: Formatting storage devices is blocked."
-                )
+        assert_command_not_destructive(command)
 
     async def _check_permissions(self, step: PlanStep) -> None:
-        command = step.command or step.args.get("command", "")
+        command = str(step.command or step.args.get("command") or "").strip()
+        # Always fold tool + target/args/flags into scope — a benign ``command``
+        # (e.g. ``ls``) must not hide kwargs hosts or the real tool argv0.
+        # Avoid ``nmap nmap …`` when command already starts with the tool name.
+        parts: list[str] = []
+        tool = str(step.tool or "").strip()
+        tool_base = tool.lstrip("\\").rsplit("/", 1)[-1].lower() if tool else ""
+        cmd_base = (
+            command.split(None, 1)[0].lstrip("\\").rsplit("/", 1)[-1].lower()
+            if command
+            else ""
+        )
+        if tool and cmd_base != tool_base:
+            parts.append(tool)
+        target = str(step.args.get("target") or "").strip()
+        if target:
+            parts.append(target)
         if command:
-            self.check_destructive(command)
-            self.check_scope(command)
+            parts.append(command)
+        for key in ("args", "flags", "extra_args"):
+            raw = step.args.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, (list, tuple)):
+                parts.extend(str(x) for x in raw)
+            else:
+                parts.append(str(raw))
+        scope_command = " ".join(p for p in parts if p).strip()
+        if not command:
+            command = scope_command
+
+        if scope_command:
+            self.check_destructive(scope_command)
+            self.check_scope(scope_command)
 
         if not self._permission_gate:
             return
@@ -448,9 +377,19 @@ class BaseExecutor:
             if gate_result.requires_review:
                 reviewed = review_and_confirm(command, step.tool, gate_result.reason)
                 if reviewed is None:
-                    self._log_safety(step.tool, command, "cancelled", "User cancelled")
-                    raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+                    from .shell_review import review_refusal_message
+
+                    denial = review_refusal_message(gate_result.reason)
+                    self._log_safety(step.tool, command, "cancelled", denial)
+                    raise PermissionDeniedError(denial)
                 if reviewed != command:
+                    # Re-authorize the edited text (mirror registry SX-002).
+                    self.check_destructive(reviewed)
+                    self.check_scope(reviewed)
+                    recheck = self._permission_gate.check(reviewed, tool=step.tool)
+                    if not recheck.allowed:
+                        self._log_safety(step.tool, reviewed, "blocked", recheck.reason)
+                        raise PermissionDeniedError(recheck.reason)
                     step.command = reviewed
                     if "command" in step.args:
                         step.args["command"] = reviewed

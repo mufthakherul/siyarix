@@ -58,10 +58,12 @@ def test_cli_compliance_run_url_target() -> None:
     runner = CliRunner()
     target = "https://test.internal:8443/api"
     result = runner.invoke(app, ["compliance", "run", "NIST", target])
-    assert result.exit_code == 0
+    # Scaffold assessments leave NOT_EVALUATED controls → exit 3 (not a pass).
+    assert result.exit_code == 3
     assert "Compliance Assessment: NIST" in result.output
     assert "AC-2" in result.output
-    assert "Evidence saved to" in result.output
+    assert "Evidence written to" in result.output
+    assert "NOT_EVALUATED" in result.output
 
 
 def test_cli_compliance_reports() -> None:

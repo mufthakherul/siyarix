@@ -10,9 +10,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import urllib.error
 import urllib.parse
-import urllib.request
 from typing import Any, ClassVar
 
 logger = logging.getLogger(__name__)
@@ -35,24 +35,32 @@ class AlienVaultOTX(ThreatIntelProvider):
 
     async def lookup_ip(self, ip: str) -> dict[str, Any]:
         """Lookup an IP address in AlienVault OTX."""
-        url = f"{self.BASE_URL}/IPv4/{ip}/general"
+        import ipaddress
+
+        raw = (ip or "").strip()
+        try:
+            addr = ipaddress.ip_address(raw)
+        except ValueError:
+            return {"source": "AlienVault OTX", "error": f"Invalid IP address: {ip!r}"}
+        if addr.version != 4:
+            return {"source": "AlienVault OTX", "error": "Only IPv4 lookups are supported"}
+        safe_ip = str(addr)
+        url = f"{self.BASE_URL}/IPv4/{urllib.parse.quote(safe_ip, safe='')}/general"
         headers = {}
         if self.api_key:
             headers["X-OTX-API-KEY"] = self.api_key
 
         try:
-            _parsed = urllib.parse.urlparse(url)
-            if _parsed.scheme not in ("http", "https"):
-                raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
-                data = json.loads(response.read().decode())
-                return {
-                    "source": "AlienVault OTX",
-                    "pulse_count": data.get("pulse_info", {}).get("count", 0),
-                    "reputation": data.get("reputation", 0),
-                }
-        except urllib.error.URLError as e:
+            from siyarix.webhooks import _https_request_pinned
+
+            body = _https_request_pinned(url, timeout=10.0, headers=headers or None)
+            data = json.loads(body.decode())
+            return {
+                "source": "AlienVault OTX",
+                "pulse_count": data.get("pulse_info", {}).get("count", 0),
+                "reputation": data.get("reputation", 0),
+            }
+        except (urllib.error.URLError, ValueError, json.JSONDecodeError) as e:
             logger.warning("AlienVault lookup failed for %s: %s", ip, e)
             return {"source": "AlienVault OTX", "error": str(e)}
 
@@ -64,29 +72,30 @@ class NVDDatabase(ThreatIntelProvider):
 
     async def lookup_cve(self, cve_id: str) -> dict[str, Any]:
         """Fetch CVE details from NVD."""
-        url = f"{self.BASE_URL}?cveId={cve_id}"
+        raw = (cve_id or "").strip().upper()
+        if not re.match(r"^CVE-\d{4}-\d{4,}$", raw):
+            return {"source": "NVD", "error": f"Invalid CVE id: {cve_id!r}"}
+        url = f"{self.BASE_URL}?{urllib.parse.urlencode({'cveId': raw})}"
         try:
-            _parsed = urllib.parse.urlparse(url)
-            if _parsed.scheme not in ("http", "https"):
-                raise ValueError(f"Disallowed URL scheme: {_parsed.scheme!r}")
-            req = urllib.request.Request(url)
-            with urllib.request.urlopen(req, timeout=10) as response:  # nosec B310
-                data = json.loads(response.read().decode())
-                vulnerabilities = data.get("vulnerabilities", [])
-                if vulnerabilities:
-                    cve_data = vulnerabilities[0].get("cve", {})
-                    metrics = cve_data.get("metrics", {})
-                    base_score = None
-                    if "cvssMetricV31" in metrics:
-                        base_score = metrics["cvssMetricV31"][0]["cvssData"]["baseScore"]
-                    return {
-                        "source": "NVD",
-                        "id": cve_id,
-                        "description": cve_data.get("descriptions", [{}])[0].get("value", ""),
-                        "base_score": base_score,
-                    }
-                return {"source": "NVD", "error": "CVE not found"}
-        except urllib.error.URLError as e:
+            from siyarix.webhooks import _https_request_pinned
+
+            payload = _https_request_pinned(url, timeout=10.0)
+            data = json.loads(payload.decode())
+            vulnerabilities = data.get("vulnerabilities", [])
+            if vulnerabilities:
+                cve_data = vulnerabilities[0].get("cve", {})
+                metrics = cve_data.get("metrics", {})
+                base_score = None
+                if "cvssMetricV31" in metrics:
+                    base_score = metrics["cvssMetricV31"][0]["cvssData"]["baseScore"]
+                return {
+                    "source": "NVD",
+                    "id": raw,
+                    "description": cve_data.get("descriptions", [{}])[0].get("value", ""),
+                    "base_score": base_score,
+                }
+            return {"source": "NVD", "error": "CVE not found"}
+        except (urllib.error.URLError, ValueError, json.JSONDecodeError) as e:
             logger.warning("NVD lookup failed for %s: %s", cve_id, e)
             return {"source": "NVD", "error": str(e)}
 

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .events import Event, EventType
-from .exceptions import ToolExecutionError, ToolNotFoundError
+from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor
 from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
 
@@ -62,17 +62,18 @@ class AutonomousExecutor(BaseExecutor):
         executor_fn: Any = None,
         live_display: bool = True,
     ) -> ExecutionPlan:
-        """Execute all steps in *plan* as shell commands with optional live streaming.
+        """Execute plan steps as shell commands with dependency-aware scheduling.
 
         Parameters
         ----------
         plan:
             The execution plan with command-based steps.
         executor_fn:
-            Optional custom step executor override.
+            Optional custom step executor override (unused; reserved for API parity).
         live_display:
             Whether to show live streaming output (default: True).
         """
+        del executor_fn  # API parity with BaseExecutor / RegistryExecutor
         self._budget.reset_timer()
         plan.status = PlanStatus.ACTIVE
 
@@ -84,7 +85,7 @@ class AutonomousExecutor(BaseExecutor):
             )
         )
 
-        # Pre-review all shell commands
+        # Pre-review all shell commands (kept independent of the permission gate)
         if self._command_review:
             approved = await self._review_commands(plan)
             if not approved:
@@ -96,12 +97,12 @@ class AutonomousExecutor(BaseExecutor):
         self._prefetch_sudo_passwords(plan)
 
         cmd_states = self._build_cmd_states(plan)
-        exec_tasks = [self._exec_one(s, st) for s, st in zip(plan.steps, cmd_states)]
+        state_by_id = {s.id: st for s, st in zip(plan.steps, cmd_states)}
 
         if live_display and cmd_states:
-            plan = await self._execute_with_live_display(plan, exec_tasks, cmd_states)
+            plan = await self._execute_with_live_display(plan, state_by_id)
         else:
-            plan = await self._execute_batch(plan, exec_tasks, cmd_states)
+            plan = await self._execute_dependency_aware(plan, state_by_id)
 
         plan.status = PlanStatus.COMPLETED if not plan.has_failures else PlanStatus.FAILED
         await self._event_bus.emit(
@@ -119,16 +120,19 @@ class AutonomousExecutor(BaseExecutor):
 
     async def _review_commands(self, plan: ExecutionPlan) -> bool:
         """Review all shell commands via the confirmation gate."""
-        from .shell_review import review_and_confirm
+        from .shell_review import review_and_confirm, review_refusal_message
 
         for s in plan.steps:
             if not s.command:
                 continue
-            reviewed = review_and_confirm(
-                s.command, "raw", "Raw shell command from LLM-generated plan"
-            )
+            reason = "Raw shell command from LLM-generated plan"
+            reviewed = review_and_confirm(s.command, "raw", reason)
             if reviewed is None:
-                logger.warning("Command cancelled by user: %s", s.command[:60])
+                logger.warning(
+                    "Command review refused (%s): %s",
+                    review_refusal_message(reason),
+                    s.command[:60],
+                )
                 return False
             s.command = reviewed
         return True
@@ -144,12 +148,144 @@ class AutonomousExecutor(BaseExecutor):
                 states.append(CommandResult(label="(no command)"))
         return states
 
+    def _mark_skipped(
+        self,
+        step: PlanStep,
+        state: CommandResult | None,
+        reason: str,
+    ) -> None:
+        """Mark *step* SKIPPED without starting any handler/subprocess."""
+        step.status = StepStatus.SKIPPED
+        step.result = {"status": "skipped", "error": reason}
+        if state is not None:
+            state.done = True
+            state.exit_code = -1
+            state.error = reason
+            state.lines.append(reason)
+
+    def _skip_blocked_dependents(
+        self,
+        plan: ExecutionPlan,
+        state_by_id: dict[str, CommandResult],
+    ) -> bool:
+        """Skip pending steps whose dependencies failed/skipped/missing.
+
+        Returns True if at least one step was skipped.
+        """
+        skipped_any = False
+        for step in list(plan.pending_steps):
+            for dep_id in step.dependencies:
+                dep = plan.get_step(dep_id)
+                if dep is None or dep.status in (StepStatus.FAILED, StepStatus.SKIPPED):
+                    reason = (
+                        f"Skipped: dependency '{dep_id}' did not succeed"
+                        if dep is not None
+                        else f"Skipped: missing dependency '{dep_id}'"
+                    )
+                    self._mark_skipped(step, state_by_id.get(step.id), reason)
+                    skipped_any = True
+                    break
+        return skipped_any
+
+    def _resolve_deadlock(
+        self,
+        plan: ExecutionPlan,
+        state_by_id: dict[str, CommandResult],
+    ) -> None:
+        """Fail-closed: skip remaining pending steps (cycles / unreachable deps)."""
+        for step in list(plan.pending_steps):
+            self._mark_skipped(
+                step,
+                state_by_id.get(step.id),
+                "Skipped: unresolvable dependency cycle or deadlock",
+            )
+
+    async def _execute_dependency_aware(
+        self,
+        plan: ExecutionPlan,
+        state_by_id: dict[str, CommandResult],
+    ) -> ExecutionPlan:
+        """Run only steps whose dependencies succeeded; bound via worker pool."""
+        while not plan.is_complete:
+            if self._budget.is_exhausted:
+                break
+
+            ready_steps = plan.get_ready_steps()
+            if not ready_steps:
+                if self._skip_blocked_dependents(plan, state_by_id):
+                    continue
+                if plan.pending_steps:
+                    logger.warning(
+                        "Plan %s deadlocked or cyclic; skipping remaining pending steps",
+                        plan.id,
+                    )
+                    self._resolve_deadlock(plan, state_by_id)
+                break
+
+            # Bound concurrency via the inherited AsyncWorkerPool.
+            tasks = [
+                self._pool.submit(self._exec_one, step, state_by_id[step.id])
+                for step in ready_steps
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, res in enumerate(results):
+                if isinstance(res, BaseException):
+                    step = ready_steps[i]
+                    logger.error(
+                        "Step %s exception: %s", step.id, res, exc_info=res
+                    )
+                    step.status = StepStatus.FAILED
+                    step.result = {"status": "error", "error": str(res)}
+                    state = state_by_id.get(step.id)
+                    if state is not None:
+                        state.done = True
+                        state.exit_code = -1
+                        state.error = str(res)
+
+            # After failures, eagerly skip dependents so they never start.
+            self._skip_blocked_dependents(plan, state_by_id)
+
+        return plan
+
     async def _exec_one(
         self, step: PlanStep, state: CommandResult
     ) -> tuple[PlanStep, dict[str, Any]]:
-        """Execute a single plan step and capture output."""
+        """Execute a single plan step and capture output.
+
+        The permission gate / authorizer runs **before** any handler or
+        subprocess is started. A denying gate yields zero spawns.
+        """
         if not self._budget.consume_iteration():
-            return step, {"status": "error", "error": "Budget exhausted"}
+            step.status = StepStatus.FAILED
+            step.result = {"status": "error", "error": "Budget exhausted"}
+            state.done = True
+            state.exit_code = -1
+            state.error = "Budget exhausted"
+            return step, step.result
+
+        # ── SX-003: authorize before any RUNNING / spawn ──────────────
+        try:
+            await self._check_permissions(step)
+        except PermissionDeniedError as exc:
+            step.status = StepStatus.FAILED
+            step.result = {"status": "error", "error": str(exc), "denied": True}
+            state.exit_code = -1
+            state.error = str(exc)
+            state.done = True
+            state.lines.append(str(exc))
+            self._tracker.record(step.tool or "shell", step.command or str(step.args), False)
+            await self._event_bus.emit(
+                Event(
+                    type=EventType.PLAN_STEP_FAILED,
+                    source="executor_autonomous",
+                    data={"step_id": step.id, "error": str(exc), "denied": True},
+                )
+            )
+            if self._on_step_progress:
+                res = self._on_step_progress(step)
+                if hasattr(res, "__await__"):
+                    _ = await res  # type: ignore[misc]
+            return step, step.result
 
         step.status = StepStatus.RUNNING
         await self._event_bus.emit(
@@ -244,7 +380,7 @@ class AutonomousExecutor(BaseExecutor):
         """Execute a step that has a tool name but no shell command."""
         handler = self._custom_handlers.get(step.tool)
         if handler:
-            return await handler(step)  # type: ignore[no-any-return]
+            return await handler(step)
         if self._registry:
             try:
                 result = await self._registry.execute(step.tool, **step.args)
@@ -376,11 +512,11 @@ class AutonomousExecutor(BaseExecutor):
     async def _execute_with_live_display(
         self,
         plan: ExecutionPlan,
-        exec_tasks: list[Any],
-        cmd_states: list[CommandResult],
+        state_by_id: dict[str, CommandResult],
     ) -> ExecutionPlan:
-        """Execute with rich live display showing streaming output."""
-        exec_task = asyncio.ensure_future(asyncio.gather(*exec_tasks))
+        """Execute with rich live display while dependency-aware scheduling runs."""
+        cmd_states = [state_by_id[s.id] for s in plan.steps]
+        exec_task = asyncio.ensure_future(self._execute_dependency_aware(plan, state_by_id))
 
         from rich.live import Live
         from rich.panel import Panel as RichPanel
@@ -430,21 +566,12 @@ class AutonomousExecutor(BaseExecutor):
                         )
                     )
 
-        raw_results = await exec_task
+        await exec_task
 
         if _old_term is not None:
             os.environ["TERM"] = _old_term
         else:
             os.environ.pop("TERM", None)
-
-        # Update plan step statuses from results
-        for step, result in raw_results:
-            for s in plan.steps:
-                if s.id == step.id:
-                    s.status = step.status
-                    s.result = result
-                    s.duration_ms = step.duration_ms
-                    break
 
         return plan
 
@@ -454,7 +581,8 @@ class AutonomousExecutor(BaseExecutor):
         exec_tasks: list[Any],
         cmd_states: list[CommandResult],
     ) -> ExecutionPlan:
-        """Execute steps without live display (simple batch mode)."""
+        """Legacy batch helper retained for tests; prefer dependency-aware path."""
+        del cmd_states
         raw_results = await asyncio.gather(*exec_tasks, return_exceptions=True)
         for i, result in enumerate(raw_results):
             if isinstance(result, BaseException):

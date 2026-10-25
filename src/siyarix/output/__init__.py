@@ -203,41 +203,43 @@ class OutputEngine:
                 self._raw_print("\t".join(str(row.get(col, "")) for col in columns))
 
     def print_json(self, data: Any) -> None:
-        if RICH_AVAILABLE and self.format == OutputFormat.JSON:
-            json_str = json.dumps(data, indent=2)
-            syntax = Syntax(json_str, "json", theme="monokai", line_numbers=True)
-            if self.console is not None:
-                self.console.print(syntax)
-        else:
-            self._raw_print(json.dumps(data, indent=2))
+        # Machine-readable stdout: never decorate with Rich line numbers/markup.
+        self._raw_print(json.dumps(data, indent=2, ensure_ascii=False, default=str))
 
     def print_yaml(self, data: Any) -> None:
         if not YAML_AVAILABLE:
             self.print_error("PyYAML not installed. Install with: pip install pyyaml")
             return
-        if RICH_AVAILABLE:
-            yaml_str = yaml.dump(data, default_flow_style=False)
-            syntax = Syntax(yaml_str, "yaml", theme="monokai")
-            if self.console is not None:
-                self.console.print(syntax)
-        else:
-            self._raw_print(yaml.dump(data, default_flow_style=False))
+        # Keep YAML parseable on stdout; route human highlighting via stderr if needed.
+        self._raw_print(yaml.dump(data, default_flow_style=False, allow_unicode=True))
 
     def print_csv(self, data: list[dict]) -> None:
         if not data:
             return
-        output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=data[0].keys())
-        writer.writeheader()
-        writer.writerows(data)
-        if RICH_AVAILABLE:
-            syntax = Syntax(output.getvalue(), "csv", theme="monokai")
-            if self.console is not None:
-                self.console.print(syntax)
+        # Union of keys so heterogeneous findings do not drop later fields.
+        fieldnames: list[str] = []
+        seen: set[str] = set()
+        normalized: list[dict[str, Any]] = []
+        for row in data:
+            if isinstance(row, dict):
+                item = row
+            elif hasattr(row, "to_dict"):
+                item = row.to_dict()
             else:
-                self._raw_print(output.getvalue())
-        else:
-            self._raw_print(output.getvalue())
+                try:
+                    item = vars(row)
+                except TypeError:
+                    item = {"value": row}
+            normalized.append(item)
+            for key in item:
+                if key not in seen:
+                    seen.add(key)
+                    fieldnames.append(key)
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(normalized)
+        self._raw_print(output.getvalue().rstrip("\n"))
 
     def print_success(self, message: str) -> None:
         if RICH_AVAILABLE and self.console is not None:

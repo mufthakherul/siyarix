@@ -364,18 +364,58 @@ class ToolRegistry:
                 reasons = "; ".join(d.detail for d in avail.diagnostics)
                 raise ToolNotFoundError(f"Tool {name} unavailable: {reasons}")
 
-        if self._permission_gate:
-            command = kwargs.get("command", "")
-            if command:
-                gate_result = self._permission_gate.check(command, tool=name)
-                if not gate_result.allowed:
-                    raise PermissionDeniedError(gate_result.reason)
-                if gate_result.requires_review:
-                    from .shell_review import review_and_confirm
+        command = str(kwargs.get("command") or "").strip()
+        # Always fold target/args/flags into the scope synopsis — handlers may ignore
+        # `command` and execute from kwargs, so a non-empty command must not short-circuit.
+        parts: list[str] = [command or name]
+        target = str(kwargs.get("target") or "").strip()
+        if target:
+            parts.append(target)
+        for key in ("args", "flags", "extra_args"):
+            raw = kwargs.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, (list, tuple)):
+                parts.extend(str(x) for x in raw)
+            else:
+                parts.append(str(raw))
+        scope_command = " ".join(p for p in parts if p).strip() or name
+        if not command:
+            command = scope_command
 
-                    reviewed = review_and_confirm(command, name, gate_result.reason)
-                    if reviewed is None:
-                        raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+        # Always enforce SIYARIX_ALLOWED_SCOPE for registry/playbook/deep-scan paths.
+        from .target_scope import assert_command_in_scope
+
+        assert_command_in_scope(scope_command)
+
+        # Same hard-blocks as BaseExecutor (playbook/deep-scan use this path).
+        from .destructive import assert_command_not_destructive
+
+        assert_command_not_destructive(scope_command)
+
+        if self._permission_gate:
+            # Gate on the folded synopsis so dangerous flags/args cannot hide
+            # behind a benign `command` kwarg.
+            gate_result = self._permission_gate.check(scope_command, tool=name)
+            if not gate_result.allowed:
+                raise PermissionDeniedError(gate_result.reason)
+            if gate_result.requires_review:
+                from .shell_review import review_and_confirm
+
+                reviewed = review_and_confirm(scope_command, name, gate_result.reason)
+                if reviewed is None:
+                    from .shell_review import review_refusal_message
+
+                    raise PermissionDeniedError(review_refusal_message(gate_result.reason))
+                if reviewed != scope_command:
+                    # The edited text is what runs, so it has to clear the gate on its own
+                    # merits — previously the edit was collected and then discarded.
+                    recheck = self._permission_gate.check(reviewed, tool=name)
+                    if not recheck.allowed:
+                        raise PermissionDeniedError(recheck.reason)
+                    assert_command_in_scope(reviewed)
+                    assert_command_not_destructive(reviewed)
+                    kwargs["command"] = reviewed
 
         start = time.monotonic()
         try:

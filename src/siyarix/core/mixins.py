@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, Callable
 
 from ..planner import ExecutionPlan, PlanStatus, StepStatus, PlanStep
 from ..events import Event, EventType
@@ -14,10 +14,36 @@ logger = logging.getLogger(__name__)
 
 
 class ExecutionMixin:
-    """Execution capabilities for AgentCore."""
+    """Execution capabilities for AgentCore.
+
+    Attribute annotations declare the AgentCore fields these methods use so
+    mypy can type-check mixin bodies without Protocol self-binding issues.
+    """
+
+    _registry: Any
+    _planner_registry: Any
+    _planner_autonomous: Any
+    _executor_registry: Any
+    _executor_autonomous: Any
+    _validator: Any
+    _metrics: Any
+    _store: Any
+    _mode: Any
+    _status: Any
+    _history: list[Any]
+    _providers: Any
+    _context: Any
+    _progress_callback: Callable[..., Any] | None
+    _check_budget: Callable[..., Any]
+    _generate_summary: Callable[..., Any]
+    _extract_findings: Callable[..., Any]
 
     async def _execute_registry(
-        self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
+        self,
+        goal: Any,
+        plan: ExecutionPlan | None,
+        start: float,
+        result: Any,
     ) -> Any:
         from ..core import AgentStatus
 
@@ -82,7 +108,11 @@ class ExecutionMixin:
         return result
 
     async def _execute_autonomous(
-        self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
+        self,
+        goal: Any,
+        plan: ExecutionPlan | None,
+        start: float,
+        result: Any,
     ) -> Any:
         from ..core import AgentStatus
 
@@ -168,7 +198,11 @@ class ExecutionMixin:
         return result
 
     async def _execute_hybrid(
-        self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
+        self,
+        goal: Any,
+        plan: ExecutionPlan | None,
+        start: float,
+        result: Any,
     ) -> Any:
         auto_result = await self._execute_autonomous(
             goal, plan, start, result.__class__(goal=goal.description)
@@ -207,7 +241,11 @@ class ExecutionMixin:
         )
 
     async def _execute_interactive(
-        self, goal: Any, plan: ExecutionPlan | None, start: float, result: Any
+        self,
+        goal: Any,
+        plan: ExecutionPlan | None,
+        start: float,
+        result: Any,
     ) -> Any:
         from ..core import AgentStatus
 
@@ -257,6 +295,8 @@ class ExecutionMixin:
 
 class GraphMixin:
     """Knowledge graph operations for AgentCore."""
+
+    _knowledge_graph: Any
 
     def _extract_findings(self, plan: ExecutionPlan) -> list[dict[str, Any]]:
         import hashlib

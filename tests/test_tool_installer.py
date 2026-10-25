@@ -1,6 +1,6 @@
 from __future__ import annotations
-from siyarix.tool_installer import ToolInstaller, ToolInstallResult
-from unittest.mock import patch
+from siyarix.tool_installer import ToolInstaller, ToolInstallResult, tty_confirm
+from unittest.mock import MagicMock, patch
 import pytest
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
@@ -118,3 +118,11 @@ class TestToolInstallerCore:
                 with patch("shutil.which", side_effect=lambda x: x == "nmap"):
                     result = installer._install_nix("nmap", "nmap")
                     assert result is True
+
+
+def test_tty_confirm_fails_closed_without_tty() -> None:
+    stdin = MagicMock()
+    stdin.isatty.return_value = False
+    with patch("sys.stdin", stdin):
+        assert tty_confirm("Install now?", default=True) is False
+        assert tty_confirm("Run destructive?", default=False) is False

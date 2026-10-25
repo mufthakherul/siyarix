@@ -13,6 +13,39 @@ from typing import Any, Callable, Coroutine
 WorkflowStepFn = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
 
 
+def condition_passes(condition: str, context: dict[str, Any]) -> bool:
+    """Fail-closed evaluation of simple playbook/edge conditions (no eval)."""
+    expr = (condition or "").strip()
+    if not expr:
+        return True
+    lowered = expr.lower()
+    if lowered in {"true", "always", "1", "yes"}:
+        return True
+    if lowered in {"false", "never", "0", "no"}:
+        return False
+    if "==" in expr:
+        left, _, right = expr.partition("==")
+        key = left.strip()
+        expect = right.strip().strip("'\"")
+        actual = context.get(key)
+        if actual is None and key.startswith("env."):
+            import os
+
+            env_key = key[4:]
+            try:
+                from siyarix.playbook import _env_var_allowed
+
+                if not _env_var_allowed(env_key):
+                    return False
+            except Exception:
+                # Fail closed if allowlist helper is unavailable.
+                return False
+            actual = os.environ.get(env_key, "")
+        return str(actual) == expect
+    # Unknown expressions are fail-closed.
+    return False
+
+
 class WorkflowStatus(StrEnum):
     IDLE = "idle"
     RUNNING = "running"
@@ -92,6 +125,12 @@ class Workflow:
                 if src is None or src.status != WorkflowStepStatus.COMPLETED:
                     deps_met = False
                     break
+                # Optional edge condition (fail-closed) evaluated against workflow context.
+                if e.condition:
+                    ctx = {**self.context, f"result_{e.source}": (src.result if src else {})}
+                    if not condition_passes(e.condition, ctx):
+                        deps_met = False
+                        break
             if deps_met:
                 ready.append(node)
         return ready
@@ -131,6 +170,7 @@ class WorkflowEngine:
                 step_fn=n.get("step_fn", ""),
                 args=n.get("args", {}),
                 timeout=n.get("timeout", 300.0),
+                max_retries=int(n.get("max_retries", 0) or 0),
             )
             for i, n in enumerate(nodes or [])
         ]
@@ -159,10 +199,23 @@ class WorkflowEngine:
                 if any(n.status == WorkflowStepStatus.RUNNING for n in workflow.nodes):
                     await asyncio.sleep(0.1)
                     continue
-                break
+                self._skip_blocked_dependents(workflow)
+                if not workflow.get_ready_nodes() and not any(
+                    n.status == WorkflowStepStatus.RUNNING for n in workflow.nodes
+                ):
+                    # Cycles leave nodes PENDING forever — mark them SKIPPED.
+                    for node in workflow.nodes:
+                        if node.status == WorkflowStepStatus.PENDING:
+                            node.status = WorkflowStepStatus.SKIPPED
+                            node.result = {
+                                "error": "Skipped: unresolvable dependency cycle or deadlock"
+                            }
+                    break
+                continue
             await asyncio.gather(
                 *[self._run_node(workflow, n) for n in ready], return_exceptions=True
             )
+            self._skip_blocked_dependents(workflow)
         workflow.completed_at = time.time()
         if workflow.status != WorkflowStatus.CANCELLED:
             workflow.status = (
@@ -179,20 +232,97 @@ class WorkflowEngine:
             node.status = WorkflowStepStatus.FAILED
             node.result = {"error": f"No step function: {node.step_fn}"}
             return
-        try:
-            async with self._semaphore:
-                result = await asyncio.wait_for(
-                    step_fn({**node.args, **workflow.context}), timeout=node.timeout
+
+        merged_args = {**node.args, **workflow.context}
+        condition = str(merged_args.get("_condition") or "")
+        if condition and not condition_passes(condition, merged_args):
+            node.status = WorkflowStepStatus.SKIPPED
+            node.result = {"status": "skipped", "error": f"Condition not met: {condition}"}
+            return
+
+        attempts = max(1, int(node.max_retries) + 1)
+        last_error: dict[str, Any] = {}
+        for attempt in range(attempts):
+            node.retry_count = attempt
+            try:
+                async with self._semaphore:
+                    result = await asyncio.wait_for(
+                        step_fn(merged_args), timeout=node.timeout
+                    )
+                    node.result = result if isinstance(result, dict) else {"output": result}
+                    soft_status = str(node.result.get("status", "")).lower()
+                    if soft_status in {"error", "failed", "failure"}:
+                        last_error = node.result
+                        if attempt + 1 < attempts:
+                            continue
+                        node.status = WorkflowStepStatus.FAILED
+                        return
+                    node.status = WorkflowStepStatus.COMPLETED
+                    workflow.context[f"result_{node.id}"] = node.result
+                    return
+            except asyncio.TimeoutError:
+                last_error = {"error": f"Timeout after {node.timeout}s"}
+                if attempt + 1 < attempts:
+                    continue
+                node.status = WorkflowStepStatus.FAILED
+                node.result = last_error
+                return
+            except Exception as e:
+                last_error = {"error": str(e)}
+                if attempt + 1 < attempts:
+                    continue
+                node.status = WorkflowStepStatus.FAILED
+                node.result = last_error
+                return
+        node.status = WorkflowStepStatus.FAILED
+        node.result = last_error or {"error": "exhausted retries"}
+
+    def _skip_blocked_dependents(self, workflow: Workflow) -> None:
+        """Mark PENDING nodes as SKIPPED when deps failed or edge conditions fail."""
+        changed = True
+        while changed:
+            changed = False
+            for node in workflow.nodes:
+                if node.status != WorkflowStepStatus.PENDING:
+                    continue
+                incoming = [e for e in workflow.edges if e.target == node.id]
+                if not incoming:
+                    continue
+                if any(
+                    (src := workflow.get_node(e.source)) is not None
+                    and src.status
+                    in (WorkflowStepStatus.FAILED, WorkflowStepStatus.SKIPPED)
+                    for e in incoming
+                ):
+                    node.status = WorkflowStepStatus.SKIPPED
+                    node.result = {"error": "Skipped due to failed dependency"}
+                    changed = True
+                    continue
+                # Parents completed but edge condition(s) fail-closed → skip.
+                parents_done = all(
+                    (src := workflow.get_node(e.source)) is not None and src.is_terminal
+                    for e in incoming
                 )
-                node.result = result
-                node.status = WorkflowStepStatus.COMPLETED
-                workflow.context[f"result_{node.id}"] = result
-        except asyncio.TimeoutError:
-            node.status = WorkflowStepStatus.FAILED
-            node.result = {"error": f"Timeout after {node.timeout}s"}
-        except Exception as e:
-            node.status = WorkflowStepStatus.FAILED
-            node.result = {"error": str(e)}
+                if not parents_done:
+                    continue
+                edge_ok = True
+                for e in incoming:
+                    src = workflow.get_node(e.source)
+                    if src is None or src.status != WorkflowStepStatus.COMPLETED:
+                        edge_ok = False
+                        break
+                    if e.condition:
+                        ctx = {
+                            **workflow.context,
+                            f"result_{e.source}": src.result,
+                        }
+                        if not condition_passes(e.condition, ctx):
+                            edge_ok = False
+                            break
+                if not edge_ok:
+                    node.status = WorkflowStepStatus.SKIPPED
+                    node.result = {"error": "Skipped due to unmet edge condition"}
+                    changed = True
 
     def cancel_workflow(self, workflow_id: str) -> bool:
         wf = self._workflows.get(workflow_id)
@@ -221,4 +351,5 @@ __all__ = [
     "WorkflowNode",
     "Workflow",
     "WorkflowEngine",
+    "condition_passes",
 ]

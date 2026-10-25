@@ -308,7 +308,8 @@ class TestEmitSync:
         original_get = evmod.get_event_bus
         try:
             mock_bus = MagicMock()
-            mock_bus.emit = AsyncMock()
+            # Not AsyncMock: mocked asyncio.run raises before awaiting the arg.
+            mock_bus.emit = MagicMock()
             evmod.get_event_bus = MagicMock(return_value=mock_bus)
             evmod._bus = None
             with patch.object(evmod, "asyncio") as mock_asyncio:
@@ -316,6 +317,8 @@ class TestEmitSync:
                 mock_asyncio.run.side_effect = Exception("run failed")
                 emit_sync(Event(type=EventType.CUSTOM))
                 assert "Failed to run event loop for emit_sync" in caplog.text
+                mock_bus.emit.assert_called_once()
+                mock_asyncio.run.assert_called_once()
         finally:
             evmod.get_event_bus = original_get
             reset_event_bus()

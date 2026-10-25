@@ -422,8 +422,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     # Fail-closed: bare hosts after host-taking tools (``ssh bastion``, ``curl 0``).
     _port_flags = frozenset({"-p", "-P", "--port", "--ports"})
     tokens = decoded_early.split()
+    if tokens:
+        argv0 = tokens[0].lstrip("\\")
+        if argv0.startswith("`") or "$(" in argv0 or argv0.startswith("${"):
+            raise PermissionDeniedError(
+                f"Command-substitution argv0 is not allowed under authorized scope "
+                f"(authorized scope: {scope_display})"
+            )
     for i, tok in enumerate(tokens):
-        base = tok.split("/", 1)[0].lower()
+        # Basename path-qualified tools: ``/usr/bin/curl``, ``./curl``, ``\curl``.
+        base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
         if base not in _HOST_TOOL_NAMES:
             continue
         skip_next_port = False

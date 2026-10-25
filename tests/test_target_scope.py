@@ -228,3 +228,16 @@ class TestAssertCommandInScope:
         assert_command_in_scope("nmap -p 80 10.1.2.3", scope_env=scope)
         # IPv6 hextets must not be misread as integer IPv4 (``2001`` → 0.0.7.209).
         assert_command_in_scope("nmap -6 2001:db8::10", scope_env="2001:db8::/32")
+
+    def test_path_qualified_host_tools_under_scope(self) -> None:
+        scope = "10.0.0.0/8,*.lab.example"
+        with pytest.raises(PermissionDeniedError, match="0.0.0.0"):
+            assert_command_in_scope("/usr/bin/curl 0", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="0.0.0.0"):
+            assert_command_in_scope(r"\curl 0", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="0.0.0.1"):
+            assert_command_in_scope("./curl 1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="bastion"):
+            assert_command_in_scope("/usr/bin/ssh bastion", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="Command-substitution"):
+            assert_command_in_scope("$(curl) 0", scope_env=scope)

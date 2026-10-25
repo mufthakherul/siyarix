@@ -154,6 +154,14 @@ def _load_dotenv(path: Path | None = None) -> None:
             "NPM_CONFIG_REGISTRY",
             "PGSERVICEFILE",
             "DSN",
+            "GIT_SSL_NO_VERIFY",
+            "PYTHONHTTPSVERIFY",
+            "NODE_EXTRA_CA_CERTS",
+            "GIT_SSL_CAINFO",
+            "AWS_CA_BUNDLE",
+            "SSL_CERT_DIR",
+            "DOCKER_CERT_PATH",
+            "DOCKER_TLS_VERIFY",
         }
     )
     _blocked_vars = {
@@ -203,6 +211,14 @@ def _load_dotenv(path: Path | None = None) -> None:
         "GIT_EXTERNAL_DIFF",
         "NPM_CONFIG_REGISTRY",
         "PGSERVICEFILE",
+        "GIT_SSL_NO_VERIFY",
+        "PYTHONHTTPSVERIFY",
+        "NODE_EXTRA_CA_CERTS",
+        "GIT_SSL_CAINFO",
+        "AWS_CA_BUNDLE",
+        "SSL_CERT_DIR",
+        "DOCKER_CERT_PATH",
+        "DOCKER_TLS_VERIFY",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

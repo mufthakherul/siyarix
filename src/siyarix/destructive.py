@@ -145,13 +145,15 @@ _MISC_WRITE_BLOCK_RE = re.compile(
 # Long options first; ``\b`` after short flags so ``-C`` does not match inside ``--chdir``.
 _EXTRACT_DEST_RE = re.compile(
     r"(?:"
-    r"\b(?:tar|bsdtar|star)\b[\s\S]{0,160}"
+    r"\b(?:tar|bsdtar|star|pax)\b[\s\S]{0,160}"
     r"(?:--directory|--chdir|--cd|-C)\b(?:=|\s*)(\S+)"
     r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
     r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
     r"|\bcpio\b[\s\S]{0,100}(?:--directory|-D)\b(?:=|\s*)(\S+)"
     r"|\bpython(?:\d+(?:\.\d+)?)?\s+-m\s+(?:zipfile|tarfile)\b"
     r"[\s\S]{0,100}(?:-e|--extract|\bextract\b)[\s\S]{0,80}(\S+)"
+    r"|\bcabextract\b[\s\S]{0,100}(?:-d|--directory)(?:=|\s*)(\S+)"
+    r"|\bjar\b[\s\S]{0,120}(?:-C|--directory)(?:=|\s*)(\S+)"
     r")",
     re.IGNORECASE,
 )
@@ -247,13 +249,31 @@ _WMIC_FORMAT_RE = re.compile(
     r"\bwmic\b[\s\S]{0,100}(?:diskdrive|volume|logicaldisk)[\s\S]{0,80}format",
     re.IGNORECASE,
 )
-_AUTH_FILE_RE = re.compile(r"/etc/(?:passwd|shadow|sudoers|group)\b", re.IGNORECASE)
+# Auth + persistence paths that must not be overwritten / linked over.
+_AUTH_FILE_RE = re.compile(
+    r"(?:"
+    r"/etc/(?:passwd|shadow|sudoers(?:\.d/\S*)?|group|ld\.so\.preload|crontab|rc\.local)\b"
+    r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)/\S*"
+    r"|/etc/systemd/(?:system|user)/\S*"
+    r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
+    r")",
+    re.IGNORECASE,
+)
 _LN_NULL_AUTH_RE = re.compile(
     r"\bln\b[\s\S]{0,80}/dev/null[\s\S]{0,80}" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
+_LN_TO_AUTH_RE = re.compile(
+    r"\bln\b[\s\S]{0,80}(?:-[^\s]*s[^\s]*|--symbolic)[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
 _CP_TO_AUTH_RE = re.compile(
-    r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+" + _AUTH_FILE_RE.pattern,
+    r"\b(?:cp|mv|rsync)\b\s+(?:-[^\s]+\s+)*\S+\s+" + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_MV_RSYNC_TO_AUTH_RE = re.compile(
+    r"\b(?:mv|rsync)\b[\s\S]{0,220}" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _REDIRECT_TO_AUTH_RE = re.compile(
@@ -290,11 +310,23 @@ _CMAKE_COPY_AUTH_RE = re.compile(
 )
 _INPLACE_AUTH_RE = re.compile(
     r"(?:"
-    r"\b(?:sed|perl)\b[\s\S]{0,100}-i\S*[\s\S]{0,160}"
+    r"\b(?:sed|perl|ruby)\b[\s\S]{0,100}-i\S*[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\b(?:g?awk)\b[\s\S]{0,80}-i(?:nplace)?\b[\s\S]{0,160}"
     + _AUTH_FILE_RE.pattern
     + r"|\bsponge\b\s+"
     + _AUTH_FILE_RE.pattern
     + r")",
+    re.IGNORECASE,
+)
+_CHMOD_AUTH_RE = re.compile(
+    r"\b(?:chmod|chown|chgrp)\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_SETUID_SYSTEM_RE = re.compile(
+    r"\bchmod\b[\s\S]{0,100}"
+    r"(?:[ug]*\+s|\+s|[0-7]*[4567][0-7]{3})\b[\s\S]{0,100}"
+    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*",
     re.IGNORECASE,
 )
 _DD_OF_AUTH_RE = re.compile(
@@ -310,6 +342,15 @@ _INTERPRETER_AUTH_WRITE_RE = re.compile(
     + r"|file_put_contents\s*\(\s*" + _AUTH_FILE_RE.pattern
     + r"|File\.open\s*\(\s*" + _AUTH_FILE_RE.pattern
     + r"|urlretrieve\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
+    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
+    + r"|shutil\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
+    + r"|os\s*\.\s*(?:rename|replace)\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|extractall\s*\(\s*/"
+    + r"|ZipFile\s*\([^)]*\)[\s\S]{0,80}\.extract(?:all)?\s*\(\s*/"
     + r")",
     re.IGNORECASE,
 )
@@ -539,7 +580,9 @@ def assert_command_not_destructive(command: str) -> None:
 
     if (
         _LN_NULL_AUTH_RE.search(cmd_clean)
+        or _LN_TO_AUTH_RE.search(cmd_clean)
         or _CP_TO_AUTH_RE.search(cmd_clean)
+        or _MV_RSYNC_TO_AUTH_RE.search(cmd_clean)
         or _REDIRECT_TO_AUTH_RE.search(cmd_clean)
         or _DD_OF_AUTH_RE.search(cmd_clean)
         or _INTERPRETER_AUTH_WRITE_RE.search(cmd_clean)
@@ -548,9 +591,15 @@ def assert_command_not_destructive(command: str) -> None:
         or _DOWNLOAD_DIR_AUTH_RE.search(cmd_clean)
         or _CMAKE_COPY_AUTH_RE.search(cmd_clean)
         or _INPLACE_AUTH_RE.search(cmd_clean)
+        or _CHMOD_AUTH_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."
+        )
+
+    if _SETUID_SYSTEM_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Setuid on system binaries is blocked."
         )
 
     if _CHMOD_CHOWN_CMD_RE.search(cmd_clean) and _RECURSE_FLAG_RE.search(cmd_clean):

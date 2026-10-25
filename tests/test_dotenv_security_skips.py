@@ -51,6 +51,14 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "DSN=postgres://u:p@h/db",
                 "PGSERVICEFILE=/tmp/pg_service",
                 "GIT_EXTERNAL_DIFF=evil",
+                "GIT_SSL_NO_VERIFY=true",
+                "PYTHONHTTPSVERIFY=0",
+                "NODE_EXTRA_CA_CERTS=/tmp/evil",
+                "GIT_SSL_CAINFO=/tmp/evil",
+                "AWS_CA_BUNDLE=/tmp/evil",
+                "SSL_CERT_DIR=/tmp/certs",
+                "DOCKER_CERT_PATH=/tmp/certs",
+                "DOCKER_TLS_VERIFY=0",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -90,6 +98,14 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "DSN",
         "PGSERVICEFILE",
         "GIT_EXTERNAL_DIFF",
+        "GIT_SSL_NO_VERIFY",
+        "PYTHONHTTPSVERIFY",
+        "NODE_EXTRA_CA_CERTS",
+        "GIT_SSL_CAINFO",
+        "AWS_CA_BUNDLE",
+        "SSL_CERT_DIR",
+        "DOCKER_CERT_PATH",
+        "DOCKER_TLS_VERIFY",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -130,4 +146,12 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "DSN" not in os.environ
     assert "PGSERVICEFILE" not in os.environ
     assert "GIT_EXTERNAL_DIFF" not in os.environ
+    assert "GIT_SSL_NO_VERIFY" not in os.environ
+    assert "PYTHONHTTPSVERIFY" not in os.environ
+    assert "NODE_EXTRA_CA_CERTS" not in os.environ
+    assert "GIT_SSL_CAINFO" not in os.environ
+    assert "AWS_CA_BUNDLE" not in os.environ
+    assert "SSL_CERT_DIR" not in os.environ
+    assert "DOCKER_CERT_PATH" not in os.environ
+    assert "DOCKER_TLS_VERIFY" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

@@ -73,6 +73,10 @@ All notable changes to this project will be documented in this file.
 - `python -m zipfile|tarfile` extract-to-root; scope integer hosts (`curl 0`) + IDN homoglyphs.
 - `.env` also skips `HOME`/`NETRC`/`SSL_CERT_FILE`/`CURL_CA_BUNDLE`/`GIT_CONFIG_*`/`DSN`/…
 - SecretRedactor/DLP: Stripe `sk_live_`/`sk_test_` and `Authorization: Token`.
+- Hard-block `mv`/`rsync`/`ln -sf`, pathlib/shutil/os.rename, and persistence paths (`ld.so.preload`, `authorized_keys`, crontab/systemd) overwrites.
+- `ruby -i` / `awk -i inplace`; `cabextract`/`jar`/`pax` extract-to-root; `chmod` on auth + setuid on system bins.
+- Scope basenames path-qualified host tools (`/usr/bin/curl`); reject command-substitution argv0.
+- `.env` skips `GIT_SSL_NO_VERIFY`/`NODE_EXTRA_CA_CERTS`/`AWS_CA_BUNDLE`/`DOCKER_CERT_PATH`/…
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

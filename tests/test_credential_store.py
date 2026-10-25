@@ -1049,15 +1049,14 @@ class TestCredentialStorePersistence:
             cred_store._load()
             assert "c1" in cred_store._credentials
 
-    def test_save_kms_fallback_to_local(self, cred_store, tmp_path):
+    def test_save_kms_fails_closed(self, cred_store, tmp_path):
         fake_boto3 = MagicMock()
         with patch.dict("sys.modules", {"boto3": fake_boto3}):
             with patch.dict(os.environ, {"SIYARIX_KMS_PROVIDER": "aws"}, clear=True):
                 with patch.object(cred_store, "_kms_available", return_value=True):
                     fake_boto3.client.side_effect = Exception("boto fail")
-                    with patch("siyarix.credential_store.logger") as mock_log:
-                        c = cred_store.store(name="kms_test", value="val")
-                        mock_log.exception.assert_called()
+                    with pytest.raises(RuntimeError, match="KMS envelope encryption failed"):
+                        cred_store.store(name="kms_test", value="val")
 
     def test_save_kms_no_existing_key(self, cred_store, tmp_path):
         fake_boto3 = MagicMock()

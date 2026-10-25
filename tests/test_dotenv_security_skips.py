@@ -23,11 +23,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SIYARIX_COMMAND_REVIEW=false",
                 "SIYARIX_ALLOWED_SCOPE=0.0.0.0/0",
                 "PERL5OPT=-d:Foo",
+                "PERLLIB=/tmp/evil",
                 "RUBYOPT=-rfoo",
                 "JAVA_TOOL_OPTIONS=-javaagent:x",
                 "_JAVA_OPTIONS=-javaagent:x",
                 "JDK_JAVA_OPTIONS=-javaagent:x",
                 "JAVA_OPTS=-Xbootclasspath/a:/tmp/evil",
+                "IBM_JAVA_OPTIONS=-javaagent:x",
+                "OPENJ9_JAVA_OPTIONS=-javaagent:x",
+                "CATALINA_OPTS=-javaagent:x",
                 "PERL5DB=system('id')",
                 "SOCKS5_PROXY=socks5://evil",
                 "OPENSSL_MODULES=/tmp/evil",
@@ -35,7 +39,23 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "WGETRC=/tmp/wgetrc",
                 "KUBE_CONFIG=/tmp/evil.kube",
                 "DOTNET_STARTUP_HOOKS=/tmp/evil",
+                "DOTNET_AdditionalDeps=/tmp/evil",
                 "CORECLR_PROFILER_PATH=/tmp/evil",
+                "CORECLR_PROFILER_PATH_64=/tmp/evil",
+                "CORECLR_ENABLE_PROFILING=1",
+                "CORECLR_PROFILER={11111111-1111-1111-1111-111111111111}",
+                "GOCACHEPROG=/tmp/evil",
+                "BASH_FUNC_foo%%=() { id; }",
+                "EDITOR=/tmp/pwn-editor",
+                "SUDO_EDITOR=/tmp/pwn-editor",
+                "ANSIBLE_ACTION_PLUGINS=/tmp/evil",
+                "ANSIBLE_LIBRARY=/tmp/evil",
+                "PYTHONEXECUTABLE=/tmp/pwn-python",
+                "LUA_PATH=/tmp/evil/?.lua",
+                "BUILDKIT_HOST=tcp://evil:1234",
+                "RES_OPTIONS=attempts:1",
+                "BOTO_CONFIG=/tmp/evil.boto",
+                "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE=/tmp/evil.pem",
                 "HOSTFILE=/tmp/hosts",
                 "CVS_RSH=ssh -o ProxyCommand=evil",
                 "ZDOTDIR=/tmp/zdot",
@@ -144,11 +164,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SIYARIX_COMMAND_REVIEW",
         "SIYARIX_ALLOWED_SCOPE",
         "PERL5OPT",
+        "PERLLIB",
         "RUBYOPT",
         "JAVA_TOOL_OPTIONS",
         "_JAVA_OPTIONS",
         "JDK_JAVA_OPTIONS",
         "JAVA_OPTS",
+        "IBM_JAVA_OPTIONS",
+        "OPENJ9_JAVA_OPTIONS",
+        "CATALINA_OPTS",
         "PERL5DB",
         "SOCKS5_PROXY",
         "OPENSSL_MODULES",
@@ -156,7 +180,23 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "WGETRC",
         "KUBE_CONFIG",
         "DOTNET_STARTUP_HOOKS",
+        "DOTNET_AdditionalDeps",
         "CORECLR_PROFILER_PATH",
+        "CORECLR_PROFILER_PATH_64",
+        "CORECLR_ENABLE_PROFILING",
+        "CORECLR_PROFILER",
+        "GOCACHEPROG",
+        "BASH_FUNC_foo%%",
+        "EDITOR",
+        "SUDO_EDITOR",
+        "ANSIBLE_ACTION_PLUGINS",
+        "ANSIBLE_LIBRARY",
+        "PYTHONEXECUTABLE",
+        "LUA_PATH",
+        "BUILDKIT_HOST",
+        "RES_OPTIONS",
+        "BOTO_CONFIG",
+        "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE",
         "HOSTFILE",
         "CVS_RSH",
         "ZDOTDIR",
@@ -266,11 +306,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SIYARIX_COMMAND_REVIEW" not in os.environ
     assert "SIYARIX_ALLOWED_SCOPE" not in os.environ
     assert "PERL5OPT" not in os.environ
+    assert "PERLLIB" not in os.environ
     assert "RUBYOPT" not in os.environ
     assert "JAVA_TOOL_OPTIONS" not in os.environ
     assert "_JAVA_OPTIONS" not in os.environ
     assert "JDK_JAVA_OPTIONS" not in os.environ
     assert "JAVA_OPTS" not in os.environ
+    assert "IBM_JAVA_OPTIONS" not in os.environ
+    assert "OPENJ9_JAVA_OPTIONS" not in os.environ
+    assert "CATALINA_OPTS" not in os.environ
     assert "PERL5DB" not in os.environ
     assert "SOCKS5_PROXY" not in os.environ
     assert "OPENSSL_MODULES" not in os.environ
@@ -278,7 +322,23 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "WGETRC" not in os.environ
     assert "KUBE_CONFIG" not in os.environ
     assert "DOTNET_STARTUP_HOOKS" not in os.environ
+    assert "DOTNET_AdditionalDeps" not in os.environ
     assert "CORECLR_PROFILER_PATH" not in os.environ
+    assert "CORECLR_PROFILER_PATH_64" not in os.environ
+    assert "CORECLR_ENABLE_PROFILING" not in os.environ
+    assert "CORECLR_PROFILER" not in os.environ
+    assert "GOCACHEPROG" not in os.environ
+    assert "BASH_FUNC_foo%%" not in os.environ
+    assert "EDITOR" not in os.environ
+    assert "SUDO_EDITOR" not in os.environ
+    assert "ANSIBLE_ACTION_PLUGINS" not in os.environ
+    assert "ANSIBLE_LIBRARY" not in os.environ
+    assert "PYTHONEXECUTABLE" not in os.environ
+    assert "LUA_PATH" not in os.environ
+    assert "BUILDKIT_HOST" not in os.environ
+    assert "RES_OPTIONS" not in os.environ
+    assert "BOTO_CONFIG" not in os.environ
+    assert "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE" not in os.environ
     assert "HOSTFILE" not in os.environ
     assert "CVS_RSH" not in os.environ
     assert "ZDOTDIR" not in os.environ

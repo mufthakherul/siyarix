@@ -683,6 +683,72 @@ def _normalize_path_token(tok: str) -> str:
     return t
 
 
+# Absolute paths (and of=/… assignments) so lexical evasion cannot bypass
+# auth/block regexes that match canonical ``/etc/passwd`` / ``/dev/sda``.
+_ABS_PATH_IN_CMD_RE = re.compile(
+    r"(?<![A-Za-z0-9_./-])(/(?:[^\s;|&<>'\"`()]+))",
+)
+_OF_ABS_PATH_RE = re.compile(r"(\bof=)(/(?:[^\s;|&<>'\"`()]+))", re.IGNORECASE)
+# Relative auth-like paths reconstructed under ``/`` via ``cp --parents`` /
+# ``rsync -R`` / ``--relative``.
+_REL_AUTH_PATH_RE = re.compile(
+    r"(?:^|[\s=])"
+    r"(?:etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|"
+    r"crontab|rc\.local)|"
+    r"etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?|"
+    r"etc/systemd/(?:system|user)(?:/\S*)?|"
+    r"(?:root|home/[^/\s]+)/\.ssh/authorized_keys)"
+    r"(?:\s|$)",
+    re.IGNORECASE,
+)
+_CP_PARENTS_FLAG_RE = re.compile(r"--parents\b", re.IGNORECASE)
+_RSYNC_RELATIVE_FLAG_RE = re.compile(
+    r"(?:--relative\b|(?<![-\w])-[^\s]*R[^\s]*)",
+    re.IGNORECASE,
+)
+
+
+def _normalize_abs_paths_in_command(cmd: str) -> str:
+    """Replace absolute path tokens with lexically normalized forms.
+
+    Closes ``/tmp/../etc/passwd``, ``/./dev/sda``, ``/etc/./shadow`` evasions
+    that otherwise miss ``_AUTH_FILE_RE`` / ``_BLOCK_DEV_RE`` literal matches.
+    """
+
+    def _of_repl(match: re.Match[str]) -> str:
+        return match.group(1) + _normalize_path_token(match.group(2))
+
+    def _path_repl(match: re.Match[str]) -> str:
+        return _normalize_path_token(match.group(1))
+
+    out = _OF_ABS_PATH_RE.sub(_of_repl, cmd)
+    return _ABS_PATH_IN_CMD_RE.sub(_path_repl, out)
+
+
+def _parents_reconstructs_auth(cmd_clean: str) -> bool:
+    """True when ``cp --parents`` / ``rsync -R`` would materialize auth under ``/``."""
+    has_cp_parents = bool(
+        re.search(r"\bcp\b", cmd_clean, re.IGNORECASE)
+        and _CP_PARENTS_FLAG_RE.search(cmd_clean)
+    )
+    has_rsync_rel = bool(
+        re.search(r"\brsync\b", cmd_clean, re.IGNORECASE)
+        and _RSYNC_RELATIVE_FLAG_RE.search(cmd_clean)
+    )
+    if not (has_cp_parents or has_rsync_rel):
+        return False
+    if not _REL_AUTH_PATH_RE.search(cmd_clean):
+        return False
+    # Destination is ``/`` (or a root equivalent) as a standalone token.
+    for raw in cmd_clean.split():
+        if raw.startswith("-"):
+            continue
+        tok = _normalize_path_token(raw)
+        if tok in {"/", "/*"} or tok in _ROOT_EQUIV:
+            return True
+    return False
+
+
 def _targets_system_path(cmd_clean: str) -> bool:
     """True when *cmd_clean* names ``/``, ``/*``, or a critical system root.
 
@@ -767,6 +833,9 @@ def assert_command_not_destructive(command: str) -> None:
     cmd_braced = _expand_brace_paths(cmd_esc)
     # Normalize list-argv commas (``['rm','-rf','/']`` → ``rm -rf /``).
     cmd_clean = re.sub(r"\s*,\s*", " ", cmd_braced)
+    # Lexical path normalize so ``/tmp/../etc/passwd`` / ``/./dev/sda`` hit
+    # the canonical auth/block regexes (RH-01 / RH-02).
+    cmd_clean = _normalize_abs_paths_in_command(cmd_clean)
 
     if _FORK_BOMB_RE.search(cmd_clean):
         raise PermissionDeniedError(
@@ -883,6 +952,7 @@ def assert_command_not_destructive(command: str) -> None:
         or _DD_RESCUE_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)
         or _SOCAT_AUTH_RE.search(cmd_clean)
+        or _parents_reconstructs_auth(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."

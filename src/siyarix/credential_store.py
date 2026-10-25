@@ -843,9 +843,13 @@ class CredentialStore:
                     raise RuntimeError("KMS data key must be set before encryption")
                 fernet_key = base64.urlsafe_b64encode(self._kms_data_key)
                 f = Fernet(fernet_key)
-            except Exception:
-                logger.exception("KMS envelope encryption failed; falling back to local encryption")
-                use_kms = False
+            except Exception as exc:
+                # Fail closed when the operator explicitly requested AWS KMS (SX-A08).
+                logger.exception("KMS envelope encryption failed")
+                raise RuntimeError(
+                    "SIYARIX_KMS_PROVIDER=aws but KMS envelope encryption failed; "
+                    "refusing to persist credentials with local-only keys"
+                ) from exc
 
         for c in creds_to_save:
             if not c:
@@ -861,7 +865,9 @@ class CredentialStore:
             else:
                 content_str = self._encrypt(raw)
 
-            (self._creds_dir / f"{c.cred_id}.enc").write_text(content_str)
+            enc_path = self._creds_dir / f"{c.cred_id}.enc"
+            enc_path.write_text(content_str)
+            _safe_chmod(enc_path, 0o600)
 
     def store(
         self,

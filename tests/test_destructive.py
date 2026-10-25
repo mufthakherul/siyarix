@@ -414,6 +414,22 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "opkg --offline-root=/ install x",
         "opkg -o / install x",
         "opkg -o/ install x",
+        # RH-01 / RH-02 / RH-05 — lexical path evasion + parents reconstruction
+        "cat payload > /tmp/../etc/passwd",
+        "cat payload > /./etc/passwd",
+        "cp payload /etc/./shadow",
+        "cp x /./etc/passwd",
+        "cp payload /tmp/../etc/shadow",
+        "echo x >> /tmp/../etc/ld.so.preload",
+        "ln -sf /tmp/e /etc/./passwd",
+        "tee /tmp/../etc/crontab < x",
+        "gzip -dc payload.gz > /./dev/sda",
+        "xz -dc x > /./dev/sda",
+        "base64 -d x > /tmp/../dev/nvme0n1",
+        "head -c 100M /dev/zero > /./dev/sda",
+        "cp --parents etc/passwd /",
+        "rsync -R etc/passwd /",
+        "rsync --relative etc/shadow /",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

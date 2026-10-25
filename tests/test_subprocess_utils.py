@@ -226,6 +226,23 @@ class TestPrepareEnv:
         result = _prepare_env()
         assert "HTTP_PROXY" not in result
 
+    @patch("siyarix.stealth.stealth_engine")
+    def test_scrubs_secret_env_vars(
+        self, mock_stealth: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        mock_stealth.config.enabled = False
+        monkeypatch.setenv("SIYARIX_SUDO_PASSWORD", "s3cret")
+        monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "vault")
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        monkeypatch.setenv("SIYARIX_HARMLESS", "ok")
+        result = _prepare_env({"ANTHROPIC_API_KEY": "ak-test", "KEEP": "yes"})
+        assert "SIYARIX_SUDO_PASSWORD" not in result
+        assert "SIYARIX_MASTER_PASSWORD" not in result
+        assert "OPENAI_API_KEY" not in result
+        assert "ANTHROPIC_API_KEY" not in result
+        assert result.get("SIYARIX_HARMLESS") == "ok"
+        assert result.get("KEEP") == "yes"
+
 
 # ── _cleanup_orphans ─────────────────────────────────────────────────────
 

@@ -152,9 +152,11 @@ class AuditEvent:
     hash_current: str | None = None
 
     def compute_hash(self, prev_hash: str | None = None) -> str:
-        """Compute tamper-evident SHA-256 hash (first 16 hex chars).
+        """Compute tamper-evident full SHA-256 hex digest.
 
         Hashes the exact canonical representation that ``to_dict`` persists.
+        Legacy entries may store only the first 16 hex chars; ``verify_chain``
+        accepts both forms during migration (SX-A04).
         """
         details_str = json.dumps(self.details, sort_keys=True, separators=(",", ":"), default=str)
         data = (
@@ -162,7 +164,7 @@ class AuditEvent:
             f"{self.user}{self.session_id}{self.source_ip}{self.target}"
             f"{self.action}{self.result}{details_str}{prev_hash or ''}"
         )
-        return hashlib.sha256(data.encode()).hexdigest()[:16]
+        return hashlib.sha256(data.encode()).hexdigest()
 
     def to_dict(self) -> dict[str, Any]:
         # Fields are already redacted/canonicalized at log time — do not
@@ -480,15 +482,59 @@ class AuditLogger:
 
         return [e.to_dict() for e in events[-limit:]]
 
+    @staticmethod
+    def _hash_matches(stored: str | None, expected_full: str) -> bool:
+        """Accept full SHA-256 or legacy 16-char truncated hashes."""
+        if not stored:
+            return False
+        if stored == expected_full:
+            return True
+        # Legacy SX-era truncated digests.
+        return len(stored) == 16 and expected_full.startswith(stored)
+
+    def _events_for_verify(self) -> list[AuditEvent]:
+        """Prefer full on-disk JSONL so truncated in-memory windows cannot hide deletes."""
+        if self._audit_db.exists():
+            try:
+                lines = [
+                    line
+                    for line in self._audit_db.read_text(encoding="utf-8").splitlines()
+                    if line.strip()
+                ]
+                events: list[AuditEvent] = []
+                for evt_data in (json.loads(line) for line in lines):
+                    events.append(
+                        AuditEvent(
+                            event_id=evt_data["event_id"],
+                            timestamp=datetime.fromisoformat(evt_data["timestamp"]),
+                            event_type=evt_data["event_type"],
+                            severity=evt_data["severity"],
+                            user=evt_data["user"],
+                            session_id=evt_data["session_id"],
+                            source_ip=evt_data["source_ip"],
+                            target=evt_data["target"],
+                            action=evt_data["action"],
+                            result=evt_data["result"],
+                            details=evt_data.get("details", {}),
+                            hash_prev=evt_data.get("hash_prev"),
+                            hash_current=evt_data.get("hash_current"),
+                        )
+                    )
+                return events
+            except Exception as exc:
+                logger.exception("Failed to load audit jsonl for verify: %s", exc)
+        return list(self._events)
+
     def verify_chain(self) -> dict[str, Any]:
-        """Verify tamper-evident chain of all events."""
+        """Verify tamper-evident chain across the full on-disk audit log."""
         valid = True
         broken_at = None
         errors: list[str] = []
+        events = self._events_for_verify()
 
-        for i, event in enumerate(self._events):
+        for i, event in enumerate(events):
             if i > 0:
-                expected_prev = self._events[i - 1].hash_current
+                expected_prev = events[i - 1].hash_current
                 if event.hash_prev != expected_prev:
                     valid = False
                     broken_at = event.event_id
@@ -499,7 +545,7 @@ class AuditLogger:
                     break
 
             expected_hash = event.compute_hash(event.hash_prev)
-            if event.hash_current != expected_hash:
+            if not self._hash_matches(event.hash_current, expected_hash):
                 valid = False
                 errors.append(
                     f"Event {i} ({event.event_id}) hash mismatch: "
@@ -511,10 +557,11 @@ class AuditLogger:
 
         return {
             "valid": valid,
-            "total_events": len(self._events),
+            "total_events": len(events),
             "broken_at": broken_at,
             "errors": errors,
             "chain_integrity": "intact" if valid else "compromised",
+            "verified_source": "disk" if self._audit_db.exists() else "memory",
         }
 
     def export(

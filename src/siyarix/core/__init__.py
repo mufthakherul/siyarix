@@ -27,7 +27,7 @@ from ..events import Event, EventType, get_event_bus
 from ..exceptions import BudgetExceededError
 from ..knowledge_graph import KnowledgeGraph
 from ..stealth import StealthEngine
-from ..config import get_config_dir, SettingsStore
+from ..config import get_config_dir
 from ..permission_gate import PermissionGate
 from .swarm import SwarmRouter, SwarmTask
 from ..offline_store import OfflineStore
@@ -113,15 +113,12 @@ class AgentCore(ExecutionMixin, GraphMixin):
             registry_planner=self._planner_registry,
         )
 
-        # PermissionGate — on by default for production; set SIYARIX_SAFE_MODE=0 for labs.
-        _env_raw = os.getenv("SIYARIX_SAFE_MODE")
-        if _env_raw is not None:
-            _safe_mode = _env_raw.strip().lower() not in {"0", "false", "no", "off"}
-        else:
-            _store = SettingsStore()
-            _settings_flag = _store.get("_safe_mode", default=False) if _store.has("_safe_mode") else None
-            _safe_mode = True if _settings_flag is None else bool(_settings_flag)
-        self._permission_gate = PermissionGate() if _safe_mode else None
+        # PermissionGate — single source of truth with production-check / registry
+        # factory: SIYARIX_SAFE_MODE env only (default on). Settings.toml cannot
+        # silently disable the gate while readiness probes still PASS (SX-A05).
+        from ..registry_factory import permission_gate_enabled
+
+        self._permission_gate = PermissionGate() if permission_gate_enabled() else None
 
         self._executor_registry = RegistryExecutor(
             self._registry,

@@ -87,6 +87,25 @@ class TestAssertCommandInScope:
         monkeypatch.delenv("SIYARIX_ALLOWED_SCOPE", raising=False)
         assert_command_in_scope("nmap github.com")  # no scope → no-op
 
+    def test_blocks_proxy_wrappers_under_scope(self) -> None:
+        scope = "10.0.0.0/8"
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope("proxychains nmap 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope("torsocks curl http://10.0.0.1/", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope(
+                "cloudflared tunnel --url http://10.0.0.1:8080", scope_env=scope
+            )
+
+    def test_blocks_psql_service_under_scope(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="psql service"):
+            assert_command_in_scope("psql service=evil", scope_env="10.0.0.0/8")
+
+    def test_blocks_ssh_dynamic_forward_under_scope(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="DynamicForward"):
+            assert_command_in_scope("ssh -D 9050 10.0.0.1", scope_env="10.0.0.0/8")
+
     def test_blocks_out_of_scope_ipv4(self) -> None:
         with pytest.raises(PermissionDeniedError, match="out of authorized scope"):
             assert_command_in_scope("nmap 10.0.0.1", scope_env="192.168.1.0/24")

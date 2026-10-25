@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Compatibility interfaces and auxiliary orchestration types for Siyarix chat.
+"""Compatibility stubs and auxiliary orchestration types for Siyarix chat.
 
-Provides structured models for multi-model ensemble consensus, adversarial review,
-and platform bridge interfaces.
+WARNING: Most scanner / HSM / canary / importer classes in this module are
+intentionally incomplete placeholders that return empty results. Do not treat
+them as production security capabilities. Prefer real modules
+(``compliance.py``, ``threat_intel.py``, ``providers.manager.ensemble_decide``)
+where they exist. Product docs must label these surfaces as Planned.
 """
 
 from __future__ import annotations

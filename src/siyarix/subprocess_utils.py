@@ -337,10 +337,57 @@ def _validate_cmd_list(cmd: list[str]) -> None:
             return
 
 
+# Secrets / posture that must never ride into child tool processes (SX-A03).
+_SCRUB_ENV_EXACT: frozenset[str] = frozenset(
+    {
+        "SIYARIX_SUDO_PASSWORD",
+        "SIYARIX_MASTER_PASSWORD",
+        "SIYARIX_MASTER_KEY",
+        "SIYARIX_VAULT_PASSWORD",
+        "SIYARIX_PREAUTHORIZED",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SESSION_TOKEN",
+        "AZURE_CLIENT_SECRET",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "PGPASSWORD",
+        "MYSQL_PWD",
+        "REDIS_PASSWORD",
+    }
+)
+_SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
+    "_API_KEY",
+    "_SECRET",
+    "_PASSWORD",
+    "_TOKEN",
+    "_PRIVATE_KEY",
+    "_ACCESS_KEY",
+    "_MASTER_PASSWORD",
+    "_MASTER_KEY",
+    "_PASSPHRASE",
+    "_BEARER",
+)
+
+
+def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
+    """Drop credential / vault secrets from the child process environment."""
+    cleaned: dict[str, str] = {}
+    for key, val in exec_env.items():
+        upper = key.upper()
+        if upper in _SCRUB_ENV_EXACT or key in _SCRUB_ENV_EXACT:
+            continue
+        if any(upper.endswith(suf) for suf in _SCRUB_ENV_SUFFIXES):
+            continue
+        if upper.startswith("SIYARIX_") and upper.endswith("_KEY"):
+            continue
+        cleaned[key] = val
+    return cleaned
+
+
 def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:
-    exec_env = os.environ.copy()
+    exec_env = _scrub_secret_env(dict(os.environ))
     if env:
-        exec_env.update(env)
+        # Caller-supplied overrides are scrubbed too (no secret laundering).
+        exec_env.update(_scrub_secret_env(dict(env)))
     try:
         from siyarix.stealth import stealth_engine
 

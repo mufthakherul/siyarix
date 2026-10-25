@@ -42,6 +42,14 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | --- | --- | --- |
 | SX-024 | Closed | Offline REPL skips connectivity monitor; HTML reports default `offline=True` (system fonts); online mode widens CSP for Google Fonts only |
 | SX-025 | Partial→probes | Local probes for audit chain / shell-review / credential store / PermissionGate / webhook SSRF policy; remaining controls stay `NOT_EVALUATED` with disclaimer |
+| RH-01–05 | Closed | Lexical path normalize before auth/block regexes; `cp --parents` / `rsync -R` auth reconstruction blocked |
+| RH-04 | Closed | Shared `dotenv_guard` blocks PERLLIB / Java aliases / CORECLR_* / BASH_FUNC / editors / Ansible plugins / GOCACHEPROG / … |
+| RH-06 | Closed | Scope blocks proxychains/torsocks/tunnels, `psql service=`, `ssh -D` |
+| SX-A03 | Closed | `_prepare_env` scrubs sudo/master/API secrets from child processes |
+| SX-A04 | Closed | Full SHA-256 audit digests; `verify_chain` reads full on-disk JSONL (legacy 16-char accepted) |
+| SX-A05 | Closed | Agent PermissionGate uses `permission_gate_enabled()` env-only (no settings.toml silent off) |
+| SX-A07/A08 | Closed | `*.enc` chmod 600; config dir 0700; KMS fail-closed when `SIYARIX_KMS_PROVIDER=aws` |
+| FEAT/DOC | Partial | Compose API ports removed; classifiers Beta (no iOS); stub module warning; ghost TAXII/MISP/dashboard env scrubbed |
 
 ## Premium ops
 

@@ -95,7 +95,11 @@ def get_config_dir() -> Path:
         p = Path(p_str).expanduser().resolve()
     else:
         p = Path.home() / ".siyarix"
-    p.mkdir(parents=True, exist_ok=True)
+    p.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        p.chmod(0o700)
+    except OSError:
+        pass
     return p
 
 

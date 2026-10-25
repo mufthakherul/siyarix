@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Enterprise Plugin Manager for Siyarix.
 
-Provides dynamic discovery, sandboxed loading, lifecycle hooks, configuration
-management, remote registry search, and installation.
+Provides dynamic discovery, path-contained (not OS-sandboxed) loading, lifecycle
+hooks, configuration management, remote registry search, and installation.
+Treat installed plugins as fully trusted in-process code.
 """
 
 from __future__ import annotations

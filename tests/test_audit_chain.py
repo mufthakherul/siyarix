@@ -55,9 +55,15 @@ def test_audit_chain_tamper_detection(tmp_path, monkeypatch):
     res = logger.verify_chain()
     assert res["valid"] is True
 
-    # Tamper with the second event's previous hash to simulate corruption
-    if len(logger._events) >= 2:
-        logger._events[1].hash_prev = "deadbeef"
+    # Tamper on-disk JSONL (verify_chain reads full disk, not just memory).
+    lines = logger._audit_db.read_text(encoding="utf-8").splitlines()
+    assert len(lines) >= 2
+    import json as _json
+
+    evt1 = _json.loads(lines[1])
+    evt1["hash_prev"] = "deadbeef"
+    lines[1] = _json.dumps(evt1)
+    logger._audit_db.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     res2 = logger.verify_chain()
     assert res2["valid"] is False
@@ -140,7 +146,7 @@ class TestAuditLogCore:
         )
         h = event.compute_hash()
         assert isinstance(h, str)
-        assert len(h) == 16
+        assert len(h) == 64
 
     def test_audit_event_to_json(self):
         event = AuditEvent(
@@ -580,8 +586,14 @@ class TestAuditLoggerCore:
         logger = AuditLogger(log_startup=False)
         logger.log(AuditEventType.AUTH_LOGIN, AuditSeverity.INFO, "u", "login", "ok")
         logger.log(AuditEventType.SCAN_START, AuditSeverity.HIGH, "u", "scan", "started")
-        # Corrupt hash_current of first event AFTER both events are logged
-        logger._events[0].hash_current = "tampered"
+        # Corrupt on-disk first event hash (verify reads full JSONL).
+        import json as _json
+
+        lines = logger._audit_db.read_text(encoding="utf-8").splitlines()
+        evt0 = _json.loads(lines[0])
+        evt0["hash_current"] = "tampered"
+        lines[0] = _json.dumps(evt0)
+        logger._audit_db.write_text("\n".join(lines) + "\n", encoding="utf-8")
         result = logger.verify_chain()
         assert result["valid"] is False
         assert result["chain_integrity"] == "compromised"

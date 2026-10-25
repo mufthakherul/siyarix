@@ -162,6 +162,30 @@ _HOST_TOOL_NAMES = frozenset(
         "mssql-cli",
         "osql",
         "smbmap",
+        # Proxy / tunnel wrappers — engagement-bound when scope is set (RH-06).
+        "proxychains",
+        "proxychains4",
+        "torsocks",
+        "torify",
+        "cloudflared",
+        "ngrok",
+        "bore",
+        "localtunnel",
+        "lt",
+    }
+)
+# When scope is set, these tools create out-of-engagement pivots / public ingress.
+_SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
+    {
+        "proxychains",
+        "proxychains4",
+        "torsocks",
+        "torify",
+        "cloudflared",
+        "ngrok",
+        "bore",
+        "localtunnel",
+        "lt",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -611,6 +635,24 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     found_ips, found_domains = extract_targets(command)
 
     decoded_early = _decode_for_extract(command)
+    # Fail-closed: SOCKS/proxy wrappers and public tunnels hide real egress (RH-06).
+    for tok in decoded_early.split():
+        base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+        if base in _SCOPE_BLOCKED_WRAPPERS:
+            raise PermissionDeniedError(
+                f"Proxy/tunnel tool {base!r} is not allowed under authorized scope "
+                f"(authorized scope: {scope_display})"
+            )
+    # Fail-closed: ``psql service=…`` hides the remote host in a service file.
+    if re.search(r"\bpsql\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:\bservice\s*=|--service(?:=|\s))\s*\S+",
+        decoded_early,
+        re.IGNORECASE,
+    ):
+        raise PermissionDeniedError(
+            f"psql service= targets are not allowed under authorized scope "
+            f"(authorized scope: {scope_display}); pass an explicit -h/--host instead"
+        )
     # Unwrap ``bash -c 'nmap evil'`` / ``sh -c "ssh bastion"`` — re-check payload.
     _shell_c = _SHELL_C_PAYLOAD_RE.search(decoded_early)
     if _shell_c:
@@ -1251,14 +1293,17 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 jump_opt = flag in {"-J", "--jump"}
                 forward_opt = base == "ssh" and flag in _ssh_forward_flags
                 if forward_opt:
+                    if flag == "-D":
+                        # DynamicForward creates a local SOCKS pivot — blocked under scope.
+                        raise PermissionDeniedError(
+                            f"ssh -D DynamicForward is not allowed under authorized scope "
+                            f"(authorized scope: {scope_display})"
+                        )
                     if "=" in nxt:
                         if flag in {"-L", "-R"}:
                             _check_ssh_forward_spec(nxt.split("=", 1)[1])
                     else:
-                        # ``-D`` is dynamic (no remote host); still consume the arg.
                         skip_forward_spec = flag in {"-L", "-R"}
-                        if flag == "-D":
-                            skip_next_port = True
                     continue
                 if (
                     flag in _port_flags

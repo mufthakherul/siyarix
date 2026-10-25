@@ -195,6 +195,87 @@ async def _probe_credential_store(target: str) -> ComplianceResult:
         )
 
 
+async def _probe_permission_gate(target: str) -> ComplianceResult:
+    """Local probe: PermissionGate / SIYARIX_SAFE_MODE production default."""
+    try:
+        from siyarix.registry_factory import make_tool_registry, permission_gate_enabled
+
+        enabled = permission_gate_enabled()
+        reg = make_tool_registry()
+        gated = getattr(reg, "_permission_gate", None) is not None
+        ok = enabled and gated
+        return ComplianceResult(
+            check_id="",
+            status="PASS" if ok else "FAIL",
+            message=(
+                "PermissionGate enabled by default (SIYARIX_SAFE_MODE)."
+                if ok
+                else "PermissionGate disabled — set SIYARIX_SAFE_MODE=1 for production."
+            ),
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "safe_mode": enabled,
+                "registry_gated": gated,
+            },
+        )
+    except Exception as exc:
+        return ComplianceResult(
+            check_id="",
+            status="NOT_EVALUATED",
+            message=f"PermissionGate probe error: {exc}",
+            evidence_data={"target": target, "evaluated": False, "error": str(exc)},
+        )
+
+
+async def _probe_webhook_policy(target: str) -> ComplianceResult:
+    """Local probe: webhook destination policy when SIYARIX_WEBHOOK_URL is set."""
+    import os
+
+    from siyarix.webhooks import _validate_url
+
+    url = (os.environ.get("SIYARIX_WEBHOOK_URL") or "").strip()
+    if not url:
+        return ComplianceResult(
+            check_id="",
+            status="PASS",
+            message="SIYARIX_WEBHOOK_URL unset (no outbound webhook SSRF surface).",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "webhook_configured": False,
+            },
+        )
+    try:
+        _validate_url(url, allow_ip=False)
+        return ComplianceResult(
+            check_id="",
+            status="PASS",
+            message="Configured webhook URL passes SSRF destination policy.",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "webhook_configured": True,
+            },
+        )
+    except ValueError as exc:
+        return ComplianceResult(
+            check_id="",
+            status="FAIL",
+            message=f"Webhook URL fails SSRF policy: {exc}",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "webhook_configured": True,
+                "error": str(exc),
+            },
+        )
+
+
 # Controls we can partially evaluate with local technical probes.
 _EVALUATORS: dict[str, Callable[[str], Awaitable[ComplianceResult]]] = {
     "AU-2": _probe_audit_logging,
@@ -204,6 +285,8 @@ _EVALUATORS: dict[str, Callable[[str], Awaitable[ComplianceResult]]] = {
     "164.312(a)(1)": _probe_access_gate,
     "A.8.1": _probe_credential_store,
     "cc6.2": _probe_credential_store,
+    "A.12.1": _probe_permission_gate,
+    "Req-1.1": _probe_webhook_policy,
 }
 
 

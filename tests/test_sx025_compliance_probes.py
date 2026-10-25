@@ -33,6 +33,29 @@ async def test_access_gate_probe_fail_when_preauthorized(monkeypatch: pytest.Mon
 
 
 @pytest.mark.asyncio
+async def test_permission_gate_probe_pass_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SIYARIX_SAFE_MODE", raising=False)
+    result = await ComplianceCheck("A.12.1", "example.com").run()
+    assert result.status == "PASS"
+    assert result.evidence_data.get("safe_mode") is True
+
+
+@pytest.mark.asyncio
+async def test_webhook_probe_pass_when_unset(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SIYARIX_WEBHOOK_URL", raising=False)
+    result = await ComplianceCheck("Req-1.1", "example.com").run()
+    assert result.status == "PASS"
+    assert result.evidence_data.get("webhook_configured") is False
+
+
+@pytest.mark.asyncio
+async def test_webhook_probe_fail_on_ssrf_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIYARIX_WEBHOOK_URL", "https://127.0.0.1/hook")
+    result = await ComplianceCheck("Req-1.1", "example.com").run()
+    assert result.status == "FAIL"
+
+
+@pytest.mark.asyncio
 async def test_soc2_assessment_has_mixed_statuses(tmp_path) -> None:
     engine = ComplianceEngine(base_dir=tmp_path / "evidence")
     report = await engine.run_assessment("SOC2", "example.com")

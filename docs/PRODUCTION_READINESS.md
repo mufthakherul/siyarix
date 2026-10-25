@@ -34,7 +34,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | ID | Status | Notes |
 | --- | --- | --- |
 | SX-024 | Closed | Offline REPL skips connectivity monitor; HTML reports default `offline=True` (system fonts); online mode widens CSP for Google Fonts only |
-| SX-025 | Partial→probes | Local probes for audit chain / shell-review / credential store; remaining controls stay `NOT_EVALUATED` with disclaimer |
+| SX-025 | Partial→probes | Local probes for audit chain / shell-review / credential store / PermissionGate / webhook SSRF policy; remaining controls stay `NOT_EVALUATED` with disclaimer |
 
 ## Premium ops
 

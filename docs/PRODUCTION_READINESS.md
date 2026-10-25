@@ -52,7 +52,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (258 files)**; pytest **6325 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: mv/rsync/ln-sf + pathlib onto auth/persistence (`ld.so.preload`, `authorized_keys`, crontab); ruby/awk inplace; cabextract/jar; chmod auth/setuid; path-qualified scope tools; TLS `.env` skips; `rm` option-order; auth downloads; zipfile extract; `curl 0`/IDN; Stripe/Token; mmcblk/7z; file://; doctor; SX-025.
+Latest local checks on this branch: **mypy clean (258 files)**; pytest **6342 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: `tee -a` auth; dpkg/unsquashfs/git root extract; `mount --bind`; procfs hijacks; curl `--config`/wget `-i` scope; hardlink `ln`; fork-bomb whitespace; mv/rsync/pathlib auth/persistence; ruby/awk inplace; cabextract/jar; chmod auth/setuid; path-qualified scope; TLS `.env`; mmcblk/7z; file://; doctor; SX-025.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln

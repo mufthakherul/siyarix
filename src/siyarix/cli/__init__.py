@@ -2209,9 +2209,30 @@ def _execute_scan_core(
 def scan_quick(
     targets: list[str] = typer.Argument(..., help="Target IPs, hostnames, or @file.txt"),
     mode: str = typer.Option(None, "--mode", "-m", help="Execution mode"),
+    _parallel: int | None = typer.Option(
+        None,
+        "--parallel",
+        "-p",
+        help=(
+            "Max concurrent workers for multi-target scans "
+            "(default from settings default_parallel / SIYARIX_PARALLEL)"
+        ),
+        min=1,
+        max=32,
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
 ) -> None:
-    """Quick scan preset — fast port discovery (top 100 ports, no service detection)."""
+    """Quick scan preset — fast port discovery (top 100 ports, no service detection).
+
+    Supports ``@targets.txt`` and ``--parallel`` for multi-host campaigns.
+    """
+    parallel_workers = _parallel
+    if parallel_workers is None:
+        try:
+            parallel_workers = int(config.get("default_parallel") or 3)
+        except (TypeError, ValueError):
+            parallel_workers = 3
+    parallel_workers = max(1, min(int(parallel_workers), 32))
     _execute_scan_core(
         targets,
         tool="nmap",
@@ -2223,6 +2244,7 @@ def scan_quick(
         no_banner=True,
         profile="",
         nmap_args="--top-ports 100",
+        parallel=parallel_workers,
     )
 
 
@@ -2230,9 +2252,30 @@ def scan_quick(
 def scan_full(
     targets: list[str] = typer.Argument(..., help="Target IPs, hostnames, or @file.txt"),
     mode: str = typer.Option(None, "--mode", "-m", help="Execution mode"),
+    _parallel: int | None = typer.Option(
+        None,
+        "--parallel",
+        "-p",
+        help=(
+            "Max concurrent workers for multi-target scans "
+            "(default from settings default_parallel / SIYARIX_PARALLEL)"
+        ),
+        min=1,
+        max=32,
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
 ) -> None:
-    """Full scan preset — all ports, service + OS detection, default scripts."""
+    """Full scan preset — all ports, service + OS detection, default scripts.
+
+    Supports ``@targets.txt`` and ``--parallel`` for multi-host campaigns.
+    """
+    parallel_workers = _parallel
+    if parallel_workers is None:
+        try:
+            parallel_workers = int(config.get("default_parallel") or 3)
+        except (TypeError, ValueError):
+            parallel_workers = 3
+    parallel_workers = max(1, min(int(parallel_workers), 32))
     _execute_scan_core(
         targets,
         tool="nmap",
@@ -2244,6 +2287,7 @@ def scan_full(
         no_banner=True,
         profile="",
         nmap_args="-p- -sV -O -sC",
+        parallel=parallel_workers,
     )
 
 

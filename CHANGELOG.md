@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Persistent `/campaign` store (`~/.siyarix/campaigns/`) with create/list/status/run/delete and `@targets` scan handoff.
+- `siyarix scan-quick` / `scan-full` accept `--parallel` for multi-host `@file` campaigns.
 - True multi-target `siyarix scan --parallel N` concurrency with merged, target-tagged findings.
 - Shared `make_tool_registry()` factory (PermissionGate on by default) for CLI/chat/core/plugins/deep-scan.
 - Compliance CLI exits `2` on FAIL probes and `3` when `NOT_EVALUATED` remain.
@@ -13,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Hunt27: block in-place `gunzip`/`gzip` auth decompress, `e2image`/`partimage`/`sg_write_same`, `lzip` auth `-o`, glued DB/WinRM/openssl hosts under scope, hydra/medusa/rdesktop host binding, and `ANSIBLE_CONFIG` dotenv pivots.
 - Shared `assert_command_not_destructive` used by executor, ToolRegistry, PermissionGate, and subprocess (closes registry/deep-scan bypass of `dd of=` / `fdisk`).
 - CLI deep-scan injects PermissionGate-aware `RegistryExecutor`; alt-tool fallbacks re-check permissions.
 - Threat-intel (OTX/NVD) and stealth decoy traffic use IP-pinned HTTPS (`_https_request_pinned`); cleartext decoys skipped.

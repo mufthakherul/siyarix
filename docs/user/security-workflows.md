@@ -12,8 +12,12 @@ Before you can secure a network, you have to understand it. Siyarix offers multi
 # ⚡ Quick Scan: Find live hosts and check the top 100 ports
 siyarix scan-quick 10.0.0.0/24
 
+# ⚡ Multi-host quick scan from a campaign targets file
+siyarix scan-quick @hosts.txt --parallel 5
+
 # 🔍 Full Scan: Scan all 65,535 ports and detect service versions
 siyarix scan-full target.example.com
+siyarix scan-full @hosts.txt --parallel 3
 
 # 🕵️ Deep Scan: A 4-pass scan (discovery → fingerprint → vuln → enumeration)
 siyarix scan-deep target.example.com
@@ -98,7 +102,11 @@ siyarix playbook run response-playbook.yml
 # 🗺️ Plan a complex campaign using natural language
 siyarix run "plan campaign: recon -> scan -> enumerate -> exploit"
 
-# Track your campaign's progress interactively via the /campaign command in the REPL!
+# Persist a multi-target engagement in the REPL, then execute:
+#   /campaign create eng1 --targets hosts.txt
+#   /campaign run eng1
+#   → siyarix scan-quick @~/.siyarix/campaigns/eng1.targets.txt --parallel 5
+#   /campaign status eng1
 ```
 
 ---

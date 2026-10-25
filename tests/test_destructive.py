@@ -450,6 +450,9 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "gem unpack foo.gem --target /",
         "aunpack -X / evil.tar.gz",
         "atool --extract-to=/ evil.zip",
+        # RH-38
+        "pip install --target=/ evil",
+        "pip3 install --target /opt/../ evil",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

@@ -469,6 +469,11 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "NSS_WRAPPER_GROUP",
         "ELECTRON_RUN_AS_NODE",
         "ELECTRON_NO_ASAR",
+        # Proxy / mitm config pivots (RH-39).
+        "MITMPROXY_CONFDIR",
+        "MITMPROXY_CONF",
+        "REDSOCKS_CONF",
+        "MICROSOCKS_CONFIG",
     }
 )
 
@@ -520,6 +525,12 @@ def should_skip_dotenv_key(key: str) -> bool:
     if key_upper.startswith("ELECTRON_"):
         return True
     if key_upper in {"BROWSER", "VAULT_ADDR", "GRPC_PROXY"}:
+        return True
+    if key_upper.endswith("_CONFDIR") or key_upper in {
+        "REDSOCKS_CONF",
+        "MITMPROXY_CONF",
+        "MICROSOCKS_CONFIG",
+    }:
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

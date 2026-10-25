@@ -185,8 +185,10 @@ _EXTRACT_DEST_RE = re.compile(
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
+    # ``pip install --target=/`` is an install-root pivot (RH-38).
     r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm)\b[\s\S]{0,160}?"
-    r"(?:--installroot|--offline-root|--root|--prefix|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    r"(?:--installroot|--offline-root|--root|--prefix|--target|(?<![\w-])-r)"
+    r"(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
 # OpenWrt opkg also uses ``-o`` / ``--offline-root`` for the install root.

@@ -602,6 +602,11 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "pproxy -l http://:8080 -r socks5://1.1.1.1:1080", scope_env=scope
             )
+        # RH-37
+        with pytest.raises(PermissionDeniedError, match="redsocks|Proxy/tunnel"):
+            assert_command_in_scope("redsocks -c /tmp/r.conf", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="microsocks|Proxy/tunnel"):
+            assert_command_in_scope("microsocks -p 1080", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="context use"):
             assert_command_in_scope("docker context use prod", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.

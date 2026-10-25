@@ -191,6 +191,8 @@ _HOST_TOOL_NAMES = frozenset(
         "connect",
         "pproxy",
         "proxy.py",
+        "redsocks",
+        "microsocks",
         "cloudflared",
         "ngrok",
         "bore",
@@ -221,6 +223,8 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "connect",
         "pproxy",  # RH-32
         "proxy.py",
+        "redsocks",  # RH-37
+        "microsocks",
         "cloudflared",
         "ngrok",
         "bore",

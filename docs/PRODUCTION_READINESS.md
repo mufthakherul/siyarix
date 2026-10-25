@@ -62,6 +62,9 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-34 | Closed | `docker context use` / `--connection` hide daemon — blocked under scope |
 | RH-35 | Closed | `gem unpack --target /`, `aunpack -X /` extract-to-root blocked |
 | RH-36 | Closed | Dotenv skips `BROWSER` / Guile / pip index / `GRPC_PROXY` / Vault / GDK / NSS wrapper / Electron pivots |
+| RH-37 | Closed | `redsocks` / `microsocks` scope-blocked tunnel wrappers |
+| RH-38 | Closed | `pip install --target=/` install-root pivot blocked |
+| RH-39 | Closed | Dotenv skips `MITMPROXY_CONFDIR` / `REDSOCKS_CONF` / `*_CONFDIR` pivots |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
 | Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |
 | CISA KEV | Closed | Feed status `planned` (was false `integrated`) |

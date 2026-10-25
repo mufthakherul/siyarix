@@ -747,6 +747,31 @@ class TestAssertCommandInScope:
             assert_command_in_scope("awg-quick up wg0", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="wscat|Proxy/tunnel"):
             assert_command_in_scope("wscat -c ws://evilhost", scope_env=scope)
+        # RH-50 — proxychains-ng, fish -c, quote/IFS decode, URI schemes, siblings
+        with pytest.raises(PermissionDeniedError, match="proxychains|Proxy/tunnel"):
+            assert_command_in_scope("proxychains-ng nmap 10.0.0.1", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="edge|Proxy/tunnel"):
+            assert_command_in_scope("edge -l evilhost:7654 -c n -k p", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("fish -c 'nmap evilhost'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("n'map evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("nmap${IFS}evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("plink user@evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL scheme|redis"):
+            assert_command_in_scope(
+                "redis-cli -u redis://evilhost:6379/0", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="playit|Proxy/tunnel"):
+            assert_command_in_scope("playit-cli", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="wormhole|Proxy/tunnel"):
+            assert_command_in_scope("wormhole send f", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("pssh -H evilhost uptime", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("sqlplus u/p@evilhost/orcl", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

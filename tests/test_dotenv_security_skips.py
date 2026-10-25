@@ -610,3 +610,22 @@ def test_should_skip_rh49_dotenv_keys() -> None:
         "PROXYTUNNEL_HOST",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh50_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "MC_HOST_evil",
+        "FRPC_CONFIG",
+        "NPS_SERVER",
+        "VALKEY_HOST",
+        "OPENCONNECT_SERVER",
+        "HBBS_RELAY",
+        "CHISEL_SERVER",
+        "WORMHOLE_TRANSIT_HELPER",
+        "INLETS_UPSTREAM",
+        "NEO4J_HOST",
+        "KAFKA_BOOTSTRAP_SERVERS",
+    ):
+        assert should_skip_dotenv_key(key), key

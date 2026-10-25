@@ -84,7 +84,10 @@ _HTTP_URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
 # Schemes that bypass host extraction / are not IP-scoped when scope is set.
 _NON_HTTP_URL_RE = re.compile(
     r"\b(?:file|ftp|ftps|gopher|data|unix|smb|nfs|ldap|ldaps|dict|tftp|"
-    r"rtsp|ssh|sftp|scp|rsync|git|jar|mailto|telnet):[^\s\"']*",
+    r"rtsp|ssh|sftp|scp|rsync|git|jar|mailto|telnet|"
+    # RH-50 — DB / messaging / VNC URI schemes that hide hosts.
+    r"redis|rediss|mongodb(?:\+srv)?|bolt|neo4j|nats|amqp|amqps|vnc|vncs|"
+    r"oracle|jdbc):[^\s\"']*",
     re.IGNORECASE,
 )
 # Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
@@ -92,6 +95,8 @@ _HOST_TOOL_NAMES = frozenset(
     {
         "ssh",
         "autossh",
+        "plink",
+        "dbclient",
         "mosh",
         "mosh-client",
         "argocd",
@@ -134,6 +139,22 @@ _HOST_TOOL_NAMES = frozenset(
         "redis-cli",
         "mongosh",
         "mongo",
+        "valkey-cli",
+        "keydb-cli",
+        "cypher-shell",
+        "cockroach",
+        "sqlplus",
+        "kcat",
+        "kafkacat",
+        "mosquitto_sub",
+        "mosquitto_pub",
+        "nats",
+        "rabbitmqadmin",
+        "pssh",
+        "parallel-ssh",
+        "pdsh",
+        "vncviewer",
+        "remmina",
         "impacket-psexec",
         "psexec.py",
         "evil-winrm",
@@ -328,6 +349,26 @@ _HOST_TOOL_NAMES = frozenset(
         "rustdesk",
         "wscat",
         "croc",
+        # RH-50 — sibling wrappers / n2n edge / wormhole / inlets / NPS.
+        "edge",
+        "playit-cli",
+        "zrok-share",
+        "tunnelto-client",
+        "openconnect-sso",
+        "tbot",
+        "boringtun",
+        "wireguard-go",
+        "amneziawg-go",
+        "hbbs",
+        "hbbr",
+        "wormhole",
+        "magic-wormhole",
+        "inlets",
+        "3proxy",
+        "npc",
+        "netclient",
+        "easytier-core",
+        "easytier",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -481,6 +522,26 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "rustdesk",
         "wscat",
         "croc",
+        # RH-50 — sibling wrappers / n2n edge / wormhole / inlets / NPS.
+        "edge",
+        "playit-cli",
+        "zrok-share",
+        "tunnelto-client",
+        "openconnect-sso",
+        "tbot",
+        "boringtun",
+        "wireguard-go",
+        "amneziawg-go",
+        "hbbs",
+        "hbbr",
+        "wormhole",
+        "magic-wormhole",
+        "inlets",
+        "3proxy",
+        "npc",
+        "netclient",
+        "easytier-core",
+        "easytier",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -684,11 +745,11 @@ _GLUED_PROXY_SHORT_RE = re.compile(
     r"^(?P<flag>-[xJ])(?P<val>.+)$"
 )
 _SHELL_WRAPPERS = frozenset(
-    {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox"}
+    {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox", "fish"}
 )
 # ``bash -c '…'``, ``su user -c '…'``, ``sudo -c '…'``, ``script -c '…'``.
 _SHELL_C_PAYLOAD_RE = re.compile(
-    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|su|sudo|script))\b"
+    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|fish|su|sudo|script))\b"
     r"[\s\S]{0,80}?(?:--command=|-c)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
 )
 # UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
@@ -726,6 +787,10 @@ def _decode_for_extract(command: str) -> str:
         if decoded == text:
             break
         text = decoded
+    # RH-50: mid-token quote splitting ``n'map`` / ``n""map`` → ``nmap``.
+    text = re.sub(r"(?<=[\w./-])['\"]+(?=[\w./-])", "", text)
+    # ``${IFS}`` / ``$IFS`` as whitespace (``nmap${IFS}evilhost``).
+    text = re.sub(r"\$\{IFS\}|\$IFS", " ", text)
     return text
 
 
@@ -1059,6 +1124,12 @@ def _normalize_tool_basename(name: str) -> str:
         nxt = _TOOL_VERSION_SUFFIX_RE.sub("", base)
         if nxt != base:
             base, changed = nxt, True
+    if base in _SCOPE_BLOCKED_WRAPPERS:
+        return base
+    # RH-50: ``proxychains-ng`` / ``playit-cli`` / ``zrok-share`` → known wrappers.
+    for wrapper in sorted(_SCOPE_BLOCKED_WRAPPERS, key=len, reverse=True):
+        if base.startswith(wrapper + "-") or base.startswith(wrapper + "_"):
+            return wrapper
     return base
 
 
@@ -1647,9 +1718,20 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "redis-cli",
             "mongosh",
             "mongo",
+            "valkey-cli",
+            "keydb-cli",
             "clickhouse-client",
             "clickhouse",
             "cqlsh",
+            "cypher-shell",
+            "cockroach",
+            "sqlplus",
+            "kcat",
+            "kafkacat",
+            "mosquitto_sub",
+            "mosquitto_pub",
+            "nats",
+            "rabbitmqadmin",
             "evil-winrm",
             "xfreerdp",
             "impacket-psexec",
@@ -1666,6 +1748,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "mssql-cli",
             "osql",
             "smbmap",
+            "pssh",
+            "parallel-ssh",
+            "pdsh",
+            "vncviewer",
+            "remmina",
+            "plink",
+            "dbclient",
         }:
             skip_db = False
             for nxt in tokens[i + 1 :]:
@@ -1683,6 +1772,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         scope_display,
                     )
                     continue
+                # RH-50: ``sqlplus u/p@evilhost/orcl``.
+                if base == "sqlplus" and "@" in nxt and not nxt.startswith("-"):
+                    host = nxt.split("@", 1)[1].split("/")[0].strip().strip("'\"")
+                    if host:
+                        _assert_host_token_in_scope(host, allowed_items, scope_display)
+                    continue
                 if not nxt.startswith("-"):
                     # Positional host (impacket-psexec / bare redis-cli target).
                     cand = nxt.split("@")[-1].split("/")[0].strip().strip("'\"")
@@ -1691,8 +1786,10 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
-                    short=frozenset({"-h", "-H", "-i", "-S"}),
-                    long=frozenset({"--host", "--ip", "--server"}),
+                    short=frozenset({"-h", "-H", "-i", "-S", "-w", "-a", "-b", "-s"}),
+                    long=frozenset(
+                        {"--host", "--ip", "--server", "--address", "--broker", "-c"}
+                    ),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -1700,7 +1797,22 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     continue
                 flag = nxt.split("=", 1)[0]
-                if flag in {"-h", "--host", "-H", "-i", "--ip", "-S", "--server"}:
+                if flag in {
+                    "-h",
+                    "--host",
+                    "-H",
+                    "-i",
+                    "--ip",
+                    "-S",
+                    "--server",
+                    "-w",
+                    "-a",
+                    "--address",
+                    "-b",
+                    "--broker",
+                    "-c",
+                    "-s",
+                }:
                     if "=" in nxt:
                         _assert_host_token_in_scope(
                             _proxy_host_from_val(nxt.split("=", 1)[1]),

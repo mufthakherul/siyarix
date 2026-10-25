@@ -346,7 +346,12 @@ _WMIC_FORMAT_RE = re.compile(
 _AUTH_FILE_RE = re.compile(
     r"(?:"
     r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local|"
-    r"hosts|resolv\.conf|ssh/sshd_config)\b"
+    r"hosts|resolv\.conf|ssh/sshd_config|ssh/ssh_config|sysctl\.conf|login\.defs|"
+    r"fstab|nftables\.conf|bash\.bashrc|sudo\.conf)\b"
+    r"|/etc/ssh/ssh_config\.d(?:/\S*)?"
+    r"|/etc/security/access\.conf\b"
+    r"|/etc/netplan(?:/\S*)?"
+    r"|/(?:root|home/[^/\s]+)/\.bashrc\b"
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?"
     r"|/etc/systemd/(?:system|user)(?:/\S*)?"
     # Vendor unit dirs (RH-41) — persistence outside /etc/systemd.
@@ -450,6 +455,8 @@ _AUTH_DIR_RE = re.compile(
     r"|/etc/security/limits\.d\b"
     r"|/run/systemd/system\b"
     r"|/etc/modprobe\.d\b"
+    r"|/etc/ssh/ssh_config\.d\b"
+    r"|/etc/netplan\b"
     r")",
     re.IGNORECASE,
 )

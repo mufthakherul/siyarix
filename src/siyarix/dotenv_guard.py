@@ -560,6 +560,16 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "TELEPORT_HOME",
         "RCLONE_CONFIG",
         "KUBE_API_SERVER",
+        "FRPC_CONFIG",
+        "NPS_SERVER",
+        "VALKEY_HOST",
+        "OPENCONNECT_SERVER",
+        "HBBS_RELAY",
+        "CHISEL_SERVER",
+        "WORMHOLE_TRANSIT_HELPER",
+        "INLETS_UPSTREAM",
+        "NEO4J_HOST",
+        "KAFKA_BOOTSTRAP_SERVERS",
         "ZROK_API_ENDPOINT",
         "ZROK_FRONTEND",
         "TUNNELTO_HOST",
@@ -723,6 +733,16 @@ def should_skip_dotenv_key(key: str) -> bool:
         "TELEPORT_HOME",
         "RCLONE_CONFIG",
         "KUBE_API_SERVER",
+        "FRPC_CONFIG",
+        "NPS_SERVER",
+        "VALKEY_HOST",
+        "OPENCONNECT_SERVER",
+        "HBBS_RELAY",
+        "CHISEL_SERVER",
+        "WORMHOLE_TRANSIT_HELPER",
+        "INLETS_UPSTREAM",
+        "NEO4J_HOST",
+        "KAFKA_BOOTSTRAP_SERVERS",
         "ZROK_API_ENDPOINT",
         "ZROK_FRONTEND",
         "TUNNELTO_HOST",
@@ -779,6 +799,15 @@ def should_skip_dotenv_key(key: str) -> bool:
     if key_upper.startswith("TELEPORT_") or key_upper.startswith("TSH_"):
         return True
     if key_upper.startswith("ZROK_") or key_upper.startswith("AWG_"):
+        return True
+    if key_upper.startswith("MC_HOST"):
+        return True
+    if key_upper.startswith("WORMHOLE_") or key_upper.startswith("INLETS_"):
+        return True
+    if key_upper.startswith("HBBS_") or key_upper.startswith("CHISEL_"):
+        return True
+    if key_upper in {"FRPC_CONFIG", "NPS_SERVER", "VALKEY_HOST", "OPENCONNECT_SERVER",
+                     "NEO4J_HOST", "KAFKA_BOOTSTRAP_SERVERS"}:
         return True
     if key_upper.startswith("N2N_") or key_upper.startswith("NETMAKER_"):
         return True

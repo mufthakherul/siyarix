@@ -519,6 +519,13 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "echo x > /etc/ssh/sshd_config",
         "echo x > /etc/hosts",
         "echo x > /etc/resolv.conf",
+        # RH-50 — ssh_config/sysctl/fstab/netplan/bashrc
+        "echo x > /etc/ssh/ssh_config",
+        "echo x > /etc/sysctl.conf",
+        "echo x > /etc/fstab",
+        "echo x > /etc/netplan/01-net.yaml",
+        "echo x >> /root/.bashrc",
+        "echo x > /etc/sudo.conf",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

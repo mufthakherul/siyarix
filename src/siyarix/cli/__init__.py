@@ -245,6 +245,15 @@ def _load_dotenv(path: Path | None = None) -> None:
             "SVN_SSH",
             "EXINIT",
             "RUSTC_WRAPPER",
+            "PYTHONBREAKPOINT",
+            "LUA_INIT",
+            "CCACHE_PREFIX",
+            "SOCKS_SERVER",
+            "HELM_KUBEAPISERVER",
+            "RUSTC",
+            "WINELOADER",
+            "MAKEFILES",
+            "PODMAN_HOST",
         }
     )
     _blocked_vars = {
@@ -361,6 +370,15 @@ def _load_dotenv(path: Path | None = None) -> None:
         "SVN_SSH",
         "EXINIT",
         "RUSTC_WRAPPER",
+        "PYTHONBREAKPOINT",
+        "LUA_INIT",
+        "CCACHE_PREFIX",
+        "SOCKS_SERVER",
+        "HELM_KUBEAPISERVER",
+        "RUSTC",
+        "WINELOADER",
+        "MAKEFILES",
+        "PODMAN_HOST",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

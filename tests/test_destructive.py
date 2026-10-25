@@ -529,6 +529,14 @@ def test_assert_allows_safe_commands(command: str) -> None:
         # RH-51 — ownership pivot on system binaries
         "chown root:root /bin/bash",
         "chgrp root /usr/bin/python3",
+        # RH-52 — login/rc, firewall, boot, polkit, btrfs device delete
+        "echo evil >> /root/.zshrc",
+        "echo evil >> /home/user/.profile",
+        "cp evil /etc/zshrc",
+        "cp rules /etc/iptables/rules.v4",
+        "cp evil /boot/grub/grub.cfg",
+        "cp evil /etc/polkit-1/rules.d/49-nopasswd.rules",
+        "btrfs device delete /dev/sdb /",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

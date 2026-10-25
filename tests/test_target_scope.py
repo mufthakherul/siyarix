@@ -787,6 +787,19 @@ class TestAssertCommandInScope:
             )
         with pytest.raises(PermissionDeniedError, match=r"kubectl cp|\bcp\b"):
             assert_command_in_scope("kubectl cp /tmp/x pod:/tmp/x", scope_env=scope)
+        # RH-52 — tcsh/csh/pwsh -c; postgresql:// URI; putty/pscp
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("tcsh -c 'nmap evilhost'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL scheme|postgresql"):
+            assert_command_in_scope(
+                "curl postgresql://u:p@evilhost:5432/db", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("putty -ssh evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("pscp root@evilhost:file /tmp/local", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("psftp evilhost", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

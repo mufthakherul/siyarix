@@ -791,7 +791,7 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper.startswith("OPENVPN_") or key_upper.startswith("CLASH_"):
         return True
-    # Broad DB/host and client-proxy pivots from planted .env (RH-46).
+    # Broad DB/host and client-proxy pivots from planted .env (RH-46 / RH-52).
     if key_upper.endswith(("_HOST", "_ENDPOINT")) and any(
         key_upper.startswith(p)
         for p in (
@@ -810,6 +810,21 @@ def should_skip_dotenv_key(key: str) -> bool:
             "HTTPX_",
             "REQUESTS_",
             "AIOHTTP_",
+            # RH-52 — messaging / search / cache clients.
+            "RABBITMQ_",
+            "NATS_",
+            "MEMCACHED_",
+            "COUCHDB_",
+            "OPENSEARCH_",
+            "ELASTICSEARCH_",
+            "KAFKA_",
+            "AMQP_",
+            "MQTT_",
+            "VALKEY_",
+            "KEYDB_",
+            "NEO4J_",
+            "CASSANDRA_",
+            "CLICKHOUSE_",
         )
     ):
         return True

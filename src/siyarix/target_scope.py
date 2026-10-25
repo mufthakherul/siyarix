@@ -87,7 +87,9 @@ _NON_HTTP_URL_RE = re.compile(
     r"rtsp|ssh|sftp|scp|rsync|git|jar|mailto|telnet|"
     # RH-50 — DB / messaging / VNC URI schemes that hide hosts.
     r"redis|rediss|mongodb(?:\+srv)?|bolt|neo4j|nats|amqp|amqps|vnc|vncs|"
-    r"oracle|jdbc):[^\s\"']*",
+    r"oracle|jdbc|"
+    # RH-52 — SQL URI schemes curl/clients use without -h.
+    r"postgres(?:ql)?|mysql|mariadb|sqlserver|mssql|cockroach(?:db)?|cassandra):[^\s\"']*",
     re.IGNORECASE,
 )
 # Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
@@ -97,6 +99,9 @@ _HOST_TOOL_NAMES = frozenset(
         "autossh",
         "plink",
         "dbclient",
+        "putty",
+        "pscp",
+        "psftp",
         "mosh",
         "mosh-client",
         "argocd",
@@ -745,12 +750,28 @@ _GLUED_PROXY_SHORT_RE = re.compile(
     r"^(?P<flag>-[xJ])(?P<val>.+)$"
 )
 _SHELL_WRAPPERS = frozenset(
-    {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox", "fish"}
+    {
+        "sh",
+        "bash",
+        "zsh",
+        "dash",
+        "ksh",
+        "ash",
+        "busybox",
+        "fish",
+        # RH-52 — C-shell / PowerShell / xonsh -c wrappers.
+        "csh",
+        "tcsh",
+        "pwsh",
+        "powershell",
+        "xonsh",
+    }
 )
 # ``bash -c '…'``, ``su user -c '…'``, ``sudo -c '…'``, ``script -c '…'``.
 _SHELL_C_PAYLOAD_RE = re.compile(
-    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|fish|su|sudo|script))\b"
-    r"[\s\S]{0,80}?(?:--command=|-c)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
+    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|fish|t?csh|pwsh|powershell|xonsh|"
+    r"su|sudo|script))\b"
+    r"[\s\S]{0,80}?(?:--command=|-c|-Command)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
 )
 # UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
 # Negative lookbehind skips URL schemes (``https://host/...``).
@@ -1505,8 +1526,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                 if low.startswith("proxyjump="):
                     _check_proxyjump_val(val.split("=", 1)[-1])
-        # scp/sftp/rsync: ``[user@]host:path`` / ``host::module``; sftp also bare host.
-        if base in {"scp", "sftp", "rsync", "sshfs"}:
+        # scp/sftp/rsync/pscp: ``[user@]host:path`` / ``host::module``; sftp/psftp also bare host.
+        if base in {"scp", "sftp", "rsync", "sshfs", "pscp", "psftp"}:
             skip_jump = False
             for nxt in tokens[i + 1 :]:
                 if skip_jump:
@@ -1523,9 +1544,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     candidate = nxt.split("::", 1)[0].split("@")[-1]
                 elif scp_m is not None:
                     candidate = (scp_m.group("host") or "").strip("[]")
-                elif base == "sftp":
+                elif base in {"sftp", "psftp"}:
                     # Bare ``sftp bastion`` / ``sftp user@bastion``.
-                    candidate = nxt.split("@")[-1].split("/")[0]
+                    candidate = nxt.split("@")[-1].split("/")[0].split(":")[0]
                 else:
                     continue
                 if not candidate:
@@ -1777,6 +1798,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "remmina",
             "plink",
             "dbclient",
+            "putty",
+            "pscp",
+            "psftp",
         }:
             skip_db = False
             for nxt in tokens[i + 1 :]:
@@ -1801,8 +1825,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         _assert_host_token_in_scope(host, allowed_items, scope_display)
                     continue
                 if not nxt.startswith("-"):
-                    # Positional host (impacket-psexec / bare redis-cli target).
-                    cand = nxt.split("@")[-1].split("/")[0].strip().strip("'\"")
+                    # Positional host (impacket-psexec / bare redis-cli / putty target).
+                    cand = (
+                        nxt.split("@")[-1]
+                        .split("/")[0]
+                        .split(":")[0]
+                        .strip()
+                        .strip("'\"")
+                    )
                     if cand and not cand.startswith("/"):
                         _assert_host_token_in_scope(cand, allowed_items, scope_display)
                     continue

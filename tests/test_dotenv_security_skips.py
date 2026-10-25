@@ -650,3 +650,20 @@ def test_should_skip_rh51_dotenv_keys() -> None:
         "AWS_EXECUTION_ENV",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh52_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "RABBITMQ_HOST",
+        "NATS_HOST",
+        "MEMCACHED_HOST",
+        "COUCHDB_HOST",
+        "OPENSEARCH_HOST",
+        "ELASTICSEARCH_ENDPOINT",
+        "KAFKA_HOST",
+        "MQTT_HOST",
+        "CASSANDRA_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key

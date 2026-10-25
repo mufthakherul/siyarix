@@ -51,6 +51,7 @@ All notable changes to this project will be documented in this file.
 - Strip trailing punctuation / backslash escapes so `os.system('rm -rf /')` and `exec(rmtree)` hard-block.
 - Hard-block `rsync --remove-source-files` on system paths; `dwipe`/`mop` wipe tools.
 - `siyarix doctor` reports readiness score/grade plus remediation hints.
+- SecretRedactor/DLP: Groq `gsk_` keys and prefixed `*_KEY=` / `*_API_KEY=` assignments.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

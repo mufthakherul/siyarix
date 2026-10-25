@@ -395,6 +395,16 @@ class TestSecretRedactorRedact:
         assert "s3cret" not in mongo
         assert "@cluster.mongodb.net/db" in mongo
 
+    def test_groq_and_prefixed_key_assignments(self) -> None:
+        text = "export SIYARIX_GROQ_KEY=gsk_test_ABC123XYZ999"
+        result = self.r.redact(text)
+        assert "gsk_test_ABC123XYZ999" not in result
+        assert "[REDACTED]" in result
+        assert "SIYARIX_GROQ_KEY" in result
+        openai = self.r.redact("OPENAI_API_KEY=sk-abcdefghijklmnopqrstuvwxyz12")
+        assert "sk-abcdefghijklmnopqrstuvwxyz12" not in openai
+        assert "OPENAI_API_KEY" in openai
+
     def test_private_key_marker(self) -> None:
         text = "-----BEGIN RSA PRIVATE KEY-----"
         result = self.r.redact(text)

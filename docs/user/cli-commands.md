@@ -99,7 +99,7 @@ siyarix health
 ```
 
 ### `production-check` / `doctor`
-Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, PermissionGate / tool registry, `command_review`, shared destructive hard-blocks, webhook destination policy, `SIYARIX_ALLOWED_SCOPE`, credential store, health).
+Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, PermissionGate / tool registry, `command_review`, shared destructive hard-blocks, webhook destination policy, `SIYARIX_ALLOWED_SCOPE`, credential store, health). Live-probes hard-blocks and inet_aton scope, then reports a **readiness score** (0–100), **grade** (`production-ready` / `needs-attention` / `not-ready`), and remediation hints for warn/fail checks. JSON output includes `score`, `grade`, and `remediations`.
 ```bash
 siyarix doctor                  # alias for production-check
 siyarix production-check

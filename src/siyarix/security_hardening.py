@@ -254,8 +254,19 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("deepseek_key", re.compile(r"sk-ds[A-Za-z0-9_-]{20,}")),
     # xAI (Grok) API keys
     ("xai_key", re.compile(r"xai-[A-Za-z0-9_-]{20,}")),
+    # Groq API keys
+    ("groq_key", re.compile(r"gsk_[A-Za-z0-9_-]{16,}")),
     # Mistral API keys
     ("mistral_key", re.compile(r"(?i)mistral[_-]?api[_-]?key\s*[=:]\s*\S+")),
+    # Named provider / SIYARIX ``*_KEY=`` assignments (preserve name, redact value).
+    # Bare ``api_key=`` is handled by ``generic_api_key`` (keeps quoting).
+    (
+        "provider_key_kv",
+        re.compile(
+            r"(?i)((?:siyarix_[\w-]+|openai|anthropic|groq|gemini|xai|mistral|ssh)"
+            r"[_-]?(?:api[_-]?)?key\s*[=:]\s*)\S+",
+        ),
+    ),
     ("bearer_token", re.compile(r"(?i)Bearer\s+[A-Za-z0-9_.~+/=-]{20,}")),
     ("basic_auth", re.compile(r"(?i)Basic\s+[A-Za-z0-9+/=]{10,}")),
     ("github_token", re.compile(r"gh[pousr]_[A-Za-z0-9_]{36,}")),
@@ -289,7 +300,8 @@ _REDACT_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     (
         "secret_kv",
         re.compile(
-            r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|private[_-]?key)\s*[=:]\s*\S+",
+            r"(?i)(?:password|passwd|pwd|secret|token|auth|credential|"
+            r"private[_-]?key)\s*[=:]\s*\S+",
         ),
     ),
     # ── JWT tokens ───────────────────────────────────────────────────────

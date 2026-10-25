@@ -16,6 +16,11 @@ SECRET_PATTERNS = {
     "DEEPSEEK_KEY": re.compile(r"sk-ds[A-Za-z0-9_-]{20,}"),
     "OPENAI_KEY": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     "XAI_KEY": re.compile(r"xai-[A-Za-z0-9_-]{20,}"),
+    "GROQ_KEY": re.compile(r"gsk_[A-Za-z0-9_-]{16,}"),
+    "PROVIDER_KEY_KV": re.compile(
+        r"(?i)((?:siyarix_[\w-]+|openai|anthropic|groq|gemini|xai|mistral|ssh)"
+        r"[_-]?(?:api[_-]?)?key\s*[=:]\s*)\S+"
+    ),
     "AWS_KEY": re.compile(r"AKIA[0-9A-Z]{16}"),
     # Group 1 = key-name prefix (preserved); value is redacted (H-10).
     "AWS_SECRET_KEY": re.compile(r"(?i)(aws[_-]?secret[_-]?access[_-]?key\s*[=:]\s*)\S+"),

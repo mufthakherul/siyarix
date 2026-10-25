@@ -1964,7 +1964,7 @@ class OnboardingWizard:
             try:
                 import httpx
 
-                r = httpx.get(url, timeout=5)
+                r = httpx.get(url, timeout=5, follow_redirects=False)
                 ok = r.status_code < 500
                 detail = f"{r.elapsed.total_seconds():.1f}s"
             except httpx.ConnectError:
@@ -2850,7 +2850,11 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             import httpx
 
-            r = httpx.get(f"{url}/api/tags", timeout=5)
+            from siyarix.provider_utils import _is_safe_url
+
+            if not _is_safe_url(url):
+                return False
+            r = httpx.get(f"{url.rstrip('/')}/api/tags", timeout=5, follow_redirects=False)
             return bool(r.status_code < 500)
         except Exception:
             return False
@@ -3087,7 +3091,11 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
         try:
             import httpx
 
-            r = httpx.get(f"{url}/health", timeout=5)
+            from siyarix.provider_utils import _is_safe_url
+
+            if not _is_safe_url(url):
+                return False
+            r = httpx.get(f"{url.rstrip('/')}/health", timeout=5, follow_redirects=False)
             return bool(r.status_code < 500)
         except Exception:
             return False

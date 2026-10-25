@@ -162,11 +162,12 @@ _HOST_TOOL_NAMES = frozenset(
         "mssql-cli",
         "osql",
         "smbmap",
-        # Proxy / tunnel wrappers — engagement-bound when scope is set (RH-06).
+        # Proxy / tunnel wrappers — engagement-bound when scope is set (RH-06/16).
         "proxychains",
         "proxychains4",
         "torsocks",
         "torify",
+        "tsocks",
         "cloudflared",
         "ngrok",
         "bore",
@@ -181,6 +182,7 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "proxychains4",
         "torsocks",
         "torify",
+        "tsocks",  # RH-16
         "cloudflared",
         "ngrok",
         "bore",
@@ -277,6 +279,25 @@ _SCOPE_PROXY_ENV_NAMES: frozenset[str] = frozenset(
         "GIT_HTTP_PROXY",
         "GIT_HTTPS_PROXY",
         "RSYNC_PROXY",
+    }
+)
+# Leading daemon / transport pivots that hide the real egress host (RH-14/15).
+_SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
+    {
+        "DOCKER_HOST",
+        "DOCKER_CONTEXT",
+        "CONTAINER_HOST",
+        "PODMAN_HOST",
+        "BUILDKIT_HOST",
+        "GIT_SSH_COMMAND",
+        "GIT_SSH",
+        "GIT_PROXY_COMMAND",
+        "RSYNC_RSH",
+        "RSYNC_CONNECT_PROG",
+        "CVS_RSH",
+        "SVN_SSH",
+        "ANSIBLE_SSH_EXECUTABLE",
+        "ANSIBLE_SSH_ARGS",
     }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
@@ -653,22 +674,24 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     found_ips, found_domains = extract_targets(command)
 
     decoded_early = _decode_for_extract(command)
-    # Fail-closed: leading ``ALL_PROXY=…`` / ``HTTPS_PROXY=…`` SOCKS/HTTP pivots (RH-10).
+    # Fail-closed: leading ``ALL_PROXY=…`` / ``DOCKER_HOST=…`` / ``GIT_SSH_COMMAND=…``
+    # pivots that hide real egress (RH-10 / RH-14 / RH-15).
     for tok in decoded_early.split():
         if "=" not in tok or tok.startswith("-"):
-            # Stop at first non-assignment once we have seen the real argv0 later;
-            # still scan all KEY=val tokens in the command for proxy pivots.
-            pass
+            continue
         key, sep, _val = tok.partition("=")
-        if sep and key and key.upper() in _SCOPE_PROXY_ENV_NAMES:
+        if not sep or not key:
+            continue
+        key_u = key.upper()
+        if key_u in _SCOPE_PROXY_ENV_NAMES or key_u.endswith("_PROXY"):
             raise PermissionDeniedError(
                 f"Proxy environment assignment {key}= is not allowed under authorized "
                 f"scope (authorized scope: {scope_display})"
             )
-        if sep and key and key.upper().endswith("_PROXY"):
+        if key_u in _SCOPE_TRANSPORT_ENV_NAMES:
             raise PermissionDeniedError(
-                f"Proxy environment assignment {key}= is not allowed under authorized "
-                f"scope (authorized scope: {scope_display})"
+                f"Transport environment assignment {key}= is not allowed under "
+                f"authorized scope (authorized scope: {scope_display})"
             )
     # Fail-closed: SOCKS/proxy wrappers and public tunnels hide real egress (RH-06).
     for tok in decoded_early.split():

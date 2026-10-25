@@ -135,6 +135,24 @@ class TestAssertCommandInScope:
                 scope_env="10.0.0.0/8",
             )
 
+    def test_blocks_transport_env_and_tsocks_under_scope(self) -> None:
+        scope = "10.0.0.0/8"
+        with pytest.raises(PermissionDeniedError, match="Transport environment"):
+            assert_command_in_scope(
+                "DOCKER_HOST=tcp://evil:2375 docker ps", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="Transport environment"):
+            assert_command_in_scope(
+                "CONTAINER_HOST=tcp://evil:2375 podman ps", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="Transport environment"):
+            assert_command_in_scope(
+                "GIT_SSH_COMMAND=ssh git ls-remote https://example.com/r.git",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope("tsocks nmap 10.0.0.1", scope_env=scope)
+
     def test_blocks_out_of_scope_ipv4(self) -> None:
         with pytest.raises(PermissionDeniedError, match="out of authorized scope"):
             assert_command_in_scope("nmap 10.0.0.1", scope_env="192.168.1.0/24")

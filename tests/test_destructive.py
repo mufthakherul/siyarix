@@ -435,6 +435,9 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "cp --parents etc/./passwd /",
         "rsync -R etc/./passwd /",
         "rsync --relative ./etc/shadow /",
+        # RH-17 — glued unzip -od /
+        "unzip -od / a.zip",
+        "unzip -jod / archive.zip",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

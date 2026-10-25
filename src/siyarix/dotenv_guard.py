@@ -250,6 +250,13 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "LADSPA_PATH",
         "LV2_PATH",
         "VST_PATH",
+        "LIBRARY_PATH",
+        "C_INCLUDE_PATH",
+        "CPLUS_INCLUDE_PATH",
+        "PKG_CONFIG_PATH",
+        "KUBE_EDITOR",
+        "CARGO_BUILD_RUSTC_WRAPPER",
+        "RUSTC_WRAPPER",
     }
 )
 
@@ -417,6 +424,12 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "GOPROXY",
         "PACKER_PLUGIN_PATH",
         "TF_PLUGIN_CACHE_DIR",
+        "LIBRARY_PATH",
+        "C_INCLUDE_PATH",
+        "CPLUS_INCLUDE_PATH",
+        "PKG_CONFIG_PATH",
+        "KUBE_EDITOR",
+        "CARGO_BUILD_RUSTC_WRAPPER",
     }
 )
 
@@ -442,11 +455,29 @@ def should_skip_dotenv_key(key: str) -> bool:
         "PLUGIN" in key_upper or key_upper.endswith("_LIBRARY") or "MODULE" in key_upper
     ):
         return True
-    # Broad plugin/module path pivots (RH-12).
-    if "PLUGIN" in key_upper and key_upper.endswith(
-        ("_PATH", "_PATHS", "_DIR", "_HOME", "_DIRS")
+    # Broad plugin/module path pivots (RH-12 / RH-18), including versioned
+    # suffixes like ``GST_PLUGIN_SYSTEM_PATH_1_0``.
+    if "PLUGIN" in key_upper and (
+        "_PATH" in key_upper
+        or key_upper.endswith(("_DIR", "_HOME", "_DIRS", "_PATHS"))
     ):
         return True
+    if key_upper.endswith("_RUSTC_WRAPPER") or key_upper.endswith("RUSTC_WRAPPER"):
+        return True
+    if key_upper.endswith("_EDITOR") and key_upper not in {""}:
+        # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.
+        if key_upper in {
+            "KUBE_EDITOR",
+            "GIT_EDITOR",
+            "EDITOR",
+            "VISUAL",
+            "SUDO_EDITOR",
+            "FCEDIT",
+            "SELECTED_EDITOR",
+            "SVN_EDITOR",
+            "HGEDITOR",
+        } or key_upper.endswith("_EDITOR"):
+            return True
     if key_upper in BLOCKED_EXACT or key_upper in PROVIDER_SHORT_KEYS:
         return True
     if key in BLOCKED_VARS or key_upper in BLOCKED_VARS:

@@ -67,6 +67,10 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-09/10 | Closed | `nmap --proxies` + leading `ALL_PROXY=`/`HTTPS_PROXY=` env pivots blocked under scope |
 | RH-11/12 | Closed | All `SIYARIX_*` + interpreter plugin-path pivots skipped from `.env` |
 | RH-13 | Closed | `DATABASE_URL` / `REDIS_URL` / `CONNECTION_STRING` + userinfo `*_URL` scrubbed from child env |
+| RH-14/15 | Closed | Leading `DOCKER_HOST=` / `CONTAINER_HOST=` / `GIT_SSH_COMMAND=` blocked under scope |
+| RH-16 | Closed | `tsocks` treated as scope-blocked proxy wrapper |
+| RH-17 | Closed | Glued `unzip -od /` extract-to-root blocked |
+| RH-18 | Closed | Versioned GST plugin paths / `LIBRARY_PATH` / `KUBE_EDITOR` / cargo rustc wrapper skipped from `.env` |
 
 ## Premium ops
 

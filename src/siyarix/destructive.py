@@ -159,7 +159,9 @@ _EXTRACT_DEST_RE = re.compile(
     r"(?:"
     r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}"
     r"(?:--directory|--chdir|--cd|-C)\b(?:=|\s*)(\S+)"
-    r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
+    # ``-d DIR``, ``-d/``, ``--directory=DIR``, and glued ``-od /`` (overwrite+directory).
+    # ``(?![a-zA-Z])`` after ``d`` prevents matching inside ``--directory``.
+    r"|\bunzip\b[\s\S]{0,100}(?:--directory(?:=|\s*)|-[a-zA-Z]*d(?![a-zA-Z])(?:=|\s*))(\S+)"
     r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
     r"|\bcpio\b[\s\S]{0,100}(?:--directory|-D)\b(?:=|\s*)(\S+)"
     # zipfile/tarfile: ``-e archive dest`` — capture dest (last path), not archive.

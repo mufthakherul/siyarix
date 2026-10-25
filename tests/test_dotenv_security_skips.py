@@ -164,6 +164,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "NUGET_PLUGIN_PATHS=/tmp/evil",
                 "GOPROXY=http://evil",
                 "PACKER_PLUGIN_PATH=/tmp/evil",
+                "GST_PLUGIN_SYSTEM_PATH_1_0=/tmp/evil",
+                "CARGO_BUILD_RUSTC_WRAPPER=/tmp/evil",
+                "LIBRARY_PATH=/tmp/evil",
+                "KUBE_EDITOR=/tmp/evil",
                 "APP_HARMLESS=ok",
             ]
         ),
@@ -316,6 +320,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "NUGET_PLUGIN_PATHS",
         "GOPROXY",
         "PACKER_PLUGIN_PATH",
+        "GST_PLUGIN_SYSTEM_PATH_1_0",
+        "CARGO_BUILD_RUSTC_WRAPPER",
+        "LIBRARY_PATH",
+        "KUBE_EDITOR",
         "APP_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -338,6 +346,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "NUGET_PLUGIN_PATHS" not in os.environ
     assert "GOPROXY" not in os.environ
     assert "PACKER_PLUGIN_PATH" not in os.environ
+    assert "GST_PLUGIN_SYSTEM_PATH_1_0" not in os.environ
+    assert "CARGO_BUILD_RUSTC_WRAPPER" not in os.environ
+    assert "LIBRARY_PATH" not in os.environ
+    assert "KUBE_EDITOR" not in os.environ
     assert "PERL5OPT" not in os.environ
     assert "PERLLIB" not in os.environ
     assert "RUBYOPT" not in os.environ

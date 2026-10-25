@@ -115,7 +115,7 @@ _RECURSE_FLAG_RE = re.compile(
 )
 _DOWNLOAD_TO_BLOCK_RE = re.compile(
     r"\b(?:curl|wget|busybox|fetch|aria2c)\b[\s\S]{0,220}"
-    r"(?:-o|--output(?:-document)?|-O)(?:=|\s+)"
+    r"(?:-o|--output(?:-document)?|-O)(?:=|\s*)"
     + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
@@ -131,6 +131,22 @@ _CP_TO_AUTH_RE = re.compile(
 _REDIRECT_TO_AUTH_RE = re.compile(
     r"(?:(?:>{1,2}|\btee\b)\s*" + _AUTH_FILE_RE.pattern + r")"
     r"|(?:\b(?:truncate|shred|install)\b[\s\S]{0,80}" + _AUTH_FILE_RE.pattern + r")",
+    re.IGNORECASE,
+)
+_DD_OF_AUTH_RE = re.compile(
+    r"\b(?:dd|dc3dd|ddrescue)\b[\s\S]{0,120}\bof=" + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_INTERPRETER_AUTH_WRITE_RE = re.compile(
+    r"(?:"
+    r"open\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|File\.write\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|IO\.write\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|writeFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|file_put_contents\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|File\.open\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|urlretrieve\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r")",
     re.IGNORECASE,
 )
 _VOLUME_DESTROY_RE = re.compile(
@@ -213,6 +229,10 @@ def assert_command_not_destructive(command: str) -> None:
                 raise PermissionDeniedError(
                     "Destructive command detected: Overwriting block devices is blocked."
                 )
+            if _AUTH_FILE_RE.search(of_target):
+                raise PermissionDeniedError(
+                    "Destructive command detected: Overwriting auth files is blocked."
+                )
 
     # Non-dd block-device wipes / copies / redirects onto disks.
     if _targets_block_device(cmd_clean) and (
@@ -271,6 +291,8 @@ def assert_command_not_destructive(command: str) -> None:
         _LN_NULL_AUTH_RE.search(cmd_clean)
         or _CP_TO_AUTH_RE.search(cmd_clean)
         or _REDIRECT_TO_AUTH_RE.search(cmd_clean)
+        or _DD_OF_AUTH_RE.search(cmd_clean)
+        or _INTERPRETER_AUTH_WRITE_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."

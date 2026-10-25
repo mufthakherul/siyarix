@@ -129,8 +129,9 @@ class TestSX004ScopeWiring:
         from siyarix.tool_models import ToolCapability
 
         reg = ToolRegistry()
-        tool = ToolCapability(name="nmap", installed=True)
-        reg.register(tool, AsyncMock(return_value={"status": "success"}))
+        handler = AsyncMock(return_value={"status": "success"})
+        for tool_name in ("nmap", "nikto"):
+            reg.register(ToolCapability(name=tool_name, installed=True), handler)
         with patch.dict("os.environ", {"SIYARIX_ALLOWED_SCOPE": "10.0.0.0/8"}):
             with pytest.raises(PermissionDeniedError):
                 await reg.execute("nmap", target="8.8.8.8")

@@ -277,6 +277,16 @@ class SubagentManager:
                 self._run_subagent(record, chat_session=chat_session)
             )
 
+            def _log_background_result(task: asyncio.Task[Any]) -> None:
+                try:
+                    task.result()
+                except asyncio.CancelledError:
+                    return
+                except Exception:
+                    logger.exception("Background subagent %s failed", agent_id)
+
+            record.async_task.add_done_callback(_log_background_result)
+
         return record
 
     async def run_foreground(

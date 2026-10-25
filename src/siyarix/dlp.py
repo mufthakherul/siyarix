@@ -33,7 +33,7 @@ SECRET_PATTERNS = {
         r"(?i)(?:api[_-]?key|apikey)\s*[=:]\s*['\"]?[A-Za-z0-9_.~+/=-]{16,}['\"]?"
     ),
     # Group 1 = `://user:` prefix; password redacted; `@` kept via lookahead.
-    "URL_PASSWORD": re.compile(r"(://[^:]+:)[^@]{3,}(?=@)"),
+    "URL_PASSWORD": re.compile(r"(://[^:/?#]+:)(.{3,})(?=@)"),
     "JWT_TOKEN": re.compile(
         r"\beyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\b"
     ),

@@ -384,6 +384,17 @@ class TestSecretRedactorRedact:
         assert result.startswith("http://user:")
         assert "@example.com" in result
 
+    def test_url_password_with_embedded_at(self) -> None:
+        text = "postgres://user:p@ss@host/db"
+        result = self.r.redact(text)
+        assert "p@ss" not in result
+        assert "[REDACTED]" in result
+        assert result.startswith("postgres://user:")
+        assert "@host/db" in result
+        mongo = self.r.redact("mongodb+srv://u:s3cret@cluster.mongodb.net/db")
+        assert "s3cret" not in mongo
+        assert "@cluster.mongodb.net/db" in mongo
+
     def test_private_key_marker(self) -> None:
         text = "-----BEGIN RSA PRIVATE KEY-----"
         result = self.r.redact(text)

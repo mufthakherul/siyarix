@@ -4,8 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- True multi-target `siyarix scan --parallel N` concurrency with merged, target-tagged findings.
+- Shared `make_tool_registry()` factory (PermissionGate on by default) for CLI/chat/core/plugins/deep-scan.
+- Compliance CLI exits `2` on FAIL probes and `3` when `NOT_EVALUATED` remain.
+- `production-check` surfaces `permission_gate` and `tool_registry` status.
+
 ### Security
 
+- Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
+- Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
 - Fail closed on non-interactive command review unless `SIYARIX_PREAUTHORIZED=1` (SX-001).
 - Execute permission-gate edits and revalidate them before handlers run (SX-002).
 - Enforce permission checks and dependency-aware scheduling in the autonomous executor (SX-003, SX-010).

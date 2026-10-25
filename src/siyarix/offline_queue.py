@@ -341,8 +341,13 @@ class OfflineCommandReplay:
 
         success_count = 0
         fail_count = 0
+        # Bound retries so a poisoned/misconfigured queue cannot spin forever.
+        pending_hint = max(self._queue.get_pending_count(), 1)
+        max_cycles = max(pending_hint * 8, batch_size * 8, 32)
+        cycles = 0
 
-        while True:
+        while cycles < max_cycles:
+            cycles += 1
             commands = self._queue.dequeue(batch_size)
             if not commands:
                 break
@@ -357,6 +362,13 @@ class OfflineCommandReplay:
                     self._queue.mark_failed(cmd.id, str(exc))
                     fail_count += 1
                 await asyncio.sleep(interval)
+
+        if cycles >= max_cycles and self._queue.get_pending_count() > 0:
+            logger.warning(
+                "Offline replay stopped after %d cycles with %d pending remaining",
+                cycles,
+                self._queue.get_pending_count(),
+            )
 
         return success_count, fail_count
 

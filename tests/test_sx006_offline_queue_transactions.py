@@ -7,7 +7,7 @@ import sqlite3
 
 import pytest
 
-from siyarix.offline_queue import OfflineCommandQueue
+from siyarix.offline_queue import OfflineCommandQueue, OfflineCommandReplay
 
 
 @pytest.fixture
@@ -131,3 +131,20 @@ class TestSX006Transactions:
         q2 = OfflineCommandQueue(db_path=db)
         assert q2.get_completed_count() == 0
         q2.close()
+
+    @pytest.mark.asyncio
+    async def test_replay_all_exhausts_retries_and_stops(self, tmp_path) -> None:
+        db = tmp_path / "replay.db"
+        q = OfflineCommandQueue(db_path=db)
+        q.enqueue("always-fail", max_attempts=2)
+        replay = OfflineCommandReplay(q)
+
+        async def _boom(_cmd):  # type: ignore[no-untyped-def]
+            raise RuntimeError("nope")
+
+        ok, fail = await replay.replay_all(executor_fn=_boom, batch_size=1, interval=0)
+        assert ok == 0
+        assert fail >= 1
+        assert q.get_failed_count() == 1
+        assert q.get_pending_count() == 0
+        q.close()

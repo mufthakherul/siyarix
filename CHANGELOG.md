@@ -37,6 +37,7 @@ All notable changes to this project will be documented in this file.
 - Hard-block interpreter writes to block devices (`open`/`File.write`/`IO.write`/`writeFile`/`Path.write_*`/`file_put_contents`).
 - Hard-block `qemu-img` onto disks; `rsync --delete` on system roots; `mv` of system directories.
 - Scope: short/octal inet_aton IPv4 (`0177.1` → `127.0.0.1`); hex-dotted requires a `0x` octet.
+- Scope: scrub hex-dotted forms before short-IP parse (no phantom `0.0.0.0` from `0x7f.0x0…`).
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

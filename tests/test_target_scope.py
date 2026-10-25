@@ -170,6 +170,9 @@ class TestAssertCommandInScope:
             assert_command_in_scope("nmap 0x7f.1", scope_env="10.0.0.0/8")
         ips2, _ = extract_targets("nmap 0x7f.0.0.1")
         assert ips2 == ["127.0.0.1"]
+        # Must not emit phantom 0.0.0.0 from embedded ``0.0`` in hex octets.
+        ips3, _ = extract_targets("nmap 0x7f.0x0.0x0.0x1")
+        assert ips3 == ["127.0.0.1"]
 
     def test_inet_aton_short_octal_ipv4(self) -> None:
         # glibc/curl inet_aton: 0177.1 → 127.0.0.1 (not 177.0.0.1)

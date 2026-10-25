@@ -249,7 +249,16 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
     for match in _IPV4_RE.findall(text):
         _add_ip(match)
 
-    for match in _IPV4_SHORT_RE.findall(text):
+    # Expand hex-dotted first and scrub so short/int parsers do not see
+    # embedded ``0.0`` fragments inside ``0x7f.0x0.0x0.0x1``.
+    scrubbed_ipv4 = text
+    for match in _IPV4_HEX_DOTTED_RE.findall(text):
+        expanded = _expand_hex_dotted_ipv4(match)
+        if expanded:
+            _add_ip(expanded)
+        scrubbed_ipv4 = scrubbed_ipv4.replace(match, " ")
+
+    for match in _IPV4_SHORT_RE.findall(scrubbed_ipv4):
         # Skip full dotted-quad already handled by _IPV4_RE.
         if match.count(".") == 3:
             continue
@@ -257,12 +266,12 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
         if expanded:
             _add_ip(expanded)
 
-    for match in _IPV4_INET_ATON_RE.findall(text):
+    for match in _IPV4_INET_ATON_RE.findall(scrubbed_ipv4):
         expanded = _expand_inet_aton_ipv4(match)
         if expanded:
             _add_ip(expanded)
 
-    for match in _IPV4_OCTAL_RE.findall(text):
+    for match in _IPV4_OCTAL_RE.findall(scrubbed_ipv4):
         # Convert octal-dotted form (0177.0.0.1) via int(..., 8) per octet.
         try:
             parts = [str(int(p, 8)) for p in match.split(".")]
@@ -270,26 +279,17 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
         except ValueError:
             continue
 
-    # Expand hex-dotted forms first, then scrub them so bare ``0x7f`` is not
-    # mis-parsed as ``0.0.0.127`` from a fragment of ``0x7f.1``.
-    scrub_for_ints = text
-    for match in _IPV4_HEX_DOTTED_RE.findall(text):
-        expanded = _expand_hex_dotted_ipv4(match)
-        if expanded:
-            _add_ip(expanded)
-        scrub_for_ints = scrub_for_ints.replace(match, " ")
-
-    for match in _IPV4_HEX_RE.findall(scrub_for_ints):
+    for match in _IPV4_HEX_RE.findall(scrubbed_ipv4):
         parsed = _try_int_ip(match)
         if parsed:
             _add_ip(parsed)
 
-    for match in _IPV4_OCTAL_INT_RE.findall(scrub_for_ints):
+    for match in _IPV4_OCTAL_INT_RE.findall(scrubbed_ipv4):
         parsed = _try_int_ip(match)
         if parsed:
             _add_ip(parsed)
 
-    for match in _IPV4_DECIMAL_RE.findall(scrub_for_ints):
+    for match in _IPV4_DECIMAL_RE.findall(scrubbed_ipv4):
         parsed = _try_int_ip(match)
         if parsed:
             _add_ip(parsed)

@@ -1800,6 +1800,13 @@ def _execute_scan_core(
     if dry_run:
         console.print("[yellow]Dry run complete — no commands executed.[/yellow]")
         return result
+    if (
+        output != "quiet"
+        and len(expanded_targets) > 1
+        and parallel > 1
+        and getattr(result, "summary", "")
+    ):
+        console.print(Panel(str(result.summary), title="Parallel Scan Summary", border_style="cyan"))
     if output == "quiet":
         pass
     elif result.all_findings:

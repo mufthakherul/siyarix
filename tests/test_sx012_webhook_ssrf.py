@@ -71,3 +71,37 @@ def test_is_blocked_ip_unwraps_ipv4_mapped() -> None:
     assert _is_blocked_ip(ipaddress.ip_address("::ffff:10.0.0.1")) is True
     assert _is_blocked_ip(ipaddress.ip_address("::ffff:100.64.0.1")) is True
     assert _is_blocked_ip(ipaddress.ip_address("::ffff:8.8.8.8")) is False
+
+
+def test_https_request_pinned_rejects_redirects(monkeypatch: pytest.MonkeyPatch) -> None:
+    import http.client
+    import urllib.error
+    from unittest.mock import MagicMock
+
+    from siyarix.webhooks import _https_request_pinned
+
+    monkeypatch.setattr("siyarix.webhooks._validate_url", lambda *a, **k: None)
+    monkeypatch.setattr("siyarix.webhooks._resolve_public_ips", lambda host, port=443: ["1.2.3.4"])
+
+    resp = MagicMock()
+    resp.status = 302
+    resp.read.return_value = b"redirect"
+    conn = MagicMock()
+    conn.getresponse.return_value = resp
+
+    class _FakeHTTPSConnection:
+        def __init__(self, *args, **kwargs) -> None:
+            pass
+
+        def request(self, *args, **kwargs) -> None:
+            return None
+
+        def getresponse(self):
+            return resp
+
+        def close(self) -> None:
+            return None
+
+    monkeypatch.setattr(http.client, "HTTPSConnection", _FakeHTTPSConnection)
+    with pytest.raises(urllib.error.URLError, match="HTTPS 302"):
+        _https_request_pinned("https://example.com/hook")

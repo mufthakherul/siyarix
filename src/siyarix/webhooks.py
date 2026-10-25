@@ -173,7 +173,8 @@ def _https_request_pinned(
         conn.request(method.upper(), path, body=body, headers=req_headers)
         resp = conn.getresponse()
         data = resp.read()
-        if resp.status >= 400:
+        # Refuse redirects and errors — callers must not chase Location (SSRF).
+        if resp.status >= 300:
             raise urllib.error.URLError(f"HTTPS {resp.status} for {host}{path}")
         return data
     finally:

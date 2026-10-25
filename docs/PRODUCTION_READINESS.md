@@ -34,7 +34,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | ID | Status | Notes |
 | --- | --- | --- |
 | SX-024 | Closed | Offline REPL skips connectivity monitor; HTML reports default `offline=True` (system fonts); online mode widens CSP for Google Fonts only |
-| SX-025 | Labeled scaffold | Compliance checks return `NOT_EVALUATED` with explicit messaging |
+| SX-025 | Partial→probes | Local probes for audit chain / shell-review / credential store; remaining controls stay `NOT_EVALUATED` with disclaimer |
 
 ## Premium ops
 
@@ -50,4 +50,4 @@ python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 
 Latest local checks on this branch: **mypy clean (256 files)**; pytest **5989 passed, 6 skipped, 62 deselected** (`-m "not e2e"`, stress ignored).
 
-Goal status: audit P0/P1 blockers closed (incl. SX-012/024/031); SX-025 remains an explicit compliance scaffold; further premium polish optional.
+Goal status: audit P0/P1 blockers closed (incl. SX-012/024/031); SX-025 has honest local probes plus explicit `NOT_EVALUATED` for unmapped controls.

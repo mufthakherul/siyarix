@@ -31,6 +31,7 @@ All notable changes to this project will be documented in this file.
 - Consolidate mypy config (`.mypy.ini` + `[tool.mypy]`), clear `src/siyarix` type errors, and run project mypy in CI (SX-031).
 - Default HTML reports to offline system fonts; widen CSP only when CDN fonts are explicitly enabled (SX-024).
 - Add `siyarix production-check` readiness command for production gates.
+- Evaluate compliance controls with local technical probes (audit chain, shell review, credential store) while keeping unmapped controls `NOT_EVALUATED` (SX-025).
 
 ### Release
 

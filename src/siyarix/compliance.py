@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Awaitable
 
 from siyarix.config import get_config_dir
 
@@ -67,11 +67,23 @@ class ComplianceReport:
     evidence_path: Path
     timestamp: float = field(default_factory=time.time)
 
+    def summary(self) -> dict[str, int]:
+        counts = {"PASS": 0, "FAIL": 0, "NOT_EVALUATED": 0, "other": 0}
+        for r in self.results:
+            key = r.status if r.status in counts else "other"
+            counts[key] += 1
+        return counts
+
     def to_json(self) -> dict[str, Any]:
         return {
             "framework": self.framework,
             "target": self.target,
             "timestamp": self.timestamp,
+            "summary": self.summary(),
+            "disclaimer": (
+                "PASS/FAIL only apply to local technical probes Siyarix can evaluate. "
+                "NOT_EVALUATED means insufficient automated evidence — never treat as a pass."
+            ),
             "results": [
                 {
                     "check_id": r.check_id,
@@ -85,15 +97,129 @@ class ComplianceReport:
         }
 
 
+async def _probe_audit_logging(target: str) -> ComplianceResult:
+    """Local probe for auditability controls (AU-2 / logging)."""
+    try:
+        from siyarix.audit_log import AuditLogger
+
+        logger_inst = AuditLogger()
+        chain = logger_inst.verify_chain()
+        ok = bool(chain.get("valid", chain.get("chain_integrity", False)))
+        return ComplianceResult(
+            check_id="",
+            status="PASS" if ok else "FAIL",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "probe": "audit_chain",
+                "chain": chain,
+            },
+            message=(
+                "Audit hash chain integrity verified."
+                if ok
+                else "Audit hash chain integrity check failed."
+            ),
+        )
+    except Exception as exc:
+        return ComplianceResult(
+            check_id="",
+            status="NOT_EVALUATED",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": False,
+                "error": str(exc),
+            },
+            message=f"Audit logging probe unavailable: {exc}",
+        )
+
+
+async def _probe_access_gate(target: str) -> ComplianceResult:
+    """Local probe for command execution access control (fail-closed review)."""
+    try:
+        from siyarix.shell_review import is_preauthorized
+
+        preauth = is_preauthorized()
+        # Fail-closed non-interactive review is the secure default.
+        ok = not preauth
+        return ComplianceResult(
+            check_id="",
+            status="PASS" if ok else "FAIL",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "probe": "shell_review_preauthorized",
+                "preauthorized": preauth,
+            },
+            message=(
+                "Shell review is fail-closed (SIYARIX_PREAUTHORIZED unset)."
+                if ok
+                else "SIYARIX_PREAUTHORIZED=1 disables interactive review — not production-safe."
+            ),
+        )
+    except Exception as exc:
+        return ComplianceResult(
+            check_id="",
+            status="NOT_EVALUATED",
+            evidence_data={"target": target, "evaluated": False, "error": str(exc)},
+            message=f"Access-gate probe unavailable: {exc}",
+        )
+
+
+async def _probe_credential_store(target: str) -> ComplianceResult:
+    """Local probe for secrets handling / asset inventory storage."""
+    try:
+        from siyarix.credential_store import CredentialStore
+
+        store = CredentialStore()
+        return ComplianceResult(
+            check_id="",
+            status="PASS",
+            evidence_data={
+                "target": target,
+                "capability": "local_probe",
+                "evaluated": True,
+                "probe": "credential_store",
+                "store": type(store).__name__,
+            },
+            message="Credential store is available for encrypted secret handling.",
+        )
+    except Exception as exc:
+        return ComplianceResult(
+            check_id="",
+            status="FAIL",
+            evidence_data={"target": target, "evaluated": True, "error": str(exc)},
+            message=f"Credential store unavailable: {exc}",
+        )
+
+
+# Controls we can partially evaluate with local technical probes.
+_EVALUATORS: dict[str, Callable[[str], Awaitable[ComplianceResult]]] = {
+    "AU-2": _probe_audit_logging,
+    "Req-10.1": _probe_audit_logging,
+    "cc6.1": _probe_access_gate,
+    "AC-3": _probe_access_gate,
+    "164.312(a)(1)": _probe_access_gate,
+    "A.8.1": _probe_credential_store,
+    "cc6.2": _probe_credential_store,
+}
+
+
 class ComplianceCheck:
     def __init__(self, check_id: str, target: str) -> None:
         self.check_id = check_id
         self.target = target
 
     async def run(self) -> ComplianceResult:
-        # Scaffold only: frameworks/controls are mapped for reporting, but
-        # automated evidence evaluation is not implemented yet. Callers must
-        # treat NOT_EVALUATED as insufficient evidence — never as a pass.
+        evaluator = _EVALUATORS.get(self.check_id)
+        if evaluator is not None:
+            result = await evaluator(self.target)
+            result.check_id = self.check_id
+            return result
+
+        # Remaining controls stay mapping-only until evidence collectors exist.
         return ComplianceResult(
             check_id=self.check_id,
             status="NOT_EVALUATED",
@@ -175,6 +301,7 @@ class ComplianceEngine:
                         "target": data.get("target", "Unknown"),
                         "timestamp": data.get("timestamp", 0.0),
                         "checks_count": len(data.get("results", [])),
+                        "summary": data.get("summary", {}),
                         "evidence_path": str(report_file.parent),
                     }
                 )

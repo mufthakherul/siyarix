@@ -144,6 +144,79 @@ _HOST_TOOL_NAMES = frozenset(
         "nxc",
         "netexec",
         "nikto",
+        "hydra",
+        "medusa",
+        "ncrack",
+        "patator",
+        "ligolo-ng",
+        "ligolo",
+        "rdesktop",
+        "freerdp",
+        "impacket-wmiexec",
+        "wmiexec.py",
+        "impacket-smbexec",
+        "smbexec.py",
+        "impacket-atexec",
+        "atexec.py",
+    }
+)
+# Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``.
+_GLUED_HOST_SHORT_RE = re.compile(
+    r"^(?P<flag>-[hHi])(?P<val>[^=\s-].+)$"
+)
+# Glued long host/connect flags: ``openssl … -connect1.1.1.1:443``.
+_GLUED_HOST_LONG_RE = re.compile(
+    r"^(?P<flag>--host|--ip|--proxy|-host|-connect|-proxy)"
+    r"(?:=(?P<eq>.+)|(?P<glued>[^=].+))$",
+    re.IGNORECASE,
+)
+# hydra/medusa trailing service tokens (not hosts).
+_BRUTE_SERVICE_TOKENS = frozenset(
+    {
+        "ssh",
+        "ftp",
+        "ftps",
+        "http",
+        "https",
+        "http-get",
+        "http-post",
+        "http-head",
+        "http-form-get",
+        "http-form-post",
+        "smb",
+        "smb2",
+        "rdp",
+        "vnc",
+        "mysql",
+        "mssql",
+        "postgres",
+        "postgresql",
+        "redis",
+        "mongodb",
+        "ldap",
+        "ldaps",
+        "telnet",
+        "sftp",
+        "imap",
+        "imaps",
+        "pop3",
+        "pop3s",
+        "smtp",
+        "smtps",
+        "snmp",
+        "cisco",
+        "cisco-enable",
+        "rsh",
+        "rexec",
+        "nntp",
+        "pcanywhere",
+        "teamspeak",
+        "xmpp",
+        "irc",
+        "svn",
+        "git",
+        "winrm",
+        "winrms",
     }
 )
 # socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
@@ -500,6 +573,23 @@ def _assert_host_token_in_scope(
             )
 
 
+def _glued_host_flag_value(
+    token: str, *, short: frozenset[str], long: frozenset[str]
+) -> str | None:
+    """Return host value from glued ``-h1.1.1.1`` / ``-connecthost:443`` forms."""
+    raw = (token or "").strip().strip("'\"")
+    if not raw.startswith("-"):
+        return None
+    # Prefer long flags so ``-host=evil`` is not parsed as ``-h`` + ``ost=evil``.
+    long_m = _GLUED_HOST_LONG_RE.match(raw)
+    if long_m is not None and long_m.group("flag").lower() in {f.lower() for f in long}:
+        return (long_m.group("eq") or long_m.group("glued") or "").strip().strip("'\"")
+    short_m = _GLUED_HOST_SHORT_RE.match(raw)
+    if short_m is not None and short_m.group("flag") in short:
+        return short_m.group("val").strip().strip("'\"")
+    return None
+
+
 def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     """Raise :class:`PermissionDeniedError` if any target is outside authorized scope.
 
@@ -741,6 +831,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 if not nxt.startswith("-"):
                     continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset(),
+                    long=frozenset({"-connect", "-proxy", "--proxy"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
+                    continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-connect", "-proxy", "--proxy"}:
                     if "=" in nxt:
@@ -778,6 +878,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 if not nxt.startswith("-"):
                     continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset({"-H"}),
+                    long=frozenset({"--host", "--url"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
+                    continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-H", "--host", "--url"}:
                     if "=" in nxt:
@@ -800,6 +910,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "xfreerdp",
             "impacket-psexec",
             "psexec.py",
+            "impacket-wmiexec",
+            "wmiexec.py",
+            "impacket-smbexec",
+            "smbexec.py",
+            "impacket-atexec",
+            "atexec.py",
+            "rdesktop",
+            "freerdp",
         }:
             skip_db = False
             for nxt in tokens[i + 1 :]:
@@ -823,6 +941,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     if cand and not cand.startswith("/"):
                         _assert_host_token_in_scope(cand, allowed_items, scope_display)
                     continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset({"-h", "-H", "-i"}),
+                    long=frozenset({"--host", "--ip"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
+                    continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-h", "--host", "-H", "-i", "--ip"}:
                     if "=" in nxt:
@@ -833,6 +961,91 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         )
                     else:
                         skip_db = True
+            continue
+        # Online brute / pivot helpers: host via ``-h`` or positional (skip service token).
+        if base in {
+            "hydra",
+            "medusa",
+            "ncrack",
+            "patator",
+            "ligolo-ng",
+            "ligolo",
+        }:
+            mode: str | None = None  # "host" | "skip"
+            _brute_skip_flags = frozenset(
+                {
+                    "-l",
+                    "-p",
+                    "-L",
+                    "-P",
+                    "-C",
+                    "-u",
+                    "-U",
+                    "-e",
+                    "-f",
+                    "-M",
+                    "-m",
+                    "-o",
+                    "-O",
+                    "-t",
+                    "-T",
+                    "-w",
+                    "-W",
+                    "-s",
+                    "-S",
+                    "-x",
+                    "-y",
+                    "-n",
+                    "-c",
+                    "-R",
+                    "-b",
+                    "-F",
+                    "-q",
+                    "-I",
+                    "-V",
+                    "-v",
+                    "-d",
+                    "-D",
+                }
+            )
+            for nxt in tokens[i + 1 :]:
+                if mode == "host":
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    break
+                if mode == "skip":
+                    mode = None
+                    continue
+                if not nxt.startswith("-"):
+                    cand = nxt.split("@")[-1].split("/")[0].split(":")[0].strip().strip("'\"")
+                    if not cand or cand.lower() in _BRUTE_SERVICE_TOKENS:
+                        continue
+                    _assert_host_token_in_scope(cand, allowed_items, scope_display)
+                    break
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset({"-h", "-H", "-i"}),
+                    long=frozenset({"--host", "--ip"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
+                    break
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-h", "--host", "-H", "-i", "--ip"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                        break
+                    mode = "host"
+                    continue
+                if flag in _brute_skip_flags and "=" not in nxt:
+                    mode = "skip"
             continue
         # wget ``-e http_proxy=evil:8080`` execute directives.
         if base == "wget":
@@ -922,6 +1135,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     skip_h = False
                     continue
                 if not nxt.startswith("-"):
+                    continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset({"-h", "-H"}),
+                    long=frozenset({"--host", "-host"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
                     continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-h", "-host", "--host"}:

@@ -302,6 +302,12 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "pacman -r / -U evil.pkg.tar.zst",
         "dd_rescue /dev/zero /dev/sda",
         "ddr /dev/zero /dev/sda",
+        "apk -p / add x",
+        "debootstrap stable /",
+        "pacstrap / base",
+        "pacstrap /tmp/../ base",
+        "mount -B /tmp/e /etc/passwd",
+        "shuf -o /etc/passwd /tmp/x",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

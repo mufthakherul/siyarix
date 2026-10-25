@@ -167,6 +167,16 @@ _PKG_ROOT_RE = re.compile(
     r"(?:--installroot|--root|(?<![\w-])-r)(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
+# Alpine apk also uses ``-p`` / ``--root`` for the install root.
+_APK_ROOT_RE = re.compile(
+    r"\bapk\b[\s\S]{0,160}?(?:--root|-p)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# Bootstrap/installers that take a root filesystem path as a positional arg.
+_BOOTSTRAP_ROOT_RE = re.compile(
+    r"\b(?:debootstrap|pacstrap)\b[\s\S]{0,200}?((?:/|\./|\.\./)\S*)",
+    re.IGNORECASE,
+)
 _DD_RESCUE_POS_RE = re.compile(
     r"\b(?:dd_rescue|ddr)\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
@@ -326,8 +336,12 @@ _PROCFS_HIJACK_RE = re.compile(
     re.IGNORECASE,
 )
 _MOUNT_BIND_AUTH_RE = re.compile(
-    r"\bmount\b[\s\S]{0,160}(?:--bind\b|-o\s+\S*bind\b)[\s\S]{0,160}"
+    r"\bmount\b[\s\S]{0,160}(?:--bind\b|-B\b|-o\s+\S*bind\b)[\s\S]{0,160}"
     + _AUTH_FILE_RE.pattern,
+    re.IGNORECASE,
+)
+_SHUF_OUT_AUTH_RE = re.compile(
+    r"\bshuf\b[\s\S]{0,100}(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _GIT_ROOT_WRITE_RE = re.compile(
@@ -650,16 +664,26 @@ def assert_command_not_destructive(command: str) -> None:
         or _INPLACE_AUTH_RE.search(cmd_clean)
         or _CHMOD_AUTH_RE.search(cmd_clean)
         or _MOUNT_BIND_AUTH_RE.search(cmd_clean)
+        or _SHUF_OUT_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."
         )
 
-    for pkg_root in _PKG_ROOT_RE.finditer(cmd_clean):
+    for pkg_root in (
+        *_PKG_ROOT_RE.finditer(cmd_clean),
+        *_APK_ROOT_RE.finditer(cmd_clean),
+    ):
         if _is_dangerous_extract_dest(pkg_root.group(1)):
             raise PermissionDeniedError(
                 "Destructive command detected: Package install onto / is blocked."
+            )
+
+    for boot_root in _BOOTSTRAP_ROOT_RE.finditer(cmd_clean):
+        if _is_dangerous_extract_dest(boot_root.group(1)):
+            raise PermissionDeniedError(
+                "Destructive command detected: Bootstrap install onto / is blocked."
             )
 
     if _DD_RESCUE_POS_RE.search(cmd_clean):

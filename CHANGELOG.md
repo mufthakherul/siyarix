@@ -80,7 +80,8 @@ All notable changes to this project will be documented in this file.
 - Hard-block `tee -a`/`--append` onto auth; `dpkg`/`unsquashfs` extract-to-root; `mount --bind` onto auth.
 - Hard-block `gdd`/`ddr`/`dd_rescue` onto disks/auth; `gtar -C /`; `mke2fs`/`mkdosfs`; `unar`/`unrar -o|-d|-op` extract-to-root.
 - Hard-block `cp`/`install -t`/`--target-directory` onto auth dirs; package `--root`/`--installroot`/`-r` onto `/`.
-- Scope fail-closed on smbclient UNC `//host/share` single-label hosts.
+- Hard-block apk `-p /`, `debootstrap`/`pacstrap` onto `/`, `mount -B` onto auth, `shuf -o` onto auth.
+- Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.
 - Block procfs hijacks (`core_pattern`/`modprobe`/`hotplug`/`binfmt_misc`); git `--prefix=/`/`--work-tree=/`.
 - Scope fail-closed on curl `--config`/`-K` and wget `-i`/`--input-file`; hardlink `ln` onto auth.
 - Fork-bomb detector accepts whitespace (`:() {`).

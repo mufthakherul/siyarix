@@ -105,7 +105,26 @@ _HOST_TOOL_NAMES = frozenset(
         "httpx",
         "curl",
         "wget",
+        "ftp",
+        "scp",
+        "sftp",
+        "enum4linux",
+        "enum4linux-ng",
+        "impacket-smbclient",
+        "socat",
     }
+)
+# socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
+_SOCAT_ADDR_RE = re.compile(
+    r"(?i)^(?:TCP(?:[46])?|UDP(?:[46])?|OPENSSL|SSL|SOCKS4A?|PROXY):"
+    r"(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
+)
+# UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
+# Negative lookbehind skips URL schemes (``https://host/...``).
+_UNC_HOST_RE = re.compile(r"(?<!:)//([^/\s]+)(?:/|\s|$)")
+# scp/sftp remote: ``[user@]host:path`` (local paths have no ``host:`` form).
+_SCP_REMOTE_RE = re.compile(
+    r"^(?:(?P<user>[^@/\s]+)@)?(?P<host>\[[^\]]+\]|[^@/\s:]+):(?P<path>.*)$"
 )
 _SINGLE_LABEL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]{0,62}$")
 
@@ -419,6 +438,32 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             f"(authorized scope: {scope_display})"
         )
 
+    # Fail-closed: UNC hosts in any tool (``mount -t cifs //evil/share``, smbclient).
+    for unc_host in _UNC_HOST_RE.findall(decoded_early.replace("\\", "/")):
+        # After backslash→slash normalize, pattern still sees ``//host/``.
+        host = unc_host.strip().lower().rstrip(".")
+        if not host:
+            continue
+        int_ip = _try_int_ip(host)
+        if int_ip is not None:
+            if not ip_in_scope(int_ip, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+                )
+            continue
+        try:
+            ip = str(ipaddress.ip_address(host))
+        except ValueError:
+            if not domain_in_scope(host, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target host {host} is out of authorized scope: {scope_display}"
+                )
+        else:
+            if not ip_in_scope(ip, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {ip} is out of authorized scope: {scope_display}"
+                )
+
     # Fail-closed: bare hosts after host-taking tools (``ssh bastion``, ``curl 0``).
     _port_flags = frozenset({"-p", "-P", "--port", "--ports"})
     tokens = decoded_early.split()
@@ -453,6 +498,43 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     f"URL/config-from-file is not allowed under authorized scope "
                     f"(authorized scope: {scope_display})"
                 )
+        # scp/sftp: only ``[user@]host:path`` remotes are targets (not local filenames).
+        if base in {"scp", "sftp"}:
+            for nxt in tokens[i + 1 :]:
+                if nxt.startswith("-"):
+                    continue
+                scp_m = _SCP_REMOTE_RE.match(nxt)
+                if scp_m is None:
+                    continue
+                candidate = (scp_m.group("host") or "").strip("[]")
+                if not candidate:
+                    continue
+                int_ip = _try_int_ip(candidate)
+                if int_ip is not None:
+                    if not ip_in_scope(int_ip, allowed_items):
+                        raise PermissionDeniedError(
+                            f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+                        )
+                    break
+                try:
+                    ip = str(ipaddress.ip_address(candidate))
+                except ValueError:
+                    if (
+                        _SINGLE_LABEL_RE.match(candidate)
+                        or "." in candidate
+                        or candidate.lower() == "localhost"
+                    ) and not domain_in_scope(candidate.lower(), allowed_items):
+                        raise PermissionDeniedError(
+                            f"Target host {candidate.lower()} is out of authorized scope: "
+                            f"{scope_display}"
+                        )
+                else:
+                    if not ip_in_scope(ip, allowed_items):
+                        raise PermissionDeniedError(
+                            f"Target IP {ip} is out of authorized scope: {scope_display}"
+                        )
+                break
+            continue
         skip_next_port = False
         for nxt in tokens[i + 1 :]:
             if skip_next_port:
@@ -466,11 +548,17 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 continue
             if "://" in nxt:
                 break  # URLs handled by scheme / http(s) checks
-            # UNC / smbclient ``//host/share`` — strip leading slashes before host parse.
-            unc = nxt.lstrip("/")
-            raw_host = unc.split("@")[-1].split("/")[0]
+            # UNC / smbclient ``//host/share`` or Windows ``\\host\share``.
+            unc = nxt.replace("\\", "/").lstrip("/")
+            # socat ``TCP:evil-host:80`` / ``OPENSSL:host:443`` address forms.
+            socat_m = _SOCAT_ADDR_RE.match(nxt.replace("\\", "/"))
+            if socat_m:
+                raw_host = (socat_m.group("v6") or socat_m.group("host") or "").strip()
+            else:
+                raw_host = unc.split("@")[-1].split("/")[0]
             # IPv6 (``2001:db8::1`` / ``[2001:db8::1]``) — do not truncate on ``:``.
-            if raw_host.startswith("[") or raw_host.count(":") >= 2:
+            # (socat already extracted the host; skip the multi-colon IPv6 bail.)
+            if not socat_m and (raw_host.startswith("[") or raw_host.count(":") >= 2):
                 break
             candidate = raw_host.split(":")[0]  # strip ``host:port``
             if not candidate:

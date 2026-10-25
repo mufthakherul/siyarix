@@ -2643,6 +2643,10 @@ def production_check(
             "cp -t /etc/cron.d /tmp/pwn",
             "rpm --root=/ -ivh evil.rpm",
             "dd_rescue /dev/zero /dev/sda",
+            "apk -p / add x",
+            "debootstrap stable /",
+            "mount -B /tmp/e /etc/passwd",
+            "shuf -o /etc/passwd /tmp/x",
         )
         for _probe in _probe_blocks:
             try:

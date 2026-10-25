@@ -31,7 +31,16 @@ def condition_passes(condition: str, context: dict[str, Any]) -> bool:
         if actual is None and key.startswith("env."):
             import os
 
-            actual = os.environ.get(key[4:], "")
+            env_key = key[4:]
+            try:
+                from siyarix.playbook import _env_var_allowed
+
+                if not _env_var_allowed(env_key):
+                    return False
+            except Exception:
+                # Fail closed if allowlist helper is unavailable.
+                return False
+            actual = os.environ.get(env_key, "")
         return str(actual) == expect
     # Unknown expressions are fail-closed.
     return False

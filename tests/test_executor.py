@@ -94,12 +94,8 @@ class TestSafeRunSync:
             with pytest.raises(FileNotFoundError):
                 safe_run_sync(["nonexistent_tool"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_validation_error(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_validation_error(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             safe_run_sync(["rm", "-rf", "/"])
 
 

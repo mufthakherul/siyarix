@@ -157,12 +157,8 @@ class TestChaosSimulation:
             ["mkfs.ext4", "/dev/sda1"],
         ]
         for cmd in destructive_cmds:
-            with patch(
-                "siyarix.subprocess_utils._confirm_destructive",
-                side_effect=ValueError("destructive pattern"),
-            ):
-                with pytest.raises(ValueError, match=r"destructive"):
-                    _validate_cmd_list(cmd)
+            with pytest.raises(ValueError, match=r"(?i)destructive"):
+                _validate_cmd_list(cmd)
 
         safe_cmds = [
             ["sh", "-c", "curl -sI example.com; echo done"],

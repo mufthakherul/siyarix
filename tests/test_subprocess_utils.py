@@ -162,44 +162,24 @@ class TestValidateCmdList:
         _validate_cmd_list(["echo", "hello `echo hi`"])
         _validate_cmd_list(["echo", "hello $USER"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_destructive_rm_root_blocked(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_destructive_rm_root_blocked(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             _validate_cmd_list(["rm", "-rf", "/"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_destructive_rm_root_no_preserve_blocked(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_destructive_rm_root_no_preserve_blocked(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             _validate_cmd_list(["sh", "-c", "rm -rf --no-preserve-root /"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_destructive_dd_blocked(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_destructive_dd_blocked(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             _validate_cmd_list(["sh", "-c", "dd if=/dev/zero of=/dev/sda bs=4M"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_destructive_forkbomb_blocked(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_destructive_forkbomb_blocked(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             _validate_cmd_list(["sh", "-c", ":(){ :|:& };:"])
 
-    @patch(
-        "siyarix.subprocess_utils._confirm_destructive",
-        side_effect=ValueError("destructive pattern"),
-    )
-    def test_destructive_mkfs_blocked(self, mock_confirm) -> None:
-        with pytest.raises(ValueError, match="destructive pattern"):
+    def test_destructive_mkfs_blocked(self) -> None:
+        with pytest.raises(ValueError, match=r"(?i)destructive"):
             _validate_cmd_list(["mkfs.ext4", "/dev/sda1"])
 
     def test_safe_commands_pass(self) -> None:

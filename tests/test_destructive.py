@@ -16,6 +16,8 @@ from siyarix.executor import BaseExecutor
         "dd if=/dev/zero of=/dev/null bs=1 count=1",
         "dd if=/dev/zero of=/tmp/out.img bs=1M count=1",
         "rm -rf /tmp/scratch",
+        "rm -rf /important",  # non-system path; gate patterns may still flag
+        "rm -rf /homebrew",  # must not match /home prefix
         "nmap -sV example.com",
     ],
 )

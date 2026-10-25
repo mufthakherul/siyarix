@@ -18,10 +18,26 @@ _RM_DESTRUCTIVE_RE = re.compile(
     r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s*)+|\brm\b\s+--(?:recursive|force)",
     re.IGNORECASE,
 )
-_SYSTEM_RM_PATHS = (" /", " /*", " /etc", " /var", " /bin", " /sbin", " /usr", " /home")
+_SYSTEM_RM_ROOTS = frozenset({"/etc", "/var", "/bin", "/sbin", "/usr", "/home"})
 _PARTITION_RE = re.compile(r"\b(mkfs(?:\.\w+)?|fdisk|parted|mkswap)\b", re.IGNORECASE)
 _DD_OF_RE = re.compile(r"\bof=(\S+)", re.IGNORECASE)
 _DD_WORD_RE = re.compile(r"\bdd\b", re.IGNORECASE)
+
+
+def _targets_system_path(cmd_clean: str) -> bool:
+    """True when *cmd_clean* names ``/``, ``/*``, or a critical system root.
+
+    Uses token boundaries so ``/tmp`` is not treated as ``/`` (substring trap).
+    """
+    for tok in cmd_clean.split():
+        if tok.startswith("-") or tok in {"rm", "sudo", "doas", "--"}:
+            continue
+        if tok in {"/", "/*"}:
+            return True
+        for root in _SYSTEM_RM_ROOTS:
+            if tok == root or tok.startswith(root + "/"):
+                return True
+    return False
 
 
 def assert_command_not_destructive(command: str) -> None:
@@ -44,9 +60,7 @@ def assert_command_not_destructive(command: str) -> None:
                     "Destructive command detected: Overwriting block devices is blocked."
                 )
 
-    if _RM_DESTRUCTIVE_RE.search(cmd_clean) and any(
-        path in cmd_clean for path in _SYSTEM_RM_PATHS
-    ):
+    if _RM_DESTRUCTIVE_RE.search(cmd_clean) and _targets_system_path(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Deleting system directory is blocked."
         )

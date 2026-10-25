@@ -431,6 +431,16 @@ class TestAssertCommandInScope:
             assert_command_in_scope("xfreerdp /v:evilhost", scope_env=scope)
         assert_command_in_scope("mysql -h 10.1.2.3", scope_env=scope)
         assert_command_in_scope("host example.com 10.1.2.3", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "ansible -i evilhost, all -m ping", scope_env=scope
+            )
+        assert_command_in_scope(
+            "ansible -i 10.1.2.3, all -m ping", scope_env=scope
+        )
+        # Unset engagement scope must not restrict research tooling.
+        assert_command_in_scope("nmap evilhost", scope_env="")
+        assert_command_in_scope("mysql -h target.lab", scope_env=None)
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"

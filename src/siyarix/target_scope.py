@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Authorized target-scope validation for executor commands.
+"""Authorized engagement-scope validation for executor commands.
 
-Enforces ``SIYARIX_ALLOWED_SCOPE`` fail-closed: every IP (v4/v6) and domain
-found in a command must be explicitly covered by the configured scope.
+Siyarix is built for security researchers, pentesters, and SOC analysts.
+``SIYARIX_ALLOWED_SCOPE`` is an *optional* engagement boundary: when set, every
+IP (v4/v6) and domain in a command must fall inside that authorized scope so
+automation cannot accidentally pivot outside the engagement. When unset or
+empty, this module is a no-op — research tooling (nmap, ssh, mysql, …) runs
+unrestricted by scope.
+
 CIDR-only scopes never silently allow domains; there are no hardcoded
 public-domain exemptions.
 """
@@ -129,6 +134,9 @@ _HOST_TOOL_NAMES = frozenset(
         "docker",
         "podman",
         "nslookup",
+        "ansible",
+        "ansible-playbook",
+        "ansible-inventory",
     }
 )
 # socat address forms: ``TCP:host:port``, ``OPENSSL:host:port``, …
@@ -847,6 +855,35 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             )
                     else:
                         skip_exec = True
+        # ansible ``-i host,`` / ``-i host,`` inventory (engagement-bound when scope set).
+        if base in {"ansible", "ansible-playbook", "ansible-inventory"}:
+            skip_inv = False
+            for nxt in tokens[i + 1 :]:
+                if skip_inv:
+                    # ``host,`` / ``host1,host2`` / path — check host-like tokens only.
+                    for part in nxt.replace(",", " ").split():
+                        part = part.strip().strip("'\"")
+                        if not part or "/" in part or part.endswith((".yml", ".yaml", ".ini")):
+                            continue
+                        _assert_host_token_in_scope(part, allowed_items, scope_display)
+                    skip_inv = False
+                    continue
+                if not nxt.startswith("-"):
+                    # Positional pattern host limit (``ansible all`` is not a target host).
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-i", "--inventory", "--inventory-file"}:
+                    if "=" in nxt:
+                        for part in nxt.split("=", 1)[1].replace(",", " ").split():
+                            part = part.strip().strip("'\"")
+                            if not part or "/" in part or part.endswith(
+                                (".yml", ".yaml", ".ini")
+                            ):
+                                continue
+                            _assert_host_token_in_scope(part, allowed_items, scope_display)
+                    else:
+                        skip_inv = True
+            continue
 
         def _check_ssh_forward_spec(spec: str) -> None:
             """Fail-closed on ``-L``/``-R`` ``[bind:]port:host:hostport`` targets."""

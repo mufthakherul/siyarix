@@ -30,8 +30,10 @@ def test_production_check_json() -> None:
     assert payload["fails"] == 0
     by_name = {c["name"]: c for c in payload["checks"]}
     assert by_name["destructive_guard"]["status"] == "pass"
-    assert "hard-blocks" in by_name["destructive_guard"]["detail"]
-    assert "file://" in by_name["destructive_guard"]["detail"]
+    detail = by_name["destructive_guard"]["detail"]
+    assert "hard-blocks" in detail
+    assert "operator-safety" in detail
+    assert "research tooling" in detail
     assert by_name["command_review"]["status"] in {"pass", "warn"}
     assert isinstance(payload.get("score"), int)
     assert 0 <= payload["score"] <= 100

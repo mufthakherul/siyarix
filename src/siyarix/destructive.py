@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Shared hard-blocks for destructive shell payloads.
+"""Operator-safety hard-blocks for destructive shell payloads.
+
+Siyarix accelerates authorized security research. These guards stop *accidental*
+damage to the operator's own machine (disk wipe, auth-file clobber, fork bombs)
+when an LLM/playbook emits a dangerous command. They do not block normal
+research tooling (nmap, ssh, sqlmap, …).
 
 Used by the executor, ToolRegistry, PermissionGate patterns, and subprocess
 last-line validation so registry/playbook/deep-scan paths cannot bypass
@@ -82,7 +87,7 @@ _OS_SYSTEM_WIPE_RE = re.compile(
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
     r"\b(?:cp|tee|cat|g?dd|dc3dd|dd_?rescue|dcfldd|gddrescue|ddr|sg_dd|install|pv|openssl|"
-    r"tar|badblocks|fio|rsync)\b"
+    r"tar|badblocks|fio|rsync|simg2img|bmaptool)\b"
     r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )

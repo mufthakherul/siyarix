@@ -374,6 +374,8 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "ginstall -m4755 /tmp/sh /bin/bash",
         "install -m2755 /tmp/x /bin/bash",
         "chmod 2755 /bin/bash",
+        "simg2img a.img /dev/sda",
+        "bmaptool copy a.img /dev/sda",
         "opkg --offline-root=/ install x",
         "opkg -o / install x",
         "opkg -o/ install x",

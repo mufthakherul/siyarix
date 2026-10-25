@@ -105,6 +105,8 @@ All notable changes to this project will be documented in this file.
 - gpg/openssl `-out` covers full auth set; xxd/iconv/ffmpeg/gs/fallocate/uudecode/objcopy/lzop/lzma auth writers; `ginstall` + setgid modes.
 - Scope: mysql/psql/redis/mongosh/docker/podman/host/nslookup/xfreerdp/evil-winrm; wget `-e http_proxy=`.
 - `.env` skips `CLASSPATH`/`JAVA_OPTIONS`/`MSBUILDSTARTUPHOOKS`/`SOCKS5_SERVER`/`GIT_SSL_CAPATH`/`DOCKER_CONTEXT`/`NODE_PATH`/`PHPRC`/`MAVEN_OPTS`.
+- Document operator-safety mission: optional `SIYARIX_ALLOWED_SCOPE` engagement bounds; unset scope leaves research tooling unrestricted.
+- Hard-block `simg2img`/`bmaptool` onto disks; engagement-scope ansible `-i host,`; doctor probes + clearer remediations for researchers.
 - `.env` skips `GCONV_PATH`/`HOSTALIASES`.
 - `.env` skips `NODE_TLS_REJECT_UNAUTHORIZED`/`PIP_TRUSTED_HOST`/`NPM_CONFIG_STRICT_SSL`/`COMPOSER_DISABLE_TLS`/`UV_INSECURE_HOST`.
 - Scope fail-closed on smbclient UNC `//host/share` and `\\host\share`, mount.cifs UNC, socat `TCP:host`, scp remotes, ftp/enum4linux.

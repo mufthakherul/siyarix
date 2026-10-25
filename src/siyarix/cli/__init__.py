@@ -2784,6 +2784,9 @@ def production_check(
             "mount -o rw,bind /tmp/evil /etc/passwd",
             "tar -P -xf evil.tar",
             "ddrescue /tmp/x /etc/passwd",
+            "simg2img a.img /dev/sda",
+            "bmaptool copy a.img /dev/sda",
+            "ginstall -m4755 /tmp/sh /bin/bash",
         )
         for _probe in _probe_blocks:
             try:
@@ -2806,10 +2809,21 @@ def production_check(
             raise RuntimeError("expected scope deny for smbclient UNC host")
         except _PermDenied:
             pass
+        try:
+            _assert_scope(
+                "ansible -i evilhost, all -m ping",
+                scope_env="10.0.0.0/8,example.com",
+            )
+            raise RuntimeError("expected scope deny for ansible inventory host")
+        except _PermDenied:
+            pass
+        # Unset scope must not hobble research tooling (engagement boundary is optional).
+        _assert_scope("nmap evilhost", scope_env="")
         _add(
             "destructive_guard",
             "pass",
-            "hard-blocks + inet_aton/file:///smbclient-UNC scope probes ok",
+            "operator-safety hard-blocks + engagement-scope probes ok "
+            "(unset scope leaves research tooling unrestricted)",
         )
     except Exception as exc:  # pragma: no cover - defensive
         _add("destructive_guard", "fail", f"unavailable: {exc}")
@@ -2843,12 +2857,19 @@ def production_check(
     )
     remediations: list[str] = []
     _hints = {
-        "allowed_scope": "export SIYARIX_ALLOWED_SCOPE='10.0.0.0/8,*.lab.example'",
+        "allowed_scope": (
+            "optional engagement boundary for authorized tests — "
+            "export SIYARIX_ALLOWED_SCOPE='10.0.0.0/8,*.lab.example' "
+            "(unset = no scope restriction on research tooling)"
+        ),
         "permission_gate": "unset SIYARIX_SAFE_MODE (or set to 1) for production",
         "command_review": "enable command_review in settings / profile",
         "shell_review": "unset SIYARIX_PREAUTHORIZED for interactive review",
         "webhook": "use https:// webhook URLs only (SIYARIX_WEBHOOK_URL)",
-        "destructive_guard": "reinstall siyarix — shared hard-block module failed probes",
+        "destructive_guard": (
+            "operator-safety hard-blocks failed — reinstall siyarix "
+            "(guards accidental wipe of your disks/auth files, not research tools)"
+        ),
     }
     for c in checks:
         if c["status"] in {"fail", "unhealthy", "warn", "degraded"}:
@@ -2865,7 +2886,8 @@ def production_check(
         "remediations": remediations,
     }
     if output == "json":
-        console.print(json.dumps(payload, indent=2))
+        # Avoid Rich line-wrap (invalidates JSON); machine-readable stdout.
+        print(json.dumps(payload, indent=2), flush=True)
     else:
         table = Table(title="Siyarix Production Check", header_style="bold cyan")
         table.add_column("Check", style="cyan")
@@ -2875,6 +2897,10 @@ def production_check(
             table.add_row(c["name"], c["status"], c["detail"])
         console.print(table)
         console.print(f"[bold]Readiness score:[/bold] {score}/100 ({grade})")
+        console.print(
+            "[dim]Siyarix accelerates authorized security research; "
+            "guards protect the operator (optional engagement scope).[/dim]"
+        )
         if remediations:
             console.print("[dim]Remediation hints:[/dim]")
             for tip in remediations:

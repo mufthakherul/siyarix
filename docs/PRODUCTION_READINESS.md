@@ -1,5 +1,12 @@
 # Production readiness — SX remediation status
 
+Siyarix is an AI orchestration assistant for **security researchers, pentesters,
+SOC analysts, and other cybersecurity professionals** — to run authorized work
+faster, deeper, and more reliably. Hardening here is **operator safety**
+(prevent accidental disk wipe, auth-file clobber, or out-of-engagement pivots),
+not a restriction on legitimate security tooling. `SIYARIX_ALLOWED_SCOPE` is
+optional; when unset, scope checks are a no-op.
+
 This note tracks the audit items from the September 2026 baseline (`177acb6`)
 against the current tree on `fix/production-hardening-sx-remediation`.
 
@@ -52,7 +59,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (258 files)**; pytest **6444 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: mid-path braces `/et{c,}`; `opkg -o`/`--offline-root`; `su`/`sudo`/`script -c`; `RSYNC_*` dotenv; glued ProxyJump; `tar -xPf`; install setuid; `$IFS` rm; comma `-J` hops; `zstd`/`split`/`socat` auth; brace suffix `/{e,}tc`; `sg_dd`/`integritysetup`; `--preproxy`/`-L`/`openssl`/`git://`; gpg/openssl full auth; xxd/objcopy/lzop; mysql/docker/host scope; doctor; SX-025.
+Latest local checks on this branch: **mypy clean (258 files)**; pytest **6446 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Mission-aligned operator-safety: `simg2img`/`bmaptool`; ansible `-i` when engagement scope set; unset scope leaves research tooling unrestricted; doctor JSON no longer Rich-wraps.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln

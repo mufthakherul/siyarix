@@ -808,7 +808,7 @@ class TestDangerAnalyzerAnalyze:
 
     def test_windows_cipher(self) -> None:
         r = self.da.analyze("cipher /w:C:")
-        assert r.severity == "medium"
+        assert r.severity == "critical"
 
     def test_windows_net_user_delete(self) -> None:
         r = self.da.analyze("net user /delete baduser")

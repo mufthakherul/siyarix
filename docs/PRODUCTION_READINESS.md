@@ -52,7 +52,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (257 files)**; pytest **6010 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Plugin registry/install fetches are https-only with SSRF checks and no redirects; local-provider HTTP helpers refuse redirects; offline replay is cycle-bounded.
+Latest local checks on this branch: **mypy clean (257 files)**; pytest **6011 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Plugin/stealth/local HTTP SSRF hardened; playbooks redact secrets and run via registry/AgentCore; offline replay cycle-bounded.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln

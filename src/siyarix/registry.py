@@ -365,24 +365,27 @@ class ToolRegistry:
                 raise ToolNotFoundError(f"Tool {name} unavailable: {reasons}")
 
         if self._permission_gate:
-            command = kwargs.get("command", "")
-            if command:
-                gate_result = self._permission_gate.check(command, tool=name)
-                if not gate_result.allowed:
-                    raise PermissionDeniedError(gate_result.reason)
-                if gate_result.requires_review:
-                    from .shell_review import review_and_confirm
+            command = str(kwargs.get("command") or "").strip()
+            if not command:
+                # Deep-scan / kwargs-only invocations still need a gate synopsis.
+                target = str(kwargs.get("target") or "").strip()
+                command = f"{name} {target}".strip() if target else name
+            gate_result = self._permission_gate.check(command, tool=name)
+            if not gate_result.allowed:
+                raise PermissionDeniedError(gate_result.reason)
+            if gate_result.requires_review:
+                from .shell_review import review_and_confirm
 
-                    reviewed = review_and_confirm(command, name, gate_result.reason)
-                    if reviewed is None:
-                        raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
-                    if reviewed != command:
-                        # The edited text is what runs, so it has to clear the gate on its own
-                        # merits — previously the edit was collected and then discarded.
-                        recheck = self._permission_gate.check(reviewed, tool=name)
-                        if not recheck.allowed:
-                            raise PermissionDeniedError(recheck.reason)
-                        kwargs["command"] = reviewed
+                reviewed = review_and_confirm(command, name, gate_result.reason)
+                if reviewed is None:
+                    raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+                if reviewed != command:
+                    # The edited text is what runs, so it has to clear the gate on its own
+                    # merits — previously the edit was collected and then discarded.
+                    recheck = self._permission_gate.check(reviewed, tool=name)
+                    if not recheck.allowed:
+                        raise PermissionDeniedError(recheck.reason)
+                    kwargs["command"] = reviewed
 
         start = time.monotonic()
         try:

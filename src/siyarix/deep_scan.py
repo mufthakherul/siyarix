@@ -251,13 +251,9 @@ class DeepScanEngine:
         return self._aggregate(target, all_findings, scan_id)
 
     async def _execute_tool(self, step: PlanStep, pass_name: str) -> dict[str, Any]:
-        if self._executor:
-            try:
-                result = await self._registry.execute(step.tool, **step.args)
-                return {"status": "completed", "findings": self._wrap_result(result, step.tool)}
-            except Exception as exc:
-                return {"status": "error", "error": str(exc), "tool": step.tool}
-
+        # Prefer ToolRegistry (PermissionGate-aware). Optional BaseExecutor is reserved
+        # for future backends; do not short-circuit alternative-tool fallback.
+        _ = pass_name, self._executor
         try:
             result = await self._registry.execute(step.tool, **step.args)
             return {"status": "completed", "findings": self._wrap_result(result, step.tool)}

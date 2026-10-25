@@ -103,7 +103,8 @@ class TestSX006Transactions:
         q.dequeue(batch_size=1)
         with q._transaction() as conn:
             conn.execute(
-                "UPDATE queued_commands SET created_at = datetime('now', '-2 hours') WHERE id = ?",
+                "UPDATE queued_commands SET claimed_at = datetime('now', '-2 hours'), "
+                "created_at = datetime('now', '-2 hours') WHERE id = ?",
                 (cmd_id,),
             )
         n = q.reclaim_stale_processing(older_than_seconds=60)

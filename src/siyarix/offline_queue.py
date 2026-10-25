@@ -107,6 +107,12 @@ class OfflineCommandQueue:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_queue_created ON queued_commands(created_at)"
             )
+            try:
+                conn.execute(
+                    "ALTER TABLE queued_commands ADD COLUMN claimed_at TEXT DEFAULT ''"
+                )
+            except sqlite3.OperationalError:
+                pass  # column already present on upgraded DBs
 
     def enqueue(
         self,
@@ -156,7 +162,8 @@ class OfflineCommandQueue:
                 placeholders = ",".join("?" * len(ids))
                 conn.execute(
                     f"UPDATE queued_commands SET status = 'processing', "
-                    f"attempts = attempts + 1 WHERE id IN ({placeholders}) "
+                    f"attempts = attempts + 1, claimed_at = datetime('now') "
+                    f"WHERE id IN ({placeholders}) "
                     f"AND status = 'pending'",
                     ids,
                 )
@@ -199,14 +206,23 @@ class OfflineCommandQueue:
                 )
 
     def reclaim_stale_processing(self, older_than_seconds: int = 3600) -> int:
-        """Return stuck ``processing`` rows to ``pending`` after a crash/TTL."""
+        """Return stuck ``processing`` rows to ``pending`` after a crash/TTL.
+
+        Ages on ``claimed_at`` (set at dequeue). Rows without ``claimed_at``
+        fall back to ``created_at`` for pre-migration databases.
+        """
         with self._lock:
             with self._transaction() as conn:
+                cutoff = f"-{int(older_than_seconds)} seconds"
                 cur = conn.execute(
-                    "UPDATE queued_commands SET status = 'pending' "
-                    "WHERE status = 'processing' "
-                    "AND created_at < datetime('now', ?)",
-                    (f"-{int(older_than_seconds)} seconds",),
+                    "UPDATE queued_commands SET status = 'pending', claimed_at = '' "
+                    "WHERE status = 'processing' AND ("
+                    "  (claimed_at IS NOT NULL AND claimed_at != '' "
+                    "   AND claimed_at < datetime('now', ?))"
+                    "  OR ((claimed_at IS NULL OR claimed_at = '') "
+                    "   AND created_at < datetime('now', ?))"
+                    ")",
+                    (cutoff, cutoff),
                 )
                 return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 

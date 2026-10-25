@@ -689,8 +689,8 @@ class CredentialStore:
                 logger.debug("Legacy credential file uses a different key; treating as empty")
                 try:
                     self._creds_file.rename(self._creds_file.with_name("credentials.enc.obsolete"))
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.debug("Could not rename obsolete credentials file: %s", exc)
             except Exception:
                 logger.exception("Failed to load legacy credentials")
 

@@ -52,7 +52,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (258 files)**; pytest **6172 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: URL-password redaction with embedded `@`; chmod/chown `-R` any order; auth redirect/tee/truncate/shred/install; wget `--output-document`; doctor live probes; `chmod -Rf`/`chgrp -R`; curl/wget `-o` disks; auth `ln`/`cp`; hex-dotted scrub; pathlib/`qemu-img`/`rsync --delete`/`mv` system; inet_aton `0177.1`; ntfsformat/mkntfs/newfs; interpreter block writes; btrfs/LVM/xfs/debugfs; doctor alias; ATA/partition/tar wipe; octal/hex IPv4; parallel-scan UX; IP-pinned HTTPS; SX-025 probes.
+Latest local checks on this branch: **mypy clean (258 files)**; pytest **6179 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Additional closures: `curl -o/dev` / `dd of=` auth / interpreter auth writes; URL-password `@` redaction; chmod/chown `-R` any order; auth redirect/tee/truncate/shred/install; wget long `-O`; doctor live probes; pathlib/`qemu-img`/`rsync --delete`/`mv` system; inet_aton `0177.1`; ntfsformat/mkntfs/newfs; interpreter block writes; btrfs/LVM/xfs/debugfs; doctor alias; ATA/partition/tar wipe; octal/hex IPv4; parallel-scan UX; IP-pinned HTTPS; SX-025 probes.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln

@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file.
 - Playbook env secret regex also blocks auth/bearer/cookie/session/authorization names.
 - Fix SecretRedactor URL-password pattern so the password is redacted (was preserved via bad capture group).
 - Onboarding llama.cpp install: sanitize release tags; follow GitHub redirects only onto allowlisted hosts.
+- Refuse HTTP redirects on Gemini openai_compat clients and onboarding provider API probes.
 - Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
 - Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
 - Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).

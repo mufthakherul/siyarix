@@ -38,6 +38,12 @@ _IPV4_DECIMAL_RE = re.compile(r"\b(?:[1-9]\d{7,9}|[1-3]\d{9})\b")  # 8–10 digi
 _IPV4_OCTAL_RE = re.compile(
     r"\b(?=(?:[0-7]{1,4}\.){0,3}0[0-7]+)(?:[0-7]{1,4}\.){3}[0-7]{1,4}\b"
 )
+# Short IPv4 (curl/wget): 127.1 → 127.0.0.1, 10.1 → 10.0.0.1, 192.168.1 → 192.168.0.1
+# Negative lookaround avoids matching a prefix of a full dotted-quad.
+_IPV4_SHORT_RE = re.compile(
+    r"(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){1,2}"
+    r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])"
+)
 
 # Bracketed IPv6 literals: https://[2001:db8::1]/80
 _IPV6_BRACKETED_RE = re.compile(r"\[([0-9a-fA-F:]+)\]")
@@ -100,6 +106,27 @@ def _try_int_ip(token: str) -> str | None:
         return None
 
 
+def _expand_short_ipv4(token: str) -> str | None:
+    """Expand curl-style short IPv4 (``127.1``, ``10.0.1``) to dotted-quad."""
+    parts = token.split(".")
+    if len(parts) not in (2, 3):
+        return None
+    try:
+        nums = [int(p) for p in parts]
+    except ValueError:
+        return None
+    if any(n < 0 or n > 255 for n in nums):
+        return None
+    if len(nums) == 2:
+        dotted = f"{nums[0]}.0.0.{nums[1]}"
+    else:
+        dotted = f"{nums[0]}.{nums[1]}.0.{nums[2]}"
+    try:
+        return str(ipaddress.IPv4Address(dotted))
+    except ValueError:
+        return None
+
+
 def extract_targets(command: str) -> tuple[list[str], list[str]]:
     """Extract IP addresses and domain names referenced in *command*.
 
@@ -122,6 +149,14 @@ def extract_targets(command: str) -> tuple[list[str], list[str]]:
 
     for match in _IPV4_RE.findall(text):
         _add_ip(match)
+
+    for match in _IPV4_SHORT_RE.findall(text):
+        # Skip full dotted-quad already handled by _IPV4_RE.
+        if match.count(".") == 3:
+            continue
+        expanded = _expand_short_ipv4(match)
+        if expanded:
+            _add_ip(expanded)
 
     for match in _IPV4_OCTAL_RE.findall(text):
         # Convert octal-dotted form (0177.0.0.1) via int(..., 8) per octet.
@@ -254,6 +289,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if not ip_in_scope(int_ip, allowed_items):
                 raise PermissionDeniedError(
                     f"Target IP {int_ip} is out of authorized scope: {scope_display}"
+                )
+            continue
+        short_ip = _expand_short_ipv4(host)
+        if short_ip is not None:
+            if not ip_in_scope(short_ip, allowed_items):
+                raise PermissionDeniedError(
+                    f"Target IP {short_ip} is out of authorized scope: {scope_display}"
                 )
             continue
         if _IPV4_OCTAL_RE.fullmatch(host):

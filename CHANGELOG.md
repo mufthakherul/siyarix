@@ -25,6 +25,9 @@ All notable changes to this project will be documented in this file.
 - Normalize `rm` root tokens (`/.`, `//`, quoted `"/"`); extend system roots (`/boot`, `/root`, `/opt`, `/lib`).
 - Block interpreter wipes (`shutil.rmtree('/')`); scope extract decodes `%2e` / hex / decimal / octal IPv4.
 - Interactive shell review defaults to `cancel` (Enter no longer auto-approves).
+- Hard-block `truncate`/`install`/`openssl` onto disks; perl/ruby/node interpreter wipes; recursive `chmod`/`chown` on `/`.
+- Scope extract expands short IPv4 (`127.1`, `127.0.1`) without mangling full dotted-quads.
+- Parallel multi-target scan progress shows ok/fail counts, bar, and in-flight targets.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).
 - Broaden `.env` credential skips (bearer/cookie/session/webhook/auth/…) in CLI and chat loaders.

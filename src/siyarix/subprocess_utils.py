@@ -228,9 +228,11 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
     re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
     re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
-    re.compile(r"\b(wipefs|sgdisk|blkdiscard)\b.*(/dev/)", re.I),
-    re.compile(r"\b(?:cp|tee)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(r"\b(wipefs|sgdisk|blkdiscard|truncate|shred)\b.*(/dev/)", re.I),
+    re.compile(r"\b(?:cp|tee|install|openssl)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
     re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
+    re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
+    re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
 ]
 
 

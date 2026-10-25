@@ -42,7 +42,14 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TaskProgressColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
@@ -1684,22 +1691,49 @@ async def _execute_targets_parallel(
         SpinnerColumn(),
         TextColumn("[bold cyan]Parallel scan[/bold cyan]"),
         TextColumn("{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
         TimeElapsedColumn(),
         console=console,
     ) as progress:
-        task_id = progress.add_task(f"0/{len(targets)} done", total=len(targets))
+        task_id = progress.add_task(
+            f"0/{len(targets)} done · 0 ok · 0 fail", total=len(targets)
+        )
         completed = 0
+        ok_count = 0
+        fail_count = 0
+        in_flight: set[str] = set()
         lock = asyncio.Lock()
 
         async def _tracked(target: str) -> EngineResult:
-            nonlocal completed
+            nonlocal completed, ok_count, fail_count
+            async with lock:
+                in_flight.add(target)
+                active = ", ".join(sorted(in_flight)[:3])
+                if len(in_flight) > 3:
+                    active += f" +{len(in_flight) - 3}"
+                progress.update(
+                    task_id,
+                    description=(
+                        f"{completed}/{len(targets)} done · {ok_count} ok · "
+                        f"{fail_count} fail · now: {active or '—'}"
+                    ),
+                )
             result = await _one(target)
             async with lock:
+                in_flight.discard(target)
                 completed += 1
+                if result.success:
+                    ok_count += 1
+                else:
+                    fail_count += 1
                 progress.update(
                     task_id,
                     advance=1,
-                    description=f"{completed}/{len(targets)} done",
+                    description=(
+                        f"{completed}/{len(targets)} done · {ok_count} ok · "
+                        f"{fail_count} fail"
+                    ),
                 )
             return result
 

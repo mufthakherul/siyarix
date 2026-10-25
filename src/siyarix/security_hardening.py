@@ -498,6 +498,24 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Python shutil.rmtree on system path",
     ),
     (
+        re.compile(
+            r"(?:FileUtils\s*\.\s*rm_rf|rmSync|fs\s*\.\s*rmSync)\s*\(?\s*['\"]/",
+            re.I,
+        ),
+        "critical",
+        "Interpreter recursive delete of /",
+    ),
+    (
+        re.compile(r"\b(?:truncate|openssl|install)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        "critical",
+        "truncate/openssl/install onto block device",
+    ),
+    (
+        re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
+        "critical",
+        "Recursive chmod/chown on /",
+    ),
+    (
         re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),
         "critical",
         "Move files to /dev/null (data destruction)",

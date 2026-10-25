@@ -57,6 +57,14 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "shred -n 1 /dev/sdb",
         "python -c \"import shutil; shutil.rmtree('/')\"",
         "python -c 'import shutil; shutil.rmtree(\"/etc\")'",
+        "truncate -s 0 /dev/sda",
+        "install /dev/zero /dev/sda",
+        "openssl enc -in /dev/zero -out /dev/sda",
+        "perl -e \"unlink q(/etc/passwd)\"",
+        "ruby -e \"FileUtils.rm_rf '/'\"",
+        "node -e \"require('fs').rmSync('/',{recursive:true})\"",
+        "chmod -R 777 /",
+        "chown -R nobody: /",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

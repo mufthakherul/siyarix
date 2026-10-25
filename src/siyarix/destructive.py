@@ -45,11 +45,11 @@ _BLOCK_DEV_RE = re.compile(
     re.IGNORECASE,
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
-    r"\b(wipefs|sgdisk|blkdiscard|shred)\b",
+    r"\b(wipefs|sgdisk|blkdiscard|shred|truncate|openssl|install)\b",
     re.IGNORECASE,
 )
 _CP_TEE_TO_BLOCK_RE = re.compile(
-    r"\b(?:cp|tee|cat|dd)\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
+    r"\b(?:cp|tee|cat|dd|install|pv|openssl)\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 _REDIRECT_TO_BLOCK_RE = re.compile(
@@ -60,13 +60,21 @@ _FIND_DELETE_RE = re.compile(
     r"\bfind\b[\s\S]{0,400}(?:-delete\b|-exec\s+rm\b)",
     re.IGNORECASE,
 )
-_PY_RMTREE_RE = re.compile(
-    r"(?:shutil\s*\.\s*rmtree|os\s*\.\s*(?:remove|unlink|rmdir)|Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*unlink|"
-    r"pathlib\s*\.\s*Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*(?:unlink|rmdir))",
+_INTERPRETER_WIPE_RE = re.compile(
+    r"(?:"
+    r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/"
+    r"|os\s*\.\s*(?:remove|unlink|rmdir)\s*\(\s*['\"]/"
+    r"|Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*(?:unlink|rmdir)"
+    r"|pathlib\s*\.\s*Path\s*\(\s*['\"]/?['\"]\s*\)\s*\.\s*(?:unlink|rmdir)"
+    r"|FileUtils\s*\.\s*rm_rf\s*\(?\s*['\"]/"
+    r"|unlink\s+(?:q(?:w)?\()?\s*['\"/]"  # perl unlink '/…' or unlink q(/…)
+    r"|rmSync\s*\(\s*['\"]/"
+    r"|fs\s*\.\s*(?:rmSync|rmdirSync|unlinkSync)\s*\(\s*['\"]/"
+    r")",
     re.IGNORECASE,
 )
-_PY_RMTREE_ROOT_RE = re.compile(
-    r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/(?:etc|var|bin|sbin|usr|home|boot|root|opt|lib|lib64)?['\"]",
+_CHMOD_CHOWN_ROOT_RE = re.compile(
+    r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/(?:\s|$)",
     re.IGNORECASE,
 )
 
@@ -148,11 +156,14 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Deleting system directory is blocked."
         )
 
-    if _PY_RMTREE_ROOT_RE.search(cmd_clean) or (
-        _PY_RMTREE_RE.search(cmd_clean) and ("('/')" in cmd_clean or '("/")' in cmd_clean)
-    ):
+    if _INTERPRETER_WIPE_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Interpreter wipe of system paths is blocked."
+        )
+
+    if _CHMOD_CHOWN_ROOT_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Recursive chmod/chown on / is blocked."
         )
 
     if _PARTITION_RE.search(cmd_clean):

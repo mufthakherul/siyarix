@@ -144,3 +144,14 @@ class TestAssertCommandInScope:
         ips, domains = extract_targets("curl http://evil%2ecom/")
         assert "evil.com" in domains
         assert ips == []
+
+    def test_blocks_short_ipv4(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("curl http://127.1/", scope_env="example.com")
+        with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
+            assert_command_in_scope("curl http://127.0.1/", scope_env="example.com")
+
+    def test_short_ipv4_does_not_mangle_full_quad(self) -> None:
+        ips, _ = extract_targets("nmap 192.168.1.5")
+        assert "192.168.1.5" in ips
+        assert "192.168.0.1" not in ips

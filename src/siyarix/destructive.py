@@ -106,8 +106,26 @@ _MV_SYSTEM_RE = re.compile(
     r"\bmv\b\s+(?:-[^\s]+\s+)*(\S+)\s+(\S+)",
     re.IGNORECASE,
 )
+# ``-R`` may be combined with other short flags (``-Rf``, ``-Rvf``).
 _CHMOD_CHOWN_RECURSE_RE = re.compile(
-    r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+(\S+)",
+    r"\b(?:chmod|chown)\b\s+(?:-[a-zA-Z]*R[a-zA-Z]*\s+|--recursive\s+)\S+\s+(\S+)",
+    re.IGNORECASE,
+)
+_CHGRP_RECURSE_RE = re.compile(
+    r"\bchgrp\b\s+(?:-[a-zA-Z]*R[a-zA-Z]*\s+|--recursive\s+)\S+\s+(\S+)",
+    re.IGNORECASE,
+)
+_DOWNLOAD_TO_BLOCK_RE = re.compile(
+    r"\b(?:curl|wget|busybox)\b[\s\S]{0,200}(?:-o|--output|-O)\s*"
+    + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_LN_NULL_AUTH_RE = re.compile(
+    r"\bln\b[\s\S]{0,80}/dev/null[\s\S]{0,80}/etc/(?:passwd|shadow|sudoers|group)\b",
+    re.IGNORECASE,
+)
+_CP_TO_AUTH_RE = re.compile(
+    r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers|group)\b",
     re.IGNORECASE,
 )
 _VOLUME_DESTROY_RE = re.compile(
@@ -221,7 +239,7 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Interpreter write to block devices is blocked."
         )
 
-    if _QEMU_IMG_BLOCK_RE.search(cmd_clean):
+    if _QEMU_IMG_BLOCK_RE.search(cmd_clean) or _DOWNLOAD_TO_BLOCK_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting block devices is blocked."
         )
@@ -244,13 +262,20 @@ def assert_command_not_destructive(command: str) -> None:
                 "Destructive command detected: Moving system directories is blocked."
             )
 
-    chmod_match = _CHMOD_CHOWN_RECURSE_RE.search(cmd_clean)
-    if chmod_match:
-        path_tok = _normalize_path_token(chmod_match.group(1))
-        if path_tok in {"/", "/*"} or path_tok in _ROOT_EQUIV:
-            raise PermissionDeniedError(
-                "Destructive command detected: Recursive chmod/chown on / is blocked."
-            )
+    if _LN_NULL_AUTH_RE.search(cmd_clean) or _CP_TO_AUTH_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Overwriting auth files is blocked."
+        )
+
+    for recurse_re in (_CHMOD_CHOWN_RECURSE_RE, _CHGRP_RECURSE_RE):
+        chmod_match = recurse_re.search(cmd_clean)
+        if chmod_match:
+            path_tok = _normalize_path_token(chmod_match.group(1))
+            if path_tok in {"/", "/*"} or path_tok in _ROOT_EQUIV:
+                raise PermissionDeniedError(
+                    "Destructive command detected: Recursive chmod/chown on / is blocked."
+                )
+            break
 
     if _VOLUME_DESTROY_RE.search(cmd_clean):
         raise PermissionDeniedError(

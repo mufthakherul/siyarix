@@ -229,8 +229,12 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
         re.I,
     ),
     re.compile(r"\bmkswap\b"),
-    re.compile(r"\bchmod\s+-R\s+777\s+/", re.I),
-    re.compile(r"\bchown\s+-R\s+[^:]+:[^:]+?\s+/", re.I),
+    re.compile(r"\bchmod\s+-[a-zA-Z]*R[a-zA-Z]*\s+\S+\s+/", re.I),
+    re.compile(r"\bchown\s+-[a-zA-Z]*R[a-zA-Z]*\s+[^:]+:[^:]+?\s+/", re.I),
+    re.compile(r"\bchgrp\s+-[a-zA-Z]*R[a-zA-Z]*\s+\S+\s+/", re.I),
+    re.compile(r"\b(?:curl|wget)\b.*(?:-o|--output|-O)\s*/dev/(?:sd|nvme|vd|xvd)", re.I),
+    re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.I),
     re.compile(r"\bfind\b.*(?:-delete\b|-exec\s+rm\b)", re.I),
     re.compile(
         r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"

@@ -556,11 +556,25 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     ),
     (
         re.compile(
-            r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/(?:\*|\.)?(?:\s|$)",
+            r"\b(?:chmod|chown|chgrp)\b\s+"
+            r"(?:-[a-zA-Z]*R[a-zA-Z]*\s+|--recursive\s+)\S+\s+/(?:\*|\.)?(?:\s|$)",
             re.I,
         ),
         "critical",
         "Recursive chmod/chown on /",
+    ),
+    (
+        re.compile(
+            r"\b(?:curl|wget)\b.*(?:-o|--output|-O)\s*/dev/(?:sd|nvme|vd|xvd)",
+            re.I,
+        ),
+        "critical",
+        "Download onto block device",
+    ),
+    (
+        re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
+        "critical",
+        "Symlink /dev/null over auth file",
     ),
     (
         re.compile(

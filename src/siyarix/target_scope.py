@@ -198,6 +198,13 @@ _HOST_TOOL_NAMES = frozenset(
         "bore",
         "localtunnel",
         "lt",
+        # Image / local-cluster pivots (RH-42).
+        "skopeo",
+        "buildah",
+        "minikube",
+        "kind",
+        "istioctl",
+        "telepresence",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -230,6 +237,11 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "bore",
         "localtunnel",
         "lt",
+        # Local-cluster / mesh sidecars hide API egress (RH-42).
+        "minikube",
+        "kind",
+        "istioctl",
+        "telepresence",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -1140,6 +1152,23 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     else:
                         skip_daemon = True
             continue
+        # skopeo/buildah: ``docker://registry/image`` hosts (RH-42). Do not treat
+        # verbs (``copy``/``push``) as hosts.
+        if base in {"skopeo", "buildah"}:
+            for nxt in tokens[i + 1 :]:
+                raw = nxt.strip().strip("'\"")
+                low = raw.lower()
+                if "://" in low:
+                    # docker://host/path | docker-daemon:… | oci:…
+                    parsed = urllib.parse.urlparse(
+                        raw if "://" in raw else f"docker://{raw}"
+                    )
+                    host = (parsed.hostname or "").strip()
+                    if not host and low.startswith("docker://"):
+                        host = raw.split("://", 1)[1].split("/")[0].split(":")[0]
+                    if host:
+                        _assert_host_token_in_scope(host, allowed_items, scope_display)
+            continue
         # kubectl/oc/helm/kustomize: API host via kubeconfig already blocked above.
         # Do not treat verbs (``get``/``list``) as hosts — that false-positives
         # in-engagement cluster work. Opaque ``--context`` / ``use-context`` hide
@@ -1148,6 +1177,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             rest = tokens[i + 1 :]
             rest_lower = [t.lower().strip().strip("'\"") for t in rest]
             for j, low in enumerate(rest_lower):
+                # Local API/port pivots hide the real cluster egress (RH-42).
+                if low in {"proxy", "port-forward", "port_forward"}:
+                    raise PermissionDeniedError(
+                        f"{base} {low} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
                 if low in {"use-context", "set-context", "rename-context"}:
                     raise PermissionDeniedError(
                         f"{base} {low} is not allowed under authorized scope "

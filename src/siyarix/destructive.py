@@ -190,10 +190,11 @@ _EXTRACT_DEST_RE = re.compile(
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
-    # ``pip install --target=/`` / ``cargo install --root=/`` (RH-38 / RH-41).
-    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv)\b"
-    r"[\s\S]{0,160}?"
-    r"(?:--installroot|--offline-root|--root|--prefix|--target|(?<![\w-])-r)"
+    # ``pip --target=/`` / ``cargo --root=/`` / ``pnpm --global-dir=/`` (RH-38/41/42).
+    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv|composer|bundle)\b"
+    r"[\s\S]{0,180}?"
+    r"(?:--installroot|--offline-root|--root|--prefix|--target|--global-dir|"
+    r"--working-dir|--path|(?<![\w-])-r)"
     r"(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
@@ -320,6 +321,10 @@ _AUTH_FILE_RE = re.compile(
     r"|/etc/systemd/(?:system|user)(?:/\S*)?"
     # Vendor unit dirs (RH-41) — persistence outside /etc/systemd.
     r"|/(?:usr/)?lib/systemd/(?:system|user)(?:/\S*)?"
+    # Init / autostart / NM dispatcher persistence (RH-42).
+    r"|/etc/init\.d(?:/\S*)?"
+    r"|/etc/xdg/autostart(?:/\S*)?"
+    r"|/etc/NetworkManager/dispatcher\.d(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
     r")",
     re.IGNORECASE,
@@ -383,6 +388,9 @@ _AUTH_DIR_RE = re.compile(
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)\b"
     r"|/etc/systemd/(?:system|user)\b"
     r"|/(?:usr/)?lib/systemd/(?:system|user)\b"
+    r"|/etc/init\.d\b"
+    r"|/etc/xdg/autostart\b"
+    r"|/etc/NetworkManager/dispatcher\.d\b"
     r")",
     re.IGNORECASE,
 )
@@ -602,6 +610,9 @@ _VOLUME_CREATE_RE = re.compile(
     + r"|\bvgcreate\b[\s\S]{0,200}"
     + _BLOCK_DEV_RE.pattern
     + r"|\blvcreate\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    # ``kpartx -a`` / ``-av`` / ``--add`` on live disks (RH-42).
+    + r"|\bkpartx\b[\s\S]{0,80}(?:--add\b|-[a-zA-Z]*a[a-zA-Z]*)\b[\s\S]{0,120}"
     + _BLOCK_DEV_RE.pattern
     + r")",
     re.IGNORECASE,

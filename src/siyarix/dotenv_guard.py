@@ -488,6 +488,13 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "UV_EXTRA_INDEX_URL",
         "UV_DEFAULT_INDEX",
         "NPM_CONFIG_REGISTRY",
+        # Container / pip config pivots (RH-42).
+        "CONTAINERD_ADDRESS",
+        "CONTAINERD_NAMESPACE",
+        "PIP_CONFIG_FILE",
+        "PIP_CACHE_DIR",
+        "COMPOSE_FILE",
+        "DOCKER_CONTEXT",
     }
 )
 
@@ -557,7 +564,14 @@ def should_skip_dotenv_key(key: str) -> bool:
         "CLICKHOUSE_HOST",
         "CASSANDRA_HOST",
         "SSH_PROXY_COMMAND",
+        "CONTAINERD_ADDRESS",
+        "CONTAINERD_NAMESPACE",
+        "PIP_CONFIG_FILE",
+        "COMPOSE_FILE",
+        "DOCKER_CONTEXT",
     }:
+        return True
+    if key_upper.startswith("CONTAINERD_") or key_upper.startswith("PIP_"):
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

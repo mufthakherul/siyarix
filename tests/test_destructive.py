@@ -466,6 +466,14 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "cp /tmp/evil /lib/systemd/system/evil.service",
         "cp /tmp/evil /usr/lib/systemd/system/evil.service",
         "cargo install --root / foo",
+        # RH-42 — persistence paths, package roots, kpartx
+        "cp /tmp/x /etc/init.d/evil",
+        "cp /tmp/x /etc/xdg/autostart/evil.desktop",
+        "install -m 755 /tmp/x /etc/NetworkManager/dispatcher.d/evil",
+        "pnpm add --global-dir / evil",
+        "composer create-project --working-dir=/ evil",
+        "bundle install --path /",
+        "kpartx -av /dev/sda",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

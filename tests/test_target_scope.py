@@ -616,6 +616,18 @@ class TestAssertCommandInScope:
             )
         with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
             assert_command_in_scope("chisel server --socks5", scope_env=scope)
+        # RH-42 — image registries / local-cluster / kubectl proxy
+        with pytest.raises(PermissionDeniedError, match="evil"):
+            assert_command_in_scope(
+                "skopeo copy docker://evil/img dir:/tmp/x", scope_env=scope
+            )
+        assert_command_in_scope(
+            "skopeo copy docker://10.0.0.1/img dir:/tmp/x", scope_env=scope
+        )
+        with pytest.raises(PermissionDeniedError, match="proxy|port-forward"):
+            assert_command_in_scope("kubectl proxy --port=8001", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="minikube|Proxy/tunnel"):
+            assert_command_in_scope("minikube ssh", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

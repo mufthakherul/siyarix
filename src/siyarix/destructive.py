@@ -193,6 +193,14 @@ _ASR_ERASE_RE = re.compile(
     r"\basr\b[\s\S]{0,220}(?:--erase\b|" + _BLOCK_DEV_RE.pattern + r")",
     re.IGNORECASE,
 )
+_HDIUTIL_BLOCK_RE = re.compile(
+    r"\bhdiutil\b[\s\S]{0,160}" + _BLOCK_DEV_RE.pattern,
+    re.IGNORECASE,
+)
+_WMIC_FORMAT_RE = re.compile(
+    r"\bwmic\b[\s\S]{0,100}(?:diskdrive|volume|logicaldisk)[\s\S]{0,80}format",
+    re.IGNORECASE,
+)
 _AUTH_FILE_RE = re.compile(r"/etc/(?:passwd|shadow|sudoers|group)\b", re.IGNORECASE)
 _LN_NULL_AUTH_RE = re.compile(
     r"\bln\b[\s\S]{0,80}/dev/null[\s\S]{0,80}" + _AUTH_FILE_RE.pattern,
@@ -313,7 +321,8 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Overwriting block devices is blocked."
         )
     # Strip remaining escapes (``\/`` → ``/``) so ``exec(...rmtree(\"/\")`` matches.
-    cmd_clean = quoted_clean.replace("\\", "")
+    # Normalize list-argv commas (``['rm','-rf','/']`` → ``rm -rf /``).
+    cmd_clean = re.sub(r"\s*,\s*", " ", quoted_clean.replace("\\", ""))
 
     if any(marker in cmd_clean for marker in _FORK_BOMB_MARKERS):
         raise PermissionDeniedError(
@@ -374,6 +383,8 @@ def assert_command_not_destructive(command: str) -> None:
         or _SOCAT_BLOCK_RE.search(cmd_clean)
         or _DISKUTIL_WIPE_RE.search(cmd_clean)
         or _ASR_ERASE_RE.search(cmd_clean)
+        or _HDIUTIL_BLOCK_RE.search(cmd_clean)
+        or _WMIC_FORMAT_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting block devices is blocked."

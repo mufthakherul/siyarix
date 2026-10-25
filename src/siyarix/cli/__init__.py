@@ -1803,8 +1803,24 @@ async def _execute_targets_parallel(
     preview = "; ".join(summaries[:8])
     if len(summaries) > 8:
         preview += "…"
+    ok_n = sum(
+        1
+        for raw in raw_results
+        if not isinstance(raw, BaseException) and getattr(raw, "success", False)
+    )
+    fail_n = len(targets) - ok_n
+    findings_n = len(merged.all_findings or [])
     status = "ok" if merged.success else "partial/fail"
-    merged.summary = f"Parallel scan of {len(targets)} targets ({status}): {preview}"
+    merged.summary = (
+        f"Parallel scan of {len(targets)} targets ({status}; "
+        f"{ok_n} ok / {fail_n} fail; {findings_n} findings): {preview}"
+    )
+    style = "green" if merged.success else "yellow"
+    console.print(
+        f"[{style}]Parallel scan complete:[/{style}] "
+        f"{ok_n} ok · {fail_n} fail · {findings_n} findings · "
+        f"{merged.duration_ms:.0f} ms"
+    )
     return merged
 
 

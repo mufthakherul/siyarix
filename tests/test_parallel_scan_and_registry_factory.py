@@ -77,6 +77,8 @@ async def test_execute_targets_parallel_merges_findings() -> None:
     assert merged.duration_ms == 30.0
     assert "timeout" in merged.error_message
     assert "Parallel scan of 2 targets" in merged.summary
+    assert "1 ok / 1 fail" in merged.summary
+    assert "2 findings" in merged.summary
     assert merged.all_findings[0].get("scan_target") == "10.0.0.1"
     assert merged.all_findings[1].get("scan_target") == "10.0.0.2"
 

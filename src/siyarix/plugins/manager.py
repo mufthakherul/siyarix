@@ -596,6 +596,10 @@ class PluginManager:
 
         # Case B: Git Repository URL (https only; SSRF-checked host)
         if name_or_url.startswith(("http://", "https://", "git@")):
+            if name_or_url.startswith("http://"):
+                raise ValueError(
+                    "Plugin git remotes must use https:// (cleartext http:// is rejected)"
+                )
             repo_url = _validate_git_clone_url(name_or_url)
             target_name = repo_url.rstrip("/").split("/")[-1]
             if target_name.endswith(".git"):

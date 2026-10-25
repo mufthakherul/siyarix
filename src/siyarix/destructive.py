@@ -191,17 +191,23 @@ _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
     # ``pip --target=/`` / ``cargo --root=/`` / ``dpkg --root=/`` (RH-38/41/42/43).
+    # yarn/bun ``--cwd /``, deno ``--root=/``, emerge/xbps (RH-46).
     r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv|"
-    r"composer|bundle|dpkg|dpkg-deb|apt|apt-get)\b"
+    r"composer|bundle|dpkg|dpkg-deb|apt|apt-get|emerge|xbps-install|bun|deno|pdm)\b"
     r"[\s\S]{0,180}?"
     r"(?:--installroot|--offline-root|--root|--prefix|--target|--global-dir|"
-    r"--working-dir|--path|(?<![\w-])-r)"
+    r"--working-dir|--path|--cwd|(?<![\w-])-r)"
     r"(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
 # Nix/Guix profile root pivots (RH-44): ``nix-env -p /`` / ``guix package -p /``.
 _NIX_GUIX_PROFILE_RE = re.compile(
     r"\b(?:nix-env|guix)\b[\s\S]{0,160}?(?:--profile|(?<![\w-])-p)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# Conda/mamba prefix roots (RH-46): ``conda install -p /`` / ``micromamba create -p /``.
+_CONDA_PREFIX_RE = re.compile(
+    r"\b(?:conda|mamba|micromamba)\b[\s\S]{0,160}?(?:--prefix|(?<![\w-])-p)(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
 # OpenWrt opkg also uses ``-o`` / ``--offline-root`` for the install root.
@@ -335,6 +341,14 @@ _AUTH_FILE_RE = re.compile(
     r"|/etc/pam\.d(?:/\S*)?"
     r"|/etc/ld\.so\.conf(?:\.d(?:/\S*)?)?"
     r"|/var/spool/cron(?:/crontabs)?(?:/\S*)?"
+    # Login / sysctl / udev / runtime-unit persistence (RH-46).
+    r"|/etc/profile\.d(?:/\S*)?"
+    r"|/etc/sysctl\.d(?:/\S*)?"
+    r"|/etc/modules-load\.d(?:/\S*)?"
+    r"|/etc/udev/rules\.d(?:/\S*)?"
+    r"|/etc/tmpfiles\.d(?:/\S*)?"
+    r"|/etc/security/limits\.d(?:/\S*)?"
+    r"|/run/systemd/system(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
     r")",
     re.IGNORECASE,
@@ -404,6 +418,13 @@ _AUTH_DIR_RE = re.compile(
     r"|/etc/pam\.d\b"
     r"|/etc/ld\.so\.conf\.d\b"
     r"|/var/spool/cron(?:/crontabs)?\b"
+    r"|/etc/profile\.d\b"
+    r"|/etc/sysctl\.d\b"
+    r"|/etc/modules-load\.d\b"
+    r"|/etc/udev/rules\.d\b"
+    r"|/etc/tmpfiles\.d\b"
+    r"|/etc/security/limits\.d\b"
+    r"|/run/systemd/system\b"
     r")",
     re.IGNORECASE,
 )
@@ -474,6 +495,18 @@ _MOUNT_OVERLAY_AUTH_RE = re.compile(
     r"|\bbindfs\b[\s\S]{0,160}(?:/etc\b|(?:\s)/(?:\s*)$)"
     r"|\bfuse-overlayfs\b[\s\S]{0,200}"
     r"(?:lowerdir=/etc\b|/etc\b|(?:\s)/(?:\s*)$)"
+    r")",
+    re.IGNORECASE,
+)
+# Network / FUSE mounts onto ``/`` or ``/etc`` (RH-46).
+_MOUNT_NETWORK_AUTH_RE = re.compile(
+    r"(?:"
+    r"\bmount\b[\s\S]{0,220}(?:-t|--types?)(?:=|\s*)(?:nfs4?|cifs|smb|smbfs)\b"
+    r"[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bsshfs\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\brclone\b[\s\S]{0,80}\bmount\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\b(?:mergerfs|unionfs-fuse|gocryptfs|squashfuse)\b[\s\S]{0,220}"
+    r"(?:/etc\b|(?:\s)/(?:\s*)$)"
     r")",
     re.IGNORECASE,
 )
@@ -1038,6 +1071,7 @@ def assert_command_not_destructive(command: str) -> None:
         or _MOUNT_BIND_AUTH_RE.search(cmd_clean)
         or _MOUNT_OVERLAY_AUTH_RE.search(cmd_esc)
         or _MOUNT_OVERLAY_AUTH_RE.search(cmd_clean)
+        or _MOUNT_NETWORK_AUTH_RE.search(cmd_clean)
         or _SHUF_OUT_AUTH_RE.search(cmd_clean)
         or _DD_RESCUE_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)
@@ -1060,6 +1094,7 @@ def assert_command_not_destructive(command: str) -> None:
         *_APK_ROOT_RE.finditer(cmd_clean),
         *_OPKG_ROOT_RE.finditer(cmd_clean),
         *_NIX_GUIX_PROFILE_RE.finditer(cmd_clean),
+        *_CONDA_PREFIX_RE.finditer(cmd_clean),
     ):
         if _is_dangerous_extract_dest(pkg_root.group(1)):
             raise PermissionDeniedError(

@@ -486,6 +486,23 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "fuse-overlayfs -o lowerdir=/etc /mnt",
         "nix-env -i -p / hello",
         "guix package -p / -i hello",
+        # RH-46 — conda/nfs/cifs/sshfs/persistence/pkg roots
+        "conda install -p / numpy",
+        "micromamba create -p / e",
+        "mount -t nfs h:/export /etc",
+        "mount -t cifs //h/share /",
+        "sshfs u@h:/ /",
+        "rclone mount remote: /",
+        "mergerfs /tmp:/var /",
+        "cp x /etc/profile.d/x.sh",
+        "cp x /etc/sysctl.d/x.conf",
+        "cp x /etc/udev/rules.d/x.rules",
+        "cp x /run/systemd/system/x.service",
+        "emerge --root=/ cat/pkg",
+        "xbps-install -r / pkg",
+        "yarn --cwd / add lodash",
+        "bun install --cwd /",
+        "deno install --root=/ npm:x",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

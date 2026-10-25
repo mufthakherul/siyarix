@@ -247,6 +247,26 @@ _HOST_TOOL_NAMES = frozenset(
         "proxifier",
         "outline-ss-server",
         "outline-client",
+        # RH-46 — IPsec / local-cluster / short proxies / FUSE tunnels.
+        "ipsec",
+        "strongswan",
+        "strongswan-starter",
+        "vpnc",
+        "lima",
+        "colima",
+        "lxd",
+        "incus",
+        "singularity",
+        "apptainer",
+        "privoxy",
+        "polipo",
+        "tinyproxy",
+        "dante",
+        "danted",
+        "icmptunnel",
+        "stunnel",
+        "stunnel4",
+        "rathole",
     }
 )
 # When scope is set, these tools create out-of-engagement pivots / public ingress.
@@ -326,6 +346,26 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "proxifier",
         "outline-ss-server",
         "outline-client",
+        # RH-46 — IPsec / local-cluster / short proxies / FUSE tunnels.
+        "ipsec",
+        "strongswan",
+        "strongswan-starter",
+        "vpnc",
+        "lima",
+        "colima",
+        "lxd",
+        "incus",
+        "singularity",
+        "apptainer",
+        "privoxy",
+        "polipo",
+        "tinyproxy",
+        "dante",
+        "danted",
+        "icmptunnel",
+        "stunnel",
+        "stunnel4",
+        "rathole",
     }
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
@@ -420,6 +460,12 @@ _SCOPE_PROXY_ENV_NAMES: frozenset[str] = frozenset(
         "RSYNC_PROXY",
         "GRPC_PROXY",
         "grpc_proxy",
+        # Client HTTP library proxy pivots (RH-46).
+        "HTTPX_PROXY",
+        "REQUESTS_PROXY",
+        "AIOHTTP_PROXY",
+        "TOR_SOCKS_HOST",
+        "TOR_SOCKS_PORT",
     }
 )
 # Leading daemon / transport pivots that hide the real egress host (RH-14/15).
@@ -429,7 +475,10 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "DOCKER_CONTEXT",
         "CONTAINER_HOST",
         "PODMAN_HOST",
+        "PODMAN_CONNECTION",
         "BUILDKIT_HOST",
+        "CONTAINERS_CONF",
+        "CRICTL_RUNTIME_ENDPOINT",
         "GIT_SSH_COMMAND",
         "GIT_SSH",
         "GIT_PROXY_COMMAND",
@@ -443,8 +492,11 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "KUBE_CONFIG",
         "KUBE_CONFIG_PATH",
         "HELM_KUBECONFIG",
-        # DB client transport hosts (RH-24).
+        "KUBERNETES_SERVICE_HOST",
+        "KUBERNETES_SERVICE_PORT",
+        # DB client transport hosts (RH-24 / RH-46).
         "MYSQL_HOST",
+        "MYSQLHOST",
         "MYSQL_UNIX_PORT",
         "PGHOST",
         "PGHOSTADDR",
@@ -456,7 +508,10 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "MONGO_URL",
         "MONGODB_URI",
         "DATABASE_URL",
+        "DATABASE_HOST",
+        "DB_HOST",
         "SQLALCHEMY_DATABASE_URI",
+        "AZURE_MYSQL_HOST",
         # Service discovery / DB hosts (RH-33).
         "CONSUL_HTTP_ADDR",
         "CONSUL_HTTP_HOST",
@@ -465,6 +520,33 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "CLICKHOUSE_HOST",
         "CASSANDRA_HOST",
         "ETCDCTL_ENDPOINTS",
+        # Cloud object-store endpoint pivots (RH-46).
+        "AWS_ENDPOINT",
+        "AWS_ENDPOINT_URL",
+        "S3_ENDPOINT",
+        "MINIO_ENDPOINT",
+    }
+)
+# Cloud CLIs that rewrite kubeconfig to an opaque API server (RH-46).
+_CLOUD_KUBECONFIG_TOOLS: frozenset[str] = frozenset(
+    {
+        "aws",
+        "gcloud",
+        "az",
+        "eksctl",
+        "doctl",
+        "oci",
+        "talosctl",
+        "k0s",
+        "microk8s",
+    }
+)
+_CLOUD_KUBECONFIG_VERBS: frozenset[str] = frozenset(
+    {
+        "update-kubeconfig",
+        "get-credentials",
+        "write-kubeconfig",
+        "kubeconfig",
     }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
@@ -887,6 +969,27 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             f"ip tuntap/tunnel is not allowed under authorized scope "
             f"(authorized scope: {scope_display})"
         )
+    # RH-46: cloud CLIs rewriting kubeconfig (not in _HOST_TOOL_NAMES).
+    _early_tokens = decoded_early.split()
+    if _early_tokens:
+        _early_base = (
+            _early_tokens[0].lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+        )
+        if _early_base in _CLOUD_KUBECONFIG_TOOLS:
+            _rest = [t.lower().strip().strip("'\"") for t in _early_tokens[1:]]
+            for j, low in enumerate(_rest):
+                if low not in _CLOUD_KUBECONFIG_VERBS:
+                    continue
+                if low == "kubeconfig" and not (
+                    j + 1 < len(_rest)
+                    and _rest[j + 1] in {"save", "write", "merge", "set", "use"}
+                ):
+                    continue
+                raise PermissionDeniedError(
+                    f"{_early_base} kubeconfig rewrite ({low}) is not allowed under "
+                    f"authorized scope (authorized scope: {scope_display}); "
+                    f"pass an explicit in-scope --server / API host instead"
+                )
     # Fail-closed: ``psql service=…`` hides the remote host in a service file.
     if re.search(r"\bpsql\b", decoded_early, re.IGNORECASE) and re.search(
         r"(?:\bservice\s*=|--service(?:=|\s))\s*\S+",

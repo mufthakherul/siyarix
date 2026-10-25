@@ -659,6 +659,30 @@ class TestAssertCommandInScope:
             assert_command_in_scope("v2raya", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="ip tuntap|tunnel"):
             assert_command_in_scope("ip tuntap add mode tun siy0", scope_env=scope)
+        # RH-46 — cloud kubeconfig rewrite + local-cluster/proxy wrappers
+        with pytest.raises(PermissionDeniedError, match="kubeconfig|update-kubeconfig"):
+            assert_command_in_scope(
+                "aws eks update-kubeconfig --name c", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="kubeconfig|get-credentials"):
+            assert_command_in_scope(
+                "gcloud container clusters get-credentials c --zone z",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="kubeconfig|get-credentials"):
+            assert_command_in_scope(
+                "az aks get-credentials -g g -n n", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="lima|Proxy/tunnel"):
+            assert_command_in_scope("lima start", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="privoxy|Proxy/tunnel"):
+            assert_command_in_scope("privoxy", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="ipsec|Proxy/tunnel"):
+            assert_command_in_scope("ipsec up home", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="singularity|Proxy/tunnel"):
+            assert_command_in_scope(
+                "singularity run docker://alpine:latest", scope_env=scope
+            )
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

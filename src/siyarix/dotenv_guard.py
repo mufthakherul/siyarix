@@ -514,6 +514,30 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "TS_AUTHKEY",
         "CLASH_HOME",
         "SING_BOX_CONFIG",
+        # DB / proxy / kube / cloud endpoint pivots (RH-46).
+        "DB_HOST",
+        "DATABASE_HOST",
+        "MYSQLHOST",
+        "AZURE_MYSQL_HOST",
+        "HTTPX_PROXY",
+        "REQUESTS_PROXY",
+        "AIOHTTP_PROXY",
+        "TOR_SOCKS_HOST",
+        "TOR_SOCKS_PORT",
+        "KUBERNETES_SERVICE_HOST",
+        "KUBERNETES_SERVICE_PORT",
+        "CRICTL_RUNTIME_ENDPOINT",
+        "AWS_ENDPOINT",
+        "AWS_ENDPOINT_URL",
+        "S3_ENDPOINT",
+        "MINIO_ENDPOINT",
+        "PODMAN_CONNECTION",
+        "CONTAINERS_CONF",
+        # Crypto / cloud config home redirects (RH-46).
+        "GNUPGHOME",
+        "SOPS_AGE_KEY_FILE",
+        "CLOUDSDK_CONFIG",
+        "XDG_CONFIG_HOME",
     }
 )
 
@@ -617,11 +641,57 @@ def should_skip_dotenv_key(key: str) -> bool:
         "TS_AUTHKEY",
         "CLASH_HOME",
         "SING_BOX_CONFIG",
+        "DB_HOST",
+        "DATABASE_HOST",
+        "MYSQLHOST",
+        "AZURE_MYSQL_HOST",
+        "HTTPX_PROXY",
+        "REQUESTS_PROXY",
+        "AIOHTTP_PROXY",
+        "TOR_SOCKS_HOST",
+        "TOR_SOCKS_PORT",
+        "KUBERNETES_SERVICE_HOST",
+        "KUBERNETES_SERVICE_PORT",
+        "CRICTL_RUNTIME_ENDPOINT",
+        "AWS_ENDPOINT",
+        "AWS_ENDPOINT_URL",
+        "S3_ENDPOINT",
+        "MINIO_ENDPOINT",
+        "PODMAN_CONNECTION",
+        "CONTAINERS_CONF",
+        "GNUPGHOME",
+        "SOPS_AGE_KEY_FILE",
+        "CLOUDSDK_CONFIG",
+        "XDG_CONFIG_HOME",
     }:
         return True
     if key_upper.startswith("TAILSCALE_") or key_upper.startswith("WIREGUARD_"):
         return True
     if key_upper.startswith("OPENVPN_") or key_upper.startswith("CLASH_"):
+        return True
+    # Broad DB/host and client-proxy pivots from planted .env (RH-46).
+    if key_upper.endswith(("_HOST", "_ENDPOINT")) and any(
+        key_upper.startswith(p)
+        for p in (
+            "DB_",
+            "DATABASE_",
+            "MYSQL",
+            "PG",
+            "REDIS_",
+            "MONGO",
+            "AZURE_",
+            "AWS_",
+            "S3_",
+            "MINIO_",
+            "KUBERNETES_",
+            "TOR_",
+            "HTTPX_",
+            "REQUESTS_",
+            "AIOHTTP_",
+        )
+    ):
+        return True
+    if key_upper.endswith("_PROXY") and key_upper not in {"NO_PROXY", "no_proxy"}:
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

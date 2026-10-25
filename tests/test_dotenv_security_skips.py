@@ -530,3 +530,30 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "ELECTRON_NO_ASAR" not in os.environ
     # All SIYARIX_* keys are blocked from .env; non-security APP_* still loads.
     assert os.environ.get("APP_HARMLESS") == "ok"
+
+
+def test_should_skip_rh46_db_proxy_crypto_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "DB_HOST",
+        "DATABASE_HOST",
+        "MYSQLHOST",
+        "AZURE_MYSQL_HOST",
+        "HTTPX_PROXY",
+        "REQUESTS_PROXY",
+        "AIOHTTP_PROXY",
+        "TOR_SOCKS_HOST",
+        "KUBERNETES_SERVICE_HOST",
+        "CRICTL_RUNTIME_ENDPOINT",
+        "AWS_ENDPOINT",
+        "S3_ENDPOINT",
+        "MINIO_ENDPOINT",
+        "PODMAN_CONNECTION",
+        "CONTAINERS_CONF",
+        "GNUPGHOME",
+        "SOPS_AGE_KEY_FILE",
+        "CLOUDSDK_CONFIG",
+        "XDG_CONFIG_HOME",
+    ):
+        assert should_skip_dotenv_key(key), key

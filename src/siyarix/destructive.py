@@ -395,7 +395,20 @@ _DOWNLOAD_TO_AUTH_RE = re.compile(
     + _AUTH_FILE_RE.pattern
     + r"|\b(?:base64|brotli)\b[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
     + _AUTH_FILE_RE.pattern
+    + r"|\b(?:zstd|pzstd|unzstd|lz4|xz|gzip|gunzip)\b[\s\S]{0,100}"
+    r"(?:-o|--output)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern
+    + r"|\b(?:split|csplit)\b[\s\S]{0,100}(?:-f|--prefix)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern
+    # ``split -b1 /dev/urandom /etc/passwd`` — last positional is the prefix.
+    + r"|\bsplit\b[\s\S]{0,160}\s"
+    + _AUTH_FILE_RE.pattern
+    + r"(?:\s|$)"
     + r")",
+    re.IGNORECASE,
+)
+_SOCAT_AUTH_RE = re.compile(
+    r"\bsocat\b[\s\S]{0,220}(?:OPEN|CREATE|APPEND):" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _DOWNLOAD_DIR_AUTH_RE = re.compile(
@@ -429,8 +442,9 @@ _SETUID_SYSTEM_RE = re.compile(
     r"\bchmod\b[\s\S]{0,100}"
     r"(?:[ug]*\+s|\+s|[0-7]*[4567][0-7]{3})\b[\s\S]{0,100}"
     r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
+    # Glued ``-m4755`` as well as spaced/``=`` forms.
     r"|\binstall\b[\s\S]{0,120}"
-    r"(?:-m|--mode)(?:=|\s+)(?:[0-7]*[4567][0-7]{3}|[ug]*\+s|\+s)\b"
+    r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[4567][0-7]{3}|[ug]*\+s|\+s)\b"
     r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
     r")",
     re.IGNORECASE,
@@ -528,6 +542,14 @@ def _expand_ansi_c_quotes(text: str) -> str:
         return "".join(out)
 
     return re.sub(r"\$'([^']*)'", _repl, text)
+
+
+def _scrub_ifs(text: str) -> str:
+    """Replace ``$IFS`` / ``${IFS}`` with spaces so ``rm$IFS-rf$IFS/`` tokenizes.
+
+    Case-insensitive: callers may lowercase the command before scrubbing.
+    """
+    return re.sub(r"\$\{?IFS\}?", " ", text, flags=re.IGNORECASE)
 
 
 def _expand_brace_paths(text: str) -> str:
@@ -652,6 +674,8 @@ def assert_command_not_destructive(command: str) -> None:
     raw = (command or "").strip().lower()
     if not raw:
         return
+    # ``$IFS`` / ``${IFS}`` before quote/ANSI expand so ``rm$IFS-rf$IFS/`` matches.
+    raw = _scrub_ifs(raw)
     # ANSI-C quotes before ordinary quote-strip (``$'/'`` → ``/``).
     ansi_clean = _expand_ansi_c_quotes(raw)
     # Collapse shell quote-splitting evasion (m'k'fs → mkfs) before matching.
@@ -780,6 +804,7 @@ def assert_command_not_destructive(command: str) -> None:
         or _SHUF_OUT_AUTH_RE.search(cmd_clean)
         or _DD_RESCUE_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)
+        or _SOCAT_AUTH_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."

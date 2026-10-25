@@ -594,12 +594,18 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 _assert_host_token_in_scope(hop_host, allowed_items, scope_display)
 
         skip_proxy_arg = False
+        skip_proxy_is_jump = False
         for nxt in tokens[i + 1 :]:
             if skip_proxy_arg:
-                _assert_host_token_in_scope(
-                    _proxy_host_from_val(nxt), allowed_items, scope_display
-                )
+                raw_proxy = nxt.strip().strip("'\"")
+                if skip_proxy_is_jump:
+                    _check_proxyjump_val(raw_proxy)
+                else:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
                 skip_proxy_arg = False
+                skip_proxy_is_jump = False
                 continue
             if not nxt.startswith("-"):
                 continue
@@ -618,30 +624,40 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                 _check_proxyjump_val(val)
                 continue
-            # Glued ``-x11.1.1.1:8080`` / ``-Jbastion`` (not ``-X POST``).
+            # Glued ``-x11.1.1.1:8080`` / ``-Jbastion`` / ``-Jevil,other``.
             glued_short = _GLUED_PROXY_SHORT_RE.match(nxt)
             if glued_short is not None and not nxt.startswith("--"):
                 flag_ch = glued_short.group("flag")
                 # ``-x`` proxy / ``-J`` jump only (reject ``-X`` method via case).
                 if flag_ch in {"-x", "-J"} and glued_short.group("val")[:1] not in {"", "-"}:
-                    _assert_host_token_in_scope(
-                        _proxy_host_from_val(glued_short.group("val")),
-                        allowed_items,
-                        scope_display,
-                    )
+                    glued_val = glued_short.group("val").strip().strip("'\"")
+                    if flag_ch == "-J":
+                        _check_proxyjump_val(glued_val)
+                    else:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(glued_val),
+                            allowed_items,
+                            scope_display,
+                        )
                     continue
             flag = nxt.split("=", 1)[0]
             if flag in _proxy_flags or any(
                 flag.startswith(p) and p.startswith("--") for p in _proxy_flags
             ):
+                is_jump = flag in {"-J", "--jump"}
                 if "=" in nxt:
-                    _assert_host_token_in_scope(
-                        _proxy_host_from_val(nxt.split("=", 1)[1]),
-                        allowed_items,
-                        scope_display,
-                    )
+                    eq_val = nxt.split("=", 1)[1].strip().strip("'\"")
+                    if is_jump:
+                        _check_proxyjump_val(eq_val)
+                    else:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(eq_val),
+                            allowed_items,
+                            scope_display,
+                        )
                 else:
                     skip_proxy_arg = True
+                    skip_proxy_is_jump = is_jump
                 continue
         # ``-o ProxyJump=bastion`` as two tokens (value may be quoted).
         for j, tok2 in enumerate(tokens[i + 1 :]):
@@ -737,7 +753,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 raw_host.startswith("[") or raw_host.count(":") >= 2
             ):
                 break
-            candidate = raw_host.split(":")[0]  # strip ``host:port``
+            candidate = raw_host.split(":")[0].strip().strip("'\"")  # strip port + quotes
+            # Empty / quote-only tokens (``rpcclient -U '' evil``) — keep scanning.
             if not candidate:
                 continue
             # Integer / short IPv4 hosts (``curl 0`` → 0.0.0.0).

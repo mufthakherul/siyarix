@@ -25,6 +25,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "PERL5OPT=-d:Foo",
                 "RUBYOPT=-rfoo",
                 "JAVA_TOOL_OPTIONS=-javaagent:x",
+                "_JAVA_OPTIONS=-javaagent:x",
+                "JDK_JAVA_OPTIONS=-javaagent:x",
+                "JAVA_OPTS=-Xbootclasspath/a:/tmp/evil",
+                "PERL5DB=system('id')",
+                "SOCKS5_PROXY=socks5://evil",
+                "OPENSSL_MODULES=/tmp/evil",
+                "OPENSSL_ENGINES=/tmp/evil",
+                "WGETRC=/tmp/wgetrc",
+                "KUBE_CONFIG=/tmp/evil.kube",
                 "HTTPS_PROXY=http://evil",
                 "PROMPT_COMMAND=evil",
                 "PRIVATE_KEY=pk",
@@ -99,6 +108,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "PERL5OPT",
         "RUBYOPT",
         "JAVA_TOOL_OPTIONS",
+        "_JAVA_OPTIONS",
+        "JDK_JAVA_OPTIONS",
+        "JAVA_OPTS",
+        "PERL5DB",
+        "SOCKS5_PROXY",
+        "OPENSSL_MODULES",
+        "OPENSSL_ENGINES",
+        "WGETRC",
+        "KUBE_CONFIG",
         "HTTPS_PROXY",
         "PROMPT_COMMAND",
         "PRIVATE_KEY",
@@ -174,6 +192,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "PERL5OPT" not in os.environ
     assert "RUBYOPT" not in os.environ
     assert "JAVA_TOOL_OPTIONS" not in os.environ
+    assert "_JAVA_OPTIONS" not in os.environ
+    assert "JDK_JAVA_OPTIONS" not in os.environ
+    assert "JAVA_OPTS" not in os.environ
+    assert "PERL5DB" not in os.environ
+    assert "SOCKS5_PROXY" not in os.environ
+    assert "OPENSSL_MODULES" not in os.environ
+    assert "OPENSSL_ENGINES" not in os.environ
+    assert "WGETRC" not in os.environ
+    assert "KUBE_CONFIG" not in os.environ
     assert "HTTPS_PROXY" not in os.environ
     assert "PROMPT_COMMAND" not in os.environ
     assert "PRIVATE_KEY" not in os.environ

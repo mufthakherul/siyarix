@@ -154,6 +154,7 @@ Siyarix includes dedicated subgroups for specialized security tasks:
 - **`siyarix security`**: Manage incidents, track vulnerabilities, and hunt for threats mapped to the MITRE ATT&CK framework.
 - **`siyarix compliance`**: Automatically run compliance assessments against frameworks like SOC2, HIPAA, NIST, and GDPR.
 - **`siyarix ci-gate`**: Drop Siyarix into a CI/CD pipeline. It will automatically fail the build if security thresholds aren't met!
+- **`siyarix production-check`**: Pre-flight production readiness table (use `--strict` in CI).
 
 ---
 

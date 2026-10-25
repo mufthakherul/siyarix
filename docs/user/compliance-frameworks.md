@@ -40,7 +40,15 @@ siyarix compliance run GDPR customer-db.internal
     The `compliance run` command requires two things: the **Framework Name** and the **Target**.
 
 ### Current Engine Status
-Right now, calling `ComplianceCheck.run()` acts as a placeholder and returns `NOT_EVALUATED`. Behind the scenes, we are actively writing the assessment probes and evidence collection modules. Currently, evidence data and target metadata *are* being captured and stored for future evaluation.
+Reports include a `summary` (`PASS` / `FAIL` / `NOT_EVALUATED`) plus an explicit disclaimer. Local probes today:
+
+| Control examples | Probe |
+|------------------|-------|
+| `AU-2`, `Req-10.1` | Audit hash-chain integrity |
+| `cc6.1`, `AC-3`, `164.312(a)(1)` | Shell review fail-closed (`SIYARIX_PREAUTHORIZED`) |
+| `A.8.1`, `cc6.2` | Credential store availability |
+
+All other mapped controls stay `NOT_EVALUATED` until evidence collectors exist.
 
 ---
 

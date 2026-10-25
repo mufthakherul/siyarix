@@ -106,10 +106,17 @@ def _is_safe_url(url: str) -> bool:
         import ipaddress
 
         try:
-            addr = ipaddress.ip_address(host)
-            return bool(addr.is_private or addr.is_loopback)
+            addr: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(host)
         except ValueError:
             return False
+        # Unwrap IPv4-mapped IPv6 (::ffff:x.x.x.x) before classifying.
+        mapped = getattr(addr, "ipv4_mapped", None)
+        if mapped is not None:
+            addr = mapped
+        # Local providers may use RFC1918/loopback only — not link-local/metadata.
+        if addr.is_link_local or addr.is_reserved or addr.is_multicast or addr.is_unspecified:
+            return False
+        return bool(addr.is_private or addr.is_loopback)
     except Exception as exc:
         logger.debug("URL safety check failed for %s: %s", url, exc)
         return False
@@ -132,8 +139,17 @@ def _verify_tls(url: str) -> bool:
         import ipaddress
 
         try:
-            addr = ipaddress.ip_address(host)
-            if addr.is_private or addr.is_loopback:
+            addr2: ipaddress.IPv4Address | ipaddress.IPv6Address = ipaddress.ip_address(host)
+            mapped2 = getattr(addr2, "ipv4_mapped", None)
+            if mapped2 is not None:
+                addr2 = mapped2
+            if (
+                addr2.is_private
+                or addr2.is_loopback
+                or addr2.is_link_local
+                or addr2.is_reserved
+                or addr2.is_multicast
+            ):
                 return False
         except ValueError:
             pass

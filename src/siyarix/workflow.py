@@ -159,10 +159,16 @@ class WorkflowEngine:
                 if any(n.status == WorkflowStepStatus.RUNNING for n in workflow.nodes):
                     await asyncio.sleep(0.1)
                     continue
-                break
+                self._skip_blocked_dependents(workflow)
+                if not workflow.get_ready_nodes() and not any(
+                    n.status == WorkflowStepStatus.RUNNING for n in workflow.nodes
+                ):
+                    break
+                continue
             await asyncio.gather(
                 *[self._run_node(workflow, n) for n in ready], return_exceptions=True
             )
+            self._skip_blocked_dependents(workflow)
         workflow.completed_at = time.time()
         if workflow.status != WorkflowStatus.CANCELLED:
             workflow.status = (
@@ -184,15 +190,40 @@ class WorkflowEngine:
                 result = await asyncio.wait_for(
                     step_fn({**node.args, **workflow.context}), timeout=node.timeout
                 )
-                node.result = result
-                node.status = WorkflowStepStatus.COMPLETED
-                workflow.context[f"result_{node.id}"] = result
+                node.result = result if isinstance(result, dict) else {"output": result}
+                soft_status = str(node.result.get("status", "")).lower()
+                if soft_status in {"error", "failed", "failure"}:
+                    node.status = WorkflowStepStatus.FAILED
+                else:
+                    node.status = WorkflowStepStatus.COMPLETED
+                    workflow.context[f"result_{node.id}"] = node.result
         except asyncio.TimeoutError:
             node.status = WorkflowStepStatus.FAILED
             node.result = {"error": f"Timeout after {node.timeout}s"}
         except Exception as e:
             node.status = WorkflowStepStatus.FAILED
             node.result = {"error": str(e)}
+
+    def _skip_blocked_dependents(self, workflow: Workflow) -> None:
+        """Mark PENDING nodes whose deps failed as SKIPPED so the DAG can finish."""
+        changed = True
+        while changed:
+            changed = False
+            for node in workflow.nodes:
+                if node.status != WorkflowStepStatus.PENDING:
+                    continue
+                incoming = [e for e in workflow.edges if e.target == node.id]
+                if not incoming:
+                    continue
+                if any(
+                    (src := workflow.get_node(e.source)) is not None
+                    and src.status
+                    in (WorkflowStepStatus.FAILED, WorkflowStepStatus.SKIPPED)
+                    for e in incoming
+                ):
+                    node.status = WorkflowStepStatus.SKIPPED
+                    node.result = {"error": "Skipped due to failed dependency"}
+                    changed = True
 
     def cancel_workflow(self, workflow_id: str) -> bool:
         wf = self._workflows.get(workflow_id)

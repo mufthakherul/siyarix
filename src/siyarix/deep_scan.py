@@ -198,9 +198,16 @@ class DeepScanEngine:
         # Enforce SIYARIX_ALLOWED_SCOPE even when deep scan bypasses the planner.
         assert_command_in_scope(f"scan {target}")
 
-        passes = [p for p in _DEEP_SCAN_PASSES if profiles is None or p.name in profiles]
-        if not passes:
-            passes = _DEEP_SCAN_PASSES
+        if profiles is None:
+            passes = list(_DEEP_SCAN_PASSES)
+        else:
+            wanted = {str(p).strip() for p in profiles if str(p).strip()}
+            passes = [p for p in _DEEP_SCAN_PASSES if p.name in wanted]
+            if not passes:
+                raise ValueError(
+                    f"Unknown deep-scan profile(s): {sorted(wanted)}. "
+                    f"Valid: {[p.name for p in _DEEP_SCAN_PASSES]}"
+                )
 
         all_findings: dict[str, list[dict[str, Any]]] = {}
         scan_id = f"deep_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}_{target.replace('.', '_').replace(':', '_')}"

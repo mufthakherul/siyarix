@@ -89,6 +89,32 @@ async def test_workflow_timeout():
     assert "Timeout after" in res_wf.get_node("n1").result["error"]
 
 
+@pytest.mark.asyncio
+async def test_workflow_soft_error_fails_and_skips_dependents():
+    engine = WorkflowEngine()
+
+    async def fail_soft(args):
+        return {"status": "error", "error": "tool blew up"}
+
+    async def should_not_run(args):
+        return {"status": "success", "ran": True}
+
+    engine.register_step("fail_soft", fail_soft)
+    engine.register_step("next", should_not_run)
+    wf = engine.create_workflow(
+        "soft_fail",
+        nodes=[
+            {"id": "n1", "step_fn": "fail_soft"},
+            {"id": "n2", "step_fn": "next"},
+        ],
+        edges=[{"source": "n1", "target": "n2"}],
+    )
+    res = await engine.run_workflow(wf)
+    assert res.status == WorkflowStatus.FAILED
+    assert res.get_node("n1").status == WorkflowStepStatus.FAILED
+    assert res.get_node("n2").status == WorkflowStepStatus.SKIPPED
+
+
 def test_workflow_stats():
     engine = WorkflowEngine()
     stats = engine.stats()
@@ -242,9 +268,9 @@ class TestWorkflowEngineCancellation:
         # Mark 'a' as FAILED so 'b' can never become ready
         wf.get_node("a").status = WorkflowStepStatus.FAILED
         res = await engine.run_workflow(wf)
-        # b should remain PENDING, workflow fails because not all completed
+        # b is skipped due to failed dependency; workflow fails overall
         assert res.status == WorkflowStatus.FAILED
-        assert res.get_node("b").status == WorkflowStepStatus.PENDING
+        assert res.get_node("b").status == WorkflowStepStatus.SKIPPED
 
     def test_stats_with_running_and_completed(self) -> None:
         engine = WorkflowEngine()

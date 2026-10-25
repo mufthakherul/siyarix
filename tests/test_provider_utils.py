@@ -30,6 +30,10 @@ def test_is_safe_url():
     assert _is_safe_url("https://8.8.8.8") is False
     assert _is_safe_url("ftp://localhost") is False
     assert _is_safe_url("invalid_url") is False
+    # Link-local / IPv4-mapped metadata must not pass as "private local provider".
+    assert _is_safe_url("http://169.254.169.254/") is False
+    assert _is_safe_url("http://[fe80::1]/") is False
+    assert _is_safe_url("http://[::ffff:169.254.169.254]/") is False
 
 
 @respx.mock

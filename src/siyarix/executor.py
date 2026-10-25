@@ -366,9 +366,20 @@ class BaseExecutor:
         command = str(step.command or step.args.get("command") or "").strip()
         if not command:
             # RegistryPlanner / kwargs-only steps still need a scope synopsis.
+            # Fold args/flags so -h/-u hosts cannot bypass SIYARIX_ALLOWED_SCOPE.
+            parts: list[str] = [str(step.tool or "").strip()]
             target = str(step.args.get("target") or "").strip()
-            tool = str(step.tool or "").strip()
-            command = f"{tool} {target}".strip() if target else tool
+            if target:
+                parts.append(target)
+            for key in ("args", "flags", "extra_args"):
+                raw = step.args.get(key)
+                if raw is None:
+                    continue
+                if isinstance(raw, (list, tuple)):
+                    parts.extend(str(x) for x in raw)
+                else:
+                    parts.append(str(raw))
+            command = " ".join(p for p in parts if p).strip()
 
         if command:
             self.check_destructive(command)

@@ -367,8 +367,20 @@ class ToolRegistry:
         command = str(kwargs.get("command") or "").strip()
         if not command:
             # Deep-scan / kwargs-only invocations still need a gate/scope synopsis.
+            # Include args/flags so -h/-u host values cannot bypass SIYARIX_ALLOWED_SCOPE.
+            parts: list[str] = [name]
             target = str(kwargs.get("target") or "").strip()
-            command = f"{name} {target}".strip() if target else name
+            if target:
+                parts.append(target)
+            for key in ("args", "flags", "extra_args"):
+                raw = kwargs.get(key)
+                if raw is None:
+                    continue
+                if isinstance(raw, (list, tuple)):
+                    parts.extend(str(x) for x in raw)
+                else:
+                    parts.append(str(raw))
+            command = " ".join(p for p in parts if p).strip() or name
 
         # Always enforce SIYARIX_ALLOWED_SCOPE for registry/playbook/deep-scan paths.
         from .target_scope import assert_command_in_scope

@@ -134,6 +134,12 @@ class TestSX004ScopeWiring:
         with patch.dict("os.environ", {"SIYARIX_ALLOWED_SCOPE": "10.0.0.0/8"}):
             with pytest.raises(PermissionDeniedError):
                 await reg.execute("nmap", target="8.8.8.8")
+            with pytest.raises(PermissionDeniedError):
+                await reg.execute("nikto", args=["-h", "8.8.8.8"])
+            with pytest.raises(PermissionDeniedError):
+                await reg.execute(
+                    "nikto", target="10.0.0.5", args=["-h", "evil.example.com"]
+                )
 
     def test_check_scope_cidr_only_blocks_domain(self) -> None:
         executor = BaseExecutor()

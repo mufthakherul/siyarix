@@ -495,6 +495,17 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "PIP_CACHE_DIR",
         "COMPOSE_FILE",
         "DOCKER_CONTEXT",
+        # DB transport hosts (RH-43) — same set blocked on argv under scope.
+        "PGHOST",
+        "PGHOSTADDR",
+        "PGPORT",
+        "PGSERVICE",
+        "PGSERVICEFILE",
+        "MYSQL_HOST",
+        "MYSQL_UNIX_PORT",
+        "REDIS_HOST",
+        "MONGO_URL",
+        "MONGODB_URI",
     }
 )
 
@@ -572,6 +583,26 @@ def should_skip_dotenv_key(key: str) -> bool:
     }:
         return True
     if key_upper.startswith("CONTAINERD_") or key_upper.startswith("PIP_"):
+        return True
+    # libpq / mysql client transport pivots (RH-43).
+    if key_upper in {
+        "PGHOST",
+        "PGHOSTADDR",
+        "PGPORT",
+        "PGSERVICE",
+        "PGSERVICEFILE",
+        "PGDATABASE",
+        "PGUSER",
+        "PGPASSWORD",
+        "PGSSLMODE",
+        "MYSQL_HOST",
+        "MYSQL_UNIX_PORT",
+        "REDIS_HOST",
+        "MONGO_URL",
+        "MONGODB_URI",
+        "DATABASE_URL",
+        "SQLALCHEMY_DATABASE_URI",
+    }:
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

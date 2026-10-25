@@ -628,6 +628,13 @@ class TestAssertCommandInScope:
             assert_command_in_scope("kubectl proxy --port=8001", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="minikube|Proxy/tunnel"):
             assert_command_in_scope("minikube ssh", scope_env=scope)
+        # RH-43 — brook / mitmproxy SOCKS wrappers
+        with pytest.raises(PermissionDeniedError, match="brook|Proxy/tunnel"):
+            assert_command_in_scope(
+                "brook socks -l :1080 -p evilhost:9999", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="mitmproxy|Proxy/tunnel"):
+            assert_command_in_scope("mitmproxy --mode socks5", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

@@ -474,6 +474,14 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "composer create-project --working-dir=/ evil",
         "bundle install --path /",
         "kpartx -av /dev/sda",
+        # RH-43 — mdadm -C, PAM/ld.so/spool cron, overlay/bindfs, dpkg --root
+        "mdadm -C /dev/md0 -l 1 -n 2 /dev/sda /dev/sdb",
+        "cp evil /etc/pam.d/sshd",
+        "echo x > /etc/ld.so.conf.d/evil.conf",
+        "mount -t overlay overlay -o lowerdir=/etc,upperdir=/tmp/u,workdir=/tmp/w /etc",
+        "bindfs /tmp /etc",
+        "cp evil /var/spool/cron/crontabs/root",
+        "dpkg --root=/ -i evil.deb",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

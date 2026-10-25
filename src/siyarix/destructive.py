@@ -190,8 +190,9 @@ _EXTRACT_DEST_RE = re.compile(
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
-    # ``pip --target=/`` / ``cargo --root=/`` / ``pnpm --global-dir=/`` (RH-38/41/42).
-    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv|composer|bundle)\b"
+    # ``pip --target=/`` / ``cargo --root=/`` / ``dpkg --root=/`` (RH-38/41/42/43).
+    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv|"
+    r"composer|bundle|dpkg|dpkg-deb|apt|apt-get)\b"
     r"[\s\S]{0,180}?"
     r"(?:--installroot|--offline-root|--root|--prefix|--target|--global-dir|"
     r"--working-dir|--path|(?<![\w-])-r)"
@@ -325,6 +326,10 @@ _AUTH_FILE_RE = re.compile(
     r"|/etc/init\.d(?:/\S*)?"
     r"|/etc/xdg/autostart(?:/\S*)?"
     r"|/etc/NetworkManager/dispatcher\.d(?:/\S*)?"
+    # PAM / linker conf / spool crontabs (RH-43).
+    r"|/etc/pam\.d(?:/\S*)?"
+    r"|/etc/ld\.so\.conf(?:\.d(?:/\S*)?)?"
+    r"|/var/spool/cron(?:/crontabs)?(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
     r")",
     re.IGNORECASE,
@@ -391,6 +396,9 @@ _AUTH_DIR_RE = re.compile(
     r"|/etc/init\.d\b"
     r"|/etc/xdg/autostart\b"
     r"|/etc/NetworkManager/dispatcher\.d\b"
+    r"|/etc/pam\.d\b"
+    r"|/etc/ld\.so\.conf\.d\b"
+    r"|/var/spool/cron(?:/crontabs)?\b"
     r")",
     re.IGNORECASE,
 )
@@ -451,6 +459,15 @@ _MOUNT_BIND_AUTH_RE = re.compile(
     + _AUTH_FILE_RE.pattern
     + r"|/etc\b|(?:\s)/(?:\s*)$"
     r"))",
+    re.IGNORECASE,
+)
+# Overlay / FUSE bind onto auth trees (RH-43).
+_MOUNT_OVERLAY_AUTH_RE = re.compile(
+    r"(?:"
+    r"\bmount\b[\s\S]{0,200}(?:-t|--types?)(?:=|\s*)overlay\b[\s\S]{0,200}"
+    r"(?:lowerdir=/etc\b|/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bbindfs\b[\s\S]{0,160}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r")",
     re.IGNORECASE,
 )
 _TAR_ABSOLUTE_NAMES_RE = re.compile(
@@ -603,7 +620,7 @@ _VOLUME_CREATE_RE = re.compile(
     r"(?:"
     r"\bzpool\s+create\b[\s\S]{0,220}"
     + _BLOCK_DEV_RE.pattern
-    + r"|\bmdadm\b[\s\S]{0,160}--create\b[\s\S]{0,220}"
+    + r"|\bmdadm\b[\s\S]{0,160}(?:--create\b|-[a-zA-Z]*C[a-zA-Z]*)\b[\s\S]{0,220}"
     + _BLOCK_DEV_RE.pattern
     + r"|\bpvcreate\b[\s\S]{0,160}"
     + _BLOCK_DEV_RE.pattern
@@ -1012,6 +1029,8 @@ def assert_command_not_destructive(command: str) -> None:
         or _CHMOD_AUTH_RE.search(cmd_clean)
         or _MOUNT_BIND_AUTH_RE.search(cmd_esc)
         or _MOUNT_BIND_AUTH_RE.search(cmd_clean)
+        or _MOUNT_OVERLAY_AUTH_RE.search(cmd_esc)
+        or _MOUNT_OVERLAY_AUTH_RE.search(cmd_clean)
         or _SHUF_OUT_AUTH_RE.search(cmd_clean)
         or _DD_RESCUE_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)

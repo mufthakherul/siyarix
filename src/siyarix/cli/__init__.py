@@ -2479,6 +2479,23 @@ def production_check(
         "SIYARIX_ALLOWED_SCOPE set" if scope else "unset — set for production target isolation",
     )
 
+    cmd_review = bool(config.get("command_review", True))
+    _add(
+        "command_review",
+        "pass" if cmd_review else "warn",
+        "prompt before raw shell commands"
+        if cmd_review
+        else "disabled — enable for production (CTF profile opts out)",
+    )
+
+    try:
+        from ..destructive import assert_command_not_destructive
+
+        assert_command_not_destructive("echo ok")
+        _add("destructive_guard", "pass", "shared assert_command_not_destructive loaded")
+    except Exception as exc:  # pragma: no cover - defensive
+        _add("destructive_guard", "fail", f"unavailable: {exc}")
+
     try:
         from ..credential_store import CredentialStore
 

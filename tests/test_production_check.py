@@ -23,9 +23,14 @@ def test_production_check_json() -> None:
         "tool_registry",
         "webhook",
         "allowed_scope",
+        "command_review",
+        "destructive_guard",
         "health",
     } <= names
     assert payload["fails"] == 0
+    by_name = {c["name"]: c for c in payload["checks"]}
+    assert by_name["destructive_guard"]["status"] == "pass"
+    assert by_name["command_review"]["status"] in {"pass", "warn"}
 
 
 def test_production_check_table() -> None:

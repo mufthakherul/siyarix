@@ -72,10 +72,12 @@ siyarix scan @targets.txt --parallel 1
 Key options: `--tool` / `-t`, `--mode` / `-m`, `--output` / `-o`, `--parallel` / `-p` (1–32; default from `default_parallel` / `SIYARIX_PARALLEL`), `--timeout`, `--save`, `--notify`, `--dry-run`.
 
 **Scan Presets (The Fast Track):**
-- `siyarix scan-quick <target>`: Rapid port discovery (Top 100 ports, no deep service detection).
-- `siyarix scan-full <target>`: Scans all ports, fingerprints the OS, and runs default scripts.
+- `siyarix scan-quick <target|@file> [--parallel N]`: Rapid port discovery (Top 100 ports). Supports multi-target `@file` + `--parallel` like `scan`.
+- `siyarix scan-full <target|@file> [--parallel N]`: All ports, OS fingerprint, default scripts. Multi-target `@file` + `--parallel` supported.
 - `siyarix scan-deep <target>`: A heavy, multi-pass scan for maximum reconnaissance.
 - `siyarix scan-web <target>`: Specifically hunts for web application vulnerabilities (runs `nikto`, `whatweb`, `nuclei`).
+
+**Campaigns (REPL):** `/campaign create eng1 --targets hosts.txt` persists targets under `~/.siyarix/campaigns/`, then `/campaign run eng1` prints the `siyarix scan-quick @… --parallel …` command for execution.
 
 ### `discover`
 A lightweight command to map out the assets and services running on a target.

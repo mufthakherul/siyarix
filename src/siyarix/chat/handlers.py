@@ -2873,24 +2873,174 @@ class CommandHandlersMixin:
 
     async def _cmd_campaign(self, args: str) -> None:
         """Handle /campaign command for multi-target campaigns."""
+        from ..campaign import CampaignStore, load_targets_file, sanitize_campaign_name
+
         tokens = args.split() if args else []
         action = tokens[0].lower() if tokens else "list"
+        store = CampaignStore()
+
+        def _parse_flag(flag: str) -> str | None:
+            if flag not in tokens:
+                return None
+            idx = tokens.index(flag)
+            if idx + 1 >= len(tokens):
+                return None
+            return tokens[idx + 1]
+
         if action == "list":
+            camps = store.list_campaigns()
+            if not camps:
+                console.print(
+                    "[dim]No campaigns yet. "
+                    "Use /campaign create <name> --targets <file>[/dim]"
+                )
+                return
+            from rich.table import Table
+            from rich import box
+
+            table = Table(title="Campaigns", box=box.SIMPLE)
+            table.add_column("Name", style="cyan")
+            table.add_column("Targets", justify="right")
+            table.add_column("Status")
+            table.add_column("Runs", justify="right")
+            table.add_column("Updated")
+            for c in camps:
+                table.add_row(
+                    c.name,
+                    str(len(c.targets)),
+                    c.status,
+                    str(c.run_count),
+                    (c.updated_at or c.created_at or "—")[:19],
+                )
+            console.print(table)
+            return
+
+        if action == "create":
+            name_raw = tokens[1] if len(tokens) > 1 and not tokens[1].startswith("-") else ""
+            if not name_raw:
+                name_raw = Prompt.ask("Campaign name")
+            name = sanitize_campaign_name(name_raw)
+            targets: list[str] = []
+            targets_file = _parse_flag("--targets") or _parse_flag("-t")
+            if targets_file:
+                path = Path(targets_file)
+                if not path.is_file():
+                    console.print(f"[red]Targets file not found: {targets_file}[/red]")
+                    return
+                targets.extend(load_targets_file(path))
+            # Positional hosts after name (until next flag).
+            for tok in tokens[2:]:
+                if tok.startswith("-"):
+                    break
+                targets.append(tok)
+            # Repeated --target host
+            i = 0
+            while i < len(tokens):
+                if tokens[i] == "--target" and i + 1 < len(tokens):
+                    targets.append(tokens[i + 1])
+                    i += 2
+                    continue
+                i += 1
+            notes = _parse_flag("--notes") or ""
+            if not targets:
+                console.print(
+                    "[yellow]No targets provided. "
+                    "Use --targets <file> or pass hosts after the name.[/yellow]"
+                )
+                return
+            try:
+                camp = store.create(name, targets, notes=notes)
+            except ValueError as exc:
+                console.print(f"[red]{exc}[/red]")
+                return
+            tfile = store.targets_file(camp.name)
             console.print(
-                "[dim]No active campaigns. Use /campaign create <name> --targets <file>[/dim]"
+                f"[green]✓ Campaign created: {camp.name}[/green] "
+                f"([cyan]{len(camp.targets)}[/cyan] targets)"
             )
-        elif action == "create":
-            name = tokens[1] if len(tokens) > 1 else Prompt.ask("Campaign name")
-            console.print(f"[green]✓ Campaign created: {name}[/green]")
+            console.print(f"[dim]Targets file: {tfile}[/dim]")
             console.print(
-                "[yellow]Tip: Use /batch run <targets_file> to execute across targets[/yellow]"
+                "[dim]Run: [/dim]"
+                f"[cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]  "
+                f"[dim]or[/dim] [cyan]/campaign run {camp.name}[/cyan]"
             )
-        elif action == "status":
+            return
+
+        if action == "status":
+            name = tokens[1] if len(tokens) > 1 else ""
+            if not name:
+                camps = store.list_campaigns()
+                if not camps:
+                    console.print("[dim]No campaigns. Use /campaign create …[/dim]")
+                    return
+                name = camps[0].name
+            status_camp = store.get(name)
+            if status_camp is None:
+                console.print(f"[red]Campaign not found: {name}[/red]")
+                return
+            tfile = store.targets_file(status_camp.name)
+            preview = ", ".join(status_camp.targets[:8])
+            if len(status_camp.targets) > 8:
+                preview += "…"
+            console.print(f"[bold]Campaign:[/bold] {status_camp.name}")
+            console.print(f"[bold]Status:[/bold] {status_camp.status}")
             console.print(
-                "[yellow]Campaign tracking requires the workflow runtime. Run /batch to execute targets.[/yellow]"
+                f"[bold]Targets:[/bold] {len(status_camp.targets)} — {preview or '—'}"
             )
-        else:
-            console.print("[yellow]Usage: /campaign list|create|status[/yellow]")
+            console.print(f"[bold]Runs:[/bold] {status_camp.run_count}")
+            console.print(f"[bold]Created:[/bold] {status_camp.created_at or '—'}")
+            console.print(f"[bold]Updated:[/bold] {status_camp.updated_at or '—'}")
+            console.print(f"[bold]Last run:[/bold] {status_camp.last_run_at or '—'}")
+            if status_camp.notes:
+                console.print(f"[bold]Notes:[/bold] {status_camp.notes}")
+            console.print(f"[bold]Targets file:[/bold] {tfile}")
+            return
+
+        if action == "run":
+            name = tokens[1] if len(tokens) > 1 else ""
+            if not name:
+                console.print("[yellow]Usage: /campaign run <name>[/yellow]")
+                return
+            run_camp = store.get(name)
+            if run_camp is None:
+                console.print(f"[red]Campaign not found: {name}[/red]")
+                return
+            if not run_camp.targets:
+                console.print("[yellow]Campaign has no targets.[/yellow]")
+                return
+            store.mark_run(run_camp.name)
+            tfile = store.write_targets_file(run_camp)
+            console.print(
+                f"[green]✓ Campaign {run_camp.name} ready[/green] "
+                f"([cyan]{len(run_camp.targets)}[/cyan] targets)"
+            )
+            console.print(
+                "[bold]Execute with:[/bold] "
+                f"[cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]"
+            )
+            console.print(
+                "[dim]Or full/deep: [/dim]"
+                f"[cyan]siyarix scan @{tfile} --parallel 5[/cyan]  "
+                f"[cyan]siyarix scan-full @{tfile} --parallel 3[/cyan]"
+            )
+            return
+
+        if action == "delete":
+            name = tokens[1] if len(tokens) > 1 else ""
+            if not name:
+                console.print("[yellow]Usage: /campaign delete <name>[/yellow]")
+                return
+            if store.delete(name):
+                console.print(f"[green]✓ Deleted campaign: {sanitize_campaign_name(name)}[/green]")
+            else:
+                console.print(f"[red]Campaign not found: {name}[/red]")
+            return
+
+        console.print(
+            "[yellow]Usage: /campaign list|create|status|run|delete[/yellow]\n"
+            "[dim]/campaign create eng1 --targets hosts.txt[/dim]\n"
+            "[dim]/campaign run eng1[/dim]"
+        )
 
     async def _cmd_kb(self, args: str) -> None:
         """Handle /kb command for knowledge base operations."""

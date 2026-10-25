@@ -1135,10 +1135,19 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         name="/campaign",
         category=CommandCategory.ADVANCED,
         description="Multi-target campaign management",
-        usage="/campaign list|create|status",
+        usage="/campaign list|create|status|run|delete",
         handler="_cmd_campaign",
-        examples=["/campaign list", "/campaign create my_campaign"],
-        notes="Manages multi-target security testing campaigns.",
+        examples=[
+            "/campaign list",
+            "/campaign create eng1 --targets hosts.txt",
+            "/campaign status eng1",
+            "/campaign run eng1",
+            "/campaign delete eng1",
+        ],
+        notes=(
+            "Persists engagement target lists under ~/.siyarix/campaigns/ and "
+            "prints siyarix scan-quick @file --parallel … commands for execution."
+        ),
     ),
     CommandInfo(
         name="/ticket",

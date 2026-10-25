@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Persistent `/campaign` store (`~/.siyarix/campaigns/`) with create/list/status/run/delete and `@targets` scan handoff.
+- `siyarix scan-quick` / `scan-full` accept `--parallel` for multi-host `@file` campaigns.
 - True multi-target `siyarix scan --parallel N` concurrency with merged, target-tagged findings.
 - Shared `make_tool_registry()` factory (PermissionGate on by default) for CLI/chat/core/plugins/deep-scan.
 - Compliance CLI exits `2` on FAIL probes and `3` when `NOT_EVALUATED` remain.

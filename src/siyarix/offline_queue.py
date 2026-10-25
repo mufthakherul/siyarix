@@ -138,39 +138,77 @@ class OfflineCommandQueue:
         return cmd_id
 
     def dequeue(self, batch_size: int = 5) -> list[QueuedCommand]:
+        """Atomically claim up to *batch_size* pending commands as processing.
+
+        Claim happens in one transaction so concurrent flush/replay workers
+        cannot dequeue the same row twice.
+        """
         with self._lock:
-            conn = self._conn()
-            rows = conn.execute(
-                "SELECT * FROM queued_commands WHERE status = 'pending' "
-                "ORDER BY created_at ASC LIMIT ?",
-                (batch_size,),
-            ).fetchall()
-            result = []
-            for row in rows:
-                cmd = QueuedCommand(
-                    id=row["id"],
-                    instruction=row["instruction"],
-                    target=row["target"],
-                    mode=row["mode"],
-                    status=row["status"],
-                    created_at=row["created_at"],
-                    attempts=row["attempts"],
-                    max_attempts=row["max_attempts"],
-                    last_error=row["last_error"],
-                    result_summary=row["result_summary"],
-                    dependencies=json.loads(row["dependencies"]),
+            with self._transaction() as conn:
+                rows = conn.execute(
+                    "SELECT id FROM queued_commands WHERE status = 'pending' "
+                    "ORDER BY created_at ASC LIMIT ?",
+                    (batch_size,),
+                ).fetchall()
+                ids = [row["id"] for row in rows]
+                if not ids:
+                    return []
+                placeholders = ",".join("?" * len(ids))
+                conn.execute(
+                    f"UPDATE queued_commands SET status = 'processing', "
+                    f"attempts = attempts + 1 WHERE id IN ({placeholders}) "
+                    f"AND status = 'pending'",
+                    ids,
                 )
-                result.append(cmd)
-            return result
+                claimed = conn.execute(
+                    f"SELECT * FROM queued_commands WHERE id IN ({placeholders}) "
+                    f"AND status = 'processing'",
+                    ids,
+                ).fetchall()
+                result = []
+                for row in claimed:
+                    result.append(
+                        QueuedCommand(
+                            id=row["id"],
+                            instruction=row["instruction"],
+                            target=row["target"],
+                            mode=row["mode"],
+                            status=row["status"],
+                            created_at=row["created_at"],
+                            attempts=row["attempts"],
+                            max_attempts=row["max_attempts"],
+                            last_error=row["last_error"],
+                            result_summary=row["result_summary"],
+                            dependencies=json.loads(row["dependencies"]),
+                        )
+                    )
+                return result
 
     def mark_processing(self, cmd_id: str) -> None:
+        """Ensure *cmd_id* is marked processing.
+
+        Safe to call after :meth:`dequeue` (already claimed) — does not
+        double-increment attempts when status is already ``processing``.
+        """
         with self._lock:
             with self._transaction() as conn:
                 conn.execute(
                     "UPDATE queued_commands SET status = 'processing', "
-                    "attempts = attempts + 1 WHERE id = ?",
+                    "attempts = attempts + 1 WHERE id = ? AND status = 'pending'",
                     (cmd_id,),
                 )
+
+    def reclaim_stale_processing(self, older_than_seconds: int = 3600) -> int:
+        """Return stuck ``processing`` rows to ``pending`` after a crash/TTL."""
+        with self._lock:
+            with self._transaction() as conn:
+                cur = conn.execute(
+                    "UPDATE queued_commands SET status = 'pending' "
+                    "WHERE status = 'processing' "
+                    "AND created_at < datetime('now', ?)",
+                    (f"-{int(older_than_seconds)} seconds",),
+                )
+                return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 
     def mark_completed(self, cmd_id: str, summary: str = "") -> None:
         with self._lock:

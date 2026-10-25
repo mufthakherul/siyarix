@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
+import logging
 import shlex
 from typing import Any
 
 from .tool_models import ToolHandler
+
+logger = logging.getLogger(__name__)
 
 
 def _empty_target_result(tool: str) -> dict:
@@ -36,8 +39,10 @@ async def _run(
                 duration_ms=0.0,
             )
         cmd = validator.sanitize_args(cmd)
-    except Exception:
-        pass
+    except Exception as exc:
+        # Fail closed: never skip injection sanitization on validator errors.
+        logger.warning("Command injection validation failed closed: %s", exc)
+        raise ValueError(f"Command validation unavailable: {exc}") from exc
 
     if on_stdout or on_stderr:
         from .subprocess_utils import safe_run_async_stream as _run_async_stream

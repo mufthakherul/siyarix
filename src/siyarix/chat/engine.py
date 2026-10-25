@@ -304,6 +304,15 @@ class LLMEngineMixin:
                         border_style="red" if critical else "yellow",
                     )
                 )
+            if critical:
+                console.print(
+                    "[red]Execution blocked: adversarial review found critical destructive patterns.[/red]"
+                )
+                self._session.add_message(
+                    "assistant",
+                    "Plan blocked by adversarial review due to critical destructive commands.",
+                )
+                return
         except ModuleNotFoundError:
             pass
         except Exception as exc:

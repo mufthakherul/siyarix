@@ -100,6 +100,9 @@ class PermissionGate:
                 command=command,
             )
 
+        if not command or not command.strip():
+            return GateResult(False, GateStage.SYNTAX, "Empty command", command=command)
+
         if len(self._calls) >= self.rate_limit_calls:
             self._save_state(force=True)
             return GateResult(
@@ -112,9 +115,6 @@ class PermissionGate:
 
         self._calls.append(now)
         self._save_state(force=(len(self._calls) % 50 == 0))
-
-        if not command or not command.strip():
-            return GateResult(False, GateStage.SYNTAX, "Empty command", command=command)
 
         report = self._danger_analyzer.analyze(command)
         if report.severity == "critical":

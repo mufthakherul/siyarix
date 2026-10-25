@@ -130,7 +130,14 @@ class WebhookDispatcher:
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
             )
-            urllib.request.urlopen(req, timeout=5)  # nosec B310
+
+            class _NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, *args: Any, **kwargs: Any) -> None:
+                    # Redirects can pivot a validated public URL onto private/metadata hosts.
+                    return None
+
+            opener = urllib.request.build_opener(_NoRedirect)
+            opener.open(req, timeout=5)  # nosec B310
             logger.info("Webhook alert dispatched for %s", finding.get("id", "vuln"))
         except urllib.error.URLError as e:
             logger.error("Failed to dispatch webhook: %s", e)

@@ -179,23 +179,23 @@ class TestDispatchAlert:
             fake_response = MagicMock()
             fake_response.__enter__.return_value = fake_response
 
-            with patch.object(
-                urllib.request, "urlopen", return_value=fake_response
-            ) as mock_urlopen:
+            mock_opener = MagicMock()
+            mock_opener.open.return_value = fake_response
+            with patch.object(urllib.request, "build_opener", return_value=mock_opener):
                 finding = {"id": "vuln-1", "target": "example.com", "type": "sql injection"}
                 await d.dispatch_alert(finding)
 
-            mock_urlopen.assert_called_once()
-            req = mock_urlopen.call_args[0][0]
+            mock_opener.open.assert_called_once()
+            req = mock_opener.open.call_args[0][0]
             assert req.get_method() == "POST"
             sent = json.loads(req.data)
             assert "CRITICAL VULNERABILITY" in sent["text"]
 
     @pytest.mark.asyncio
     async def test_no_url_configured(self, dispatcher_without_url: WebhookDispatcher) -> None:
-        with patch.object(urllib.request, "urlopen") as mock_urlopen:
+        with patch.object(urllib.request, "build_opener") as mock_build:
             await dispatcher_without_url.dispatch_alert({"target": "x"})
-            mock_urlopen.assert_not_called()
+            mock_build.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_urlerror_on_dispatch(self) -> None:
@@ -204,9 +204,9 @@ class TestDispatchAlert:
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            with patch.object(
-                urllib.request, "urlopen", side_effect=urllib.error.URLError("connection failed")
-            ):
+            mock_opener = MagicMock()
+            mock_opener.open.side_effect = urllib.error.URLError("connection failed")
+            with patch.object(urllib.request, "build_opener", return_value=mock_opener):
                 await d.dispatch_alert({"id": "vuln-1", "target": "x", "type": "open port"})
 
     @pytest.mark.asyncio
@@ -218,7 +218,9 @@ class TestDispatchAlert:
             d = WebhookDispatcher()
             fake_response = MagicMock()
             fake_response.__enter__.return_value = fake_response
-            with patch.object(urllib.request, "urlopen", return_value=fake_response):
+            mock_opener = MagicMock()
+            mock_opener.open.return_value = fake_response
+            with patch.object(urllib.request, "build_opener", return_value=mock_opener):
                 await d.dispatch_alert(
                     {"id": "vuln-1", "title": "XSS Vulnerability", "target": "x"}
                 )

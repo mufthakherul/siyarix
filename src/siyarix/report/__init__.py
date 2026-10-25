@@ -42,20 +42,28 @@ class ReportEngine:
         """Build a report from a KnowledgeGraph by extracting finding nodes."""
         findings = []
         for node_id, node in knowledge_graph.nodes.items():
-            if node.properties.get("category") == "finding":
-                findings.append(
-                    {
-                        "severity": node.properties.get("severity", "info"),
-                        "type": node.properties.get("type", "unknown"),
-                        "target": node.properties.get("target", ""),
-                        "description": node.label,
-                        "evidence": node.properties.get("evidence", ""),
-                        "port": node.properties.get("port"),
-                        "service": node.properties.get("service"),
-                        "cve": node.properties.get("cve"),
-                        "cvss_score": node.properties.get("cvss_score"),
-                    }
-                )
+            props = getattr(node, "properties", {}) or {}
+            nt = getattr(node, "node_type", None)
+            nt_val = getattr(nt, "value", nt) if nt is not None else None
+            is_finding = isinstance(nt_val, str) and nt_val in {"finding", "vulnerability"}
+            if not is_finding:
+                is_finding = props.get("category") == "finding"
+            if not is_finding:
+                continue
+            findings.append(
+                {
+                    "severity": props.get("severity", "info"),
+                    "type": props.get("type", props.get("cve", "unknown")),
+                    "target": props.get("target", ""),
+                    "description": getattr(node, "label", "") or props.get("description", ""),
+                    "evidence": props.get("evidence", ""),
+                    "port": props.get("port"),
+                    "service": props.get("service"),
+                    "cve": props.get("cve"),
+                    "cvss_score": props.get("cvss_score"),
+                    "title": getattr(node, "label", "") or props.get("title", ""),
+                }
+            )
         return self.build_report(findings, target, config)
 
     def build_report(

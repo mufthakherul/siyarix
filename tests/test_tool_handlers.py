@@ -83,9 +83,10 @@ class TestRun:
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
     @patch("siyarix.security_hardening.InputValidator", side_effect=ImportError("no module"))
     async def test_with_exception_in_validator(self, mock_validator_cls, mock_safe_run):
-        mock_safe_run.return_value = _mock_result(exit_code=0, stdout="fallback")
-        result = await _run("nmap", ["nmap", "target"])
-        assert result.stdout == "fallback"
+        # Fail closed: validator import/runtime errors must not skip sanitization.
+        with pytest.raises(ValueError, match="Command validation unavailable"):
+            await _run("nmap", ["nmap", "target"])
+        mock_safe_run.assert_not_awaited()
 
 
 class TestMakeResult:

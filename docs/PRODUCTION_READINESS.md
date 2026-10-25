@@ -50,4 +50,10 @@ python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 
 Latest local checks on this branch: **mypy clean (256 files)**; pytest **5993 passed, 6 skipped, 62 deselected** (`-m "not e2e"`, stress ignored).
 
-Goal status: audit P0/P1 blockers closed (incl. SX-012/024/031); SX-025 has honest local probes plus explicit `NOT_EVALUATED` for unmapped controls.
+Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
+audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln
+reporting, permission-gate empty-command ordering, injection validator fail-closed,
+adversarial CRITICAL plan abort.
+
+Goal status: production gates green; absolute “every bug” claim still open to further
+exploration, but known P0/P1 hunt items above are closed with tests.

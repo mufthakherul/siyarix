@@ -235,7 +235,7 @@ class AuditLogger:
         self._unflushed_events: list[AuditEvent] = []
         self._sessions: dict[str, AuditSession] = {}
         self._dirty = False
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
         self._retention_days = 365
         self._cached_source_ip: str | None = None
@@ -302,36 +302,41 @@ class AuditLogger:
                 logger.warning("Failed to parse event: %s", exc)
 
     def _save_events(self) -> None:
-        """Save events to disk atomically with secure permissions."""
-        if not self._unflushed_events:
-            return
+        """Save events to disk atomically with secure permissions.
 
-        try:
-            from siyarix.opsec import opsec_manager
-
-            if opsec_manager.status.memory_only:
-                self._unflushed_events.clear()
-                self._dirty = False
+        Must run under ``self._lock`` (RLock) so concurrent ``log()`` calls
+        cannot interleave append + flush of the unflushed buffer.
+        """
+        with self._lock:
+            if not self._unflushed_events:
                 return
-        except Exception:
-            pass
 
-        try:
-            self._config_dir.mkdir(parents=True, exist_ok=True)
-            lines = [json.dumps(e.to_dict()) + "\n" for e in self._unflushed_events]
-            with self._audit_db.open("a", encoding="utf-8") as f:
-                f.writelines(lines)
             try:
-                if os.name != "nt":
-                    current = stat.S_IMODE(self._audit_db.stat().st_mode)
-                    if current & 0o077:
-                        self._audit_db.chmod(current & 0o700)
+                from siyarix.opsec import opsec_manager
+
+                if opsec_manager.status.memory_only:
+                    self._unflushed_events.clear()
+                    self._dirty = False
+                    return
             except Exception:
                 pass
-            self._unflushed_events.clear()
-            self._dirty = False
-        except Exception as exc:
-            logger.error("Failed to save audit events: %s", exc)
+
+            try:
+                self._config_dir.mkdir(parents=True, exist_ok=True)
+                lines = [json.dumps(e.to_dict()) + "\n" for e in self._unflushed_events]
+                with self._audit_db.open("a", encoding="utf-8") as f:
+                    f.writelines(lines)
+                try:
+                    if os.name != "nt":
+                        current = stat.S_IMODE(self._audit_db.stat().st_mode)
+                        if current & 0o077:
+                            self._audit_db.chmod(current & 0o700)
+                except Exception:
+                    pass
+                self._unflushed_events.clear()
+                self._dirty = False
+            except Exception as exc:
+                logger.error("Failed to save audit events: %s", exc)
 
     def _flush_on_exit(self) -> None:
         with self._lock:
@@ -434,11 +439,17 @@ class AuditLogger:
             self._unflushed_events.append(event)
             self._dirty = True
 
-        self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
-        self._count_by_severity[event.severity] = self._count_by_severity.get(event.severity, 0) + 1
+            self._count_by_type[event.event_type] = (
+                self._count_by_type.get(event.event_type, 0) + 1
+            )
+            self._count_by_severity[event.severity] = (
+                self._count_by_severity.get(event.severity, 0) + 1
+            )
 
-        if session_id and session_id in self._sessions:
-            self._sessions[session_id].events_count += 1
+            if session_id and session_id in self._sessions:
+                self._sessions[session_id].events_count += 1
+
+            self._save_events()
 
         if RICH_AVAILABLE and os.getenv("SIYARIX_AUDIT_VERBOSE", "0") == "1":
             console = Console(stderr=True)
@@ -447,8 +458,6 @@ class AuditLogger:
                 f"[{color}]{event.timestamp.strftime('%H:%M:%S')} | "
                 f"{event.user} | {event.action} | {event.target}[/{color}]"
             )
-
-        self._save_events()
 
         return event
 

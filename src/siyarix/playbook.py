@@ -130,18 +130,45 @@ class PlaybookEngine:
             steps=steps,
         )
 
+    def _ensure_tool_step_functions(self, tool_names: set[str]) -> None:
+        """Register shell-backed step functions for tools referenced by the playbook."""
+        from siyarix.subprocess_utils import get_platform_shell_cmd, safe_run_async
+
+        async def _run_tool_command(ctx: dict[str, Any]) -> dict[str, Any]:
+            command = str(ctx.get("command") or "").strip()
+            if not command:
+                return {"status": "error", "error": "Empty playbook command"}
+            timeout = int(float(ctx.get("timeout") or 300))
+            shell_cmd = get_platform_shell_cmd(command)
+            result = await safe_run_async(shell_cmd, timeout=timeout)
+            exit_code = int(getattr(result, "exit_code", getattr(result, "returncode", -1)))
+            return {
+                "status": "success" if exit_code == 0 else "error",
+                "output": getattr(result, "stdout", "") or "",
+                "error": getattr(result, "stderr", "") or "",
+                "exit_code": exit_code,
+            }
+
+        for name in tool_names:
+            if not name:
+                continue
+            # Idempotent: last registration wins with the same shell runner.
+            self.workflow_engine.register_step(name, _run_tool_command)
+
     async def execute(
         self, path: str | Path, variables: dict[str, str] | None = None, executor: Any = None
     ) -> Any:
         """Load and execute a playbook."""
+        del executor  # reserved for alternate backends
         data = self.load(path)
         plan = self.create_plan(data, variables)
+        self._ensure_tool_step_functions({s.tool for s in plan.steps if s.tool})
         nodes = [
             {
                 "id": step.id,
                 "name": step.description,
                 "step_fn": step.tool,
-                "args": {"command": step.command},
+                "args": {"command": step.command, "timeout": step.timeout},
                 "timeout": step.timeout,
             }
             for step in plan.steps

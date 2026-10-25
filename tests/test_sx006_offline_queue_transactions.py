@@ -30,7 +30,9 @@ class TestSX006Transactions:
         assert len(pending) == 1
         assert pending[0].id == cmd_id
         assert pending[0].instruction == "scan target.example"
-        assert q2.get_pending_count() == 1
+        # dequeue atomically claims rows as processing
+        assert pending[0].status == "processing"
+        assert q2.get_pending_count() == 1  # pending+processing counted together
         q2.close()
 
     def test_status_updates_commit(self, tmp_path):
@@ -81,6 +83,34 @@ class TestSX006Transactions:
 
         assert queue.get_pending_count() == 0
         assert all(c.id != "rollback-me" for c in queue.get_all())
+
+    def test_dequeue_atomic_claim_is_exclusive(self, tmp_path):
+        db = tmp_path / "claim.db"
+        q = OfflineCommandQueue(db_path=db)
+        a = q.enqueue("a")
+        b = q.enqueue("b")
+        first = q.dequeue(batch_size=1)
+        second = q.dequeue(batch_size=2)
+        assert [c.id for c in first] == [a]
+        assert [c.id for c in second] == [b]
+        assert all(c.status == "processing" for c in first + second)
+        q.close()
+
+    def test_reclaim_stale_processing(self, tmp_path):
+        db = tmp_path / "reclaim.db"
+        q = OfflineCommandQueue(db_path=db)
+        cmd_id = q.enqueue("stuck")
+        q.dequeue(batch_size=1)
+        with q._transaction() as conn:
+            conn.execute(
+                "UPDATE queued_commands SET created_at = datetime('now', '-2 hours') WHERE id = ?",
+                (cmd_id,),
+            )
+        n = q.reclaim_stale_processing(older_than_seconds=60)
+        assert n == 1
+        pending = q.dequeue(batch_size=1)
+        assert pending[0].id == cmd_id
+        q.close()
 
     def test_clear_completed_commits(self, tmp_path):
         db = tmp_path / "clear.db"

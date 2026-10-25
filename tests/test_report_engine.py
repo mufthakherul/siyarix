@@ -153,12 +153,26 @@ class TestBuildReportFromKg:
         engine = ReportEngine()
         mock_node = MagicMock()
         mock_node.properties = {"category": "target", "severity": "info"}
+        mock_node.node_type = "host"
         mock_node.label = "Target Node"
         mock_kg = MagicMock()
         mock_kg.nodes = {"n1": mock_node}
 
         report = engine.build_report_from_kg(mock_kg, target="10.0.0.1")
         assert len(report.findings) == 0
+
+    def test_extracts_vulnerability_node_type(self):
+        engine = ReportEngine()
+        mock_node = MagicMock()
+        mock_node.properties = {"severity": "critical", "cve": "CVE-2024-1", "target": "h"}
+        mock_node.node_type = MagicMock(value="vulnerability")
+        mock_node.label = "CVE-2024-1"
+        mock_kg = MagicMock()
+        mock_kg.nodes = {"n1": mock_node}
+
+        report = engine.build_report_from_kg(mock_kg, target="h")
+        assert len(report.findings) == 1
+        assert report.findings[0]["cve"] == "CVE-2024-1"
 
     def test_empty_graph(self):
         engine = ReportEngine()

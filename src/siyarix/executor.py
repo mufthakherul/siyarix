@@ -364,26 +364,27 @@ class BaseExecutor:
 
     async def _check_permissions(self, step: PlanStep) -> None:
         command = str(step.command or step.args.get("command") or "").strip()
+        # Always fold target/args/flags into scope — a non-empty command must not
+        # short-circuit kwargs hosts that handlers actually execute.
+        parts: list[str] = [command or str(step.tool or "").strip()]
+        target = str(step.args.get("target") or "").strip()
+        if target:
+            parts.append(target)
+        for key in ("args", "flags", "extra_args"):
+            raw = step.args.get(key)
+            if raw is None:
+                continue
+            if isinstance(raw, (list, tuple)):
+                parts.extend(str(x) for x in raw)
+            else:
+                parts.append(str(raw))
+        scope_command = " ".join(p for p in parts if p).strip()
         if not command:
-            # RegistryPlanner / kwargs-only steps still need a scope synopsis.
-            # Fold args/flags so -h/-u hosts cannot bypass SIYARIX_ALLOWED_SCOPE.
-            parts: list[str] = [str(step.tool or "").strip()]
-            target = str(step.args.get("target") or "").strip()
-            if target:
-                parts.append(target)
-            for key in ("args", "flags", "extra_args"):
-                raw = step.args.get(key)
-                if raw is None:
-                    continue
-                if isinstance(raw, (list, tuple)):
-                    parts.extend(str(x) for x in raw)
-                else:
-                    parts.append(str(raw))
-            command = " ".join(p for p in parts if p).strip()
+            command = scope_command
 
-        if command:
-            self.check_destructive(command)
-            self.check_scope(command)
+        if scope_command:
+            self.check_destructive(scope_command)
+            self.check_scope(scope_command)
 
         if not self._permission_gate:
             return

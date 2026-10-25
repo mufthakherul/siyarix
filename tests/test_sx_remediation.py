@@ -141,6 +141,15 @@ class TestSX004ScopeWiring:
                 await reg.execute(
                     "nikto", target="10.0.0.5", args=["-h", "evil.example.com"]
                 )
+            # Non-empty command must not short-circuit kwargs hosts.
+            with pytest.raises(PermissionDeniedError):
+                await reg.execute(
+                    "nikto",
+                    command="nikto -h 10.0.0.5",
+                    args=["-h", "evil.example.com"],
+                )
+            with pytest.raises(PermissionDeniedError):
+                await reg.execute("nikto", command="true", target="evil.example.com")
 
     def test_check_scope_cidr_only_blocks_domain(self) -> None:
         executor = BaseExecutor()

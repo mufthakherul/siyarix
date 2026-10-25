@@ -98,9 +98,10 @@ Run a comprehensive diagnostic check on your AI providers, terminal tools, RAM, 
 siyarix health
 ```
 
-### `production-check`
+### `production-check` / `doctor`
 Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, PermissionGate / tool registry, `command_review`, shared destructive hard-blocks, webhook destination policy, `SIYARIX_ALLOWED_SCOPE`, credential store, health).
 ```bash
+siyarix doctor                  # alias for production-check
 siyarix production-check
 siyarix production-check -o json
 siyarix production-check --strict   # nonzero exit on warn/fail (CI-friendly)

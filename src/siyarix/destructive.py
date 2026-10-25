@@ -89,7 +89,12 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\bzfs\s+destroy\b"
     r"|\blvremove\b"
     r"|\bvgremove\b"
+    r"|\bpvremove\b"
+    r"|\bdmsetup\s+remove(?:_all)?\b"
     r"|\bmdadm\b[\s\S]{0,80}--zero-superblock\b"
+    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b"
+    r"|\bxfs_repair\s+[^\n]*-L\b"
+    r"|\bdebugfs\s+-w\b"
     r")",
     re.IGNORECASE,
 )

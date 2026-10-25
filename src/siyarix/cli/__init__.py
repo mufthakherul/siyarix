@@ -2430,13 +2430,17 @@ def ci_gate(
 
 
 @app.command("production-check")
+@app.command("doctor")
 def production_check(
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
     strict: bool = typer.Option(
         False, "--strict", help="Exit nonzero when any check is warn/fail"
     ),
 ) -> None:
-    """Production readiness checklist (security gates, offline posture, config)."""
+    """Production readiness checklist (security gates, offline posture, config).
+
+    Alias: ``siyarix doctor``.
+    """
     import os as _os
 
     from ..shell_review import is_preauthorized

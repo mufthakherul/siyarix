@@ -35,9 +35,12 @@ _IPV4_HEX_RE = re.compile(r"\b0x[0-9a-fA-F]{1,8}\b")
 _IPV4_DECIMAL_RE = re.compile(r"\b(?:[1-9]\d{7,9}|[1-3]\d{9})\b")  # 8–10 digit ints
 # Whole-integer octal IPv4 (e.g. 017700000001 → 127.0.0.1). Leading 0 required.
 _IPV4_OCTAL_INT_RE = re.compile(r"\b0[0-7]{8,11}\b")
-# Hex-dotted short/full IPv4 (e.g. 0x7f.1 → 127.0.0.1, 0x7f.0x0.0x0.0x1).
+# Hex-dotted IPv4 with optional mixed decimal octets (0x7f.1, 0x7f.0.0.1).
+# Requires at least one ``0x`` octet so plain dotted-decimal is untouched.
 _IPV4_HEX_DOTTED_RE = re.compile(
-    r"(?<![\w.])(?:0x[0-9a-fA-F]{1,2}\.){1,3}(?:0x[0-9a-fA-F]{1,2}|\d{1,3})(?![\w.])"
+    r"(?<![\w.])(?=(?:[\w.]*0x))"
+    r"(?:0x[0-9a-fA-F]{1,2}|\d{1,3})"
+    r"(?:\.(?:0x[0-9a-fA-F]{1,2}|\d{1,3})){1,3}(?![\w.])"
 )
 # Octal-dotted IPv4 (e.g. 0177.0.0.1). Lookahead requires a 0[0-7]+ octet so
 # ordinary dotted-decimal (127.0.0.1) is not mis-parsed as base-8.

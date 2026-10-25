@@ -481,7 +481,11 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "ATA/NVMe/LUKS wipe utility",
     ),
     (
-        re.compile(r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove)\b", re.I),
+        re.compile(
+            r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
+            r"dmsetup\s+remove)\b",
+            re.I,
+        ),
         "critical",
         "Volume/array destroy",
     ),
@@ -489,6 +493,16 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
         "critical",
         "mdadm zero-superblock",
+    ),
+    (
+        re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
+        "critical",
+        "btrfs destructive operation",
+    ),
+    (
+        re.compile(r"\b(?:xfs_repair\b.*-L\b|debugfs\s+-w\b)", re.I),
+        "critical",
+        "Filesystem repair/write wipe",
     ),
     (
         re.compile(r"\b(?:tar|dc3dd|badblocks|fio)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),

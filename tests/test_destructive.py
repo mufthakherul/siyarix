@@ -80,6 +80,11 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "zfs destroy -r tank/ds",
         "lvremove -f /dev/mapper/vg-lv",
         "mdadm --zero-superblock /dev/sda",
+        "btrfs subvolume delete /",
+        "pvremove /dev/sda",
+        "dmsetup remove_all",
+        "xfs_repair -L /dev/sda1",
+        "debugfs -w /dev/sda1 -R rm",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

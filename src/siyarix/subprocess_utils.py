@@ -242,8 +242,15 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
     re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
     re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
-    re.compile(r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove)\b", re.I),
+    re.compile(
+        r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
+        r"dmsetup\s+remove)\b",
+        re.I,
+    ),
     re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
+    re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
+    re.compile(r"\bxfs_repair\b.*-L\b", re.I),
+    re.compile(r"\bdebugfs\s+-w\b", re.I),
 ]
 
 

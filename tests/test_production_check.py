@@ -38,3 +38,12 @@ def test_production_check_table() -> None:
     result = runner.invoke(app, ["production-check"])
     assert result.exit_code == 0
     assert "Production Check" in result.stdout or "python" in result.stdout.lower()
+
+
+def test_doctor_alias() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["doctor", "-o", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["fails"] == 0
+    assert {c["name"] for c in payload["checks"]} >= {"python", "destructive_guard"}

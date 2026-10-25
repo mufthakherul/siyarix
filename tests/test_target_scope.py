@@ -168,3 +168,5 @@ class TestAssertCommandInScope:
         assert "0.0.0.127" not in ips
         with pytest.raises(PermissionDeniedError, match="127.0.0.1"):
             assert_command_in_scope("nmap 0x7f.1", scope_env="10.0.0.0/8")
+        ips2, _ = extract_targets("nmap 0x7f.0.0.1")
+        assert ips2 == ["127.0.0.1"]

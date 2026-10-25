@@ -2607,10 +2607,22 @@ def production_check(
         store = CredentialStore()
         backend = type(store).__name__
         mode = getattr(store, "_vault_mode", "unknown")
+        require_pw = _os.getenv("SIYARIX_REQUIRE_MASTER_PASSWORD", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        } or _os.getenv("SIYARIX_PRODUCTION", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
         if mode == "file_key":
+            # SX-A06: warn by default; fail under production / require-master-password.
             _add(
                 "credentials",
-                "warn",
+                "fail" if (require_pw or strict) else "warn",
                 f"store={backend} mode=file_key — set SIYARIX_MASTER_PASSWORD "
                 "for production (key file on disk)",
             )
@@ -2651,6 +2663,10 @@ def production_check(
         "destructive_guard": (
             "operator-safety hard-blocks failed — reinstall siyarix "
             "(guards accidental wipe of your disks/auth files, not research tools)"
+        ),
+        "credentials": (
+            "export SIYARIX_MASTER_PASSWORD=… (or SIYARIX_REQUIRE_MASTER_PASSWORD=1 "
+            "to fail closed on file_key vault)"
         ),
     }
     for c in checks:

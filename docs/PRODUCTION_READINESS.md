@@ -51,7 +51,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-A07/A08 | Closed | `*.enc` chmod 600; config dir 0700; KMS fail-closed when `SIYARIX_KMS_PROVIDER=aws` |
 | FEAT/DOC | Partial | Compose API ports removed; classifiers Beta (no iOS); stub module warning; ghost TAXII/MISP/dashboard env scrubbed |
 | SX-A02/A10/A11 | Closed | Plugin auto-pip off by default; PEP508-only requirements (reject paths/URLs/VCS); git/pip via `safe_run_sync` scrub; origin re-validated; no CWD index |
-| SX-A06 | Partial | production-check warns + compliance FAIL on file_key until `SIYARIX_MASTER_PASSWORD` |
+| SX-A06 | Closed | file_key warns by default; `--strict` / `SIYARIX_REQUIRE_MASTER_PASSWORD` / `SIYARIX_PRODUCTION` fail-closed; CredentialStore refuses file_key under those flags |
 | CI | Partial | coverage 70%; Trivy CRITICAL exit 1; `production-check` job; stress/chaos markers; workflows use `uv pip` (not unlocked `pip install -e`) |
 | SX-A01 | Partial | `SIYARIX_TRUST_PLUGINS=1` required before in-process load; true OS isolation still open |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |

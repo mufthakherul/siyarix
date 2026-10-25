@@ -59,10 +59,9 @@ vulture: ## Run dead code detection
 	vulture src/siyarix/ .vulture_whitelist.py
 
 production-check: ## Run siyarix production readiness checklist
-	siyarix production-check
+	python -m siyarix production-check
 
 check: lint format-check typecheck test-quick ## Run all quick quality checks
-	@$(MAKE) production-check
 
 # === Clean ===
 

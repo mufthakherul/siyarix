@@ -228,7 +228,7 @@ The operator has four choices:
 | `cancel` | Skip or cancel this command entirely. |
 
 > [!TIP]
-> **CI / Non-TTY Mode:** If the system detects it's running in a non-interactive environment (like a CI pipeline), it will automatically approve commands to prevent the process from hanging indefinitely.
+> **CI / Non-TTY Mode:** Non-interactive sessions **fail closed**. Commands that require human review are refused unless the operator explicitly sets `SIYARIX_PREAUTHORIZED=1` (loudly logged and audited on every use).
 
 ---
 

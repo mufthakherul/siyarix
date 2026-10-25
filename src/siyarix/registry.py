@@ -397,7 +397,9 @@ class ToolRegistry:
 
                 reviewed = review_and_confirm(command, name, gate_result.reason)
                 if reviewed is None:
-                    raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+                    from .shell_review import review_refusal_message
+
+                    raise PermissionDeniedError(review_refusal_message(gate_result.reason))
                 if reviewed != command:
                     # The edited text is what runs, so it has to clear the gate on its own
                     # merits — previously the edit was collected and then discarded.

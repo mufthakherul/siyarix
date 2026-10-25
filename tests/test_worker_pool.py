@@ -253,7 +253,14 @@ class TestPlatformUtils:
     def test_load_env_file_skips_api_key_patterns(self, mock_get_config_dir):
         env_path = MagicMock(spec=Path)
         env_path.exists.return_value = True
-        env_path.read_text.return_value = "OPENAI_API_KEY=sk-123\nMY_SECRET=hidden\nVALID_KEY=ok"
+        env_path.read_text.return_value = (
+            "OPENAI_API_KEY=sk-123\n"
+            "MY_SECRET=hidden\n"
+            "SIYARIX_WEBHOOK_URL=https://hooks.example/x\n"
+            "APP_BEARER=tok\n"
+            "SESSION_COOKIE=sid\n"
+            "VALID_KEY=ok\n"
+        )
         mock_dir = MagicMock()
         mock_dir.__truediv__.return_value = env_path
         mock_get_config_dir.return_value = mock_dir
@@ -261,6 +268,9 @@ class TestPlatformUtils:
             load_env_file()
             assert os.environ.get("VALID_KEY") == "ok"
             assert "OPENAI_API_KEY" not in os.environ
+            assert "SIYARIX_WEBHOOK_URL" not in os.environ
+            assert "APP_BEARER" not in os.environ
+            assert "SESSION_COOKIE" not in os.environ
             mock_log.debug.assert_any_call(
                 "Skipping %s from .env (use /key command instead)", "OPENAI_API_KEY"
             )

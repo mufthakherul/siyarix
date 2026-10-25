@@ -38,8 +38,8 @@ def _validate_url(url: str, *, allow_ip: bool = False) -> None:
     loopback hostnames, and well-known cloud metadata DNS names.
     """
     parsed = urllib.parse.urlparse(url)
-    if parsed.scheme not in ("http", "https"):
-        raise ValueError(f"URL scheme must be http or https, got: {parsed.scheme!r}")
+    if parsed.scheme != "https":
+        raise ValueError(f"URL scheme must be https, got: {parsed.scheme!r}")
     host = (parsed.hostname or "").strip().lower()
     if not host:
         raise ValueError("URL must include a hostname")

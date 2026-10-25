@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 
+- Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
+- Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).
+- Broaden `.env` credential skips (bearer/cookie/session/webhook/auth/…) in CLI and chat loaders.
+- Non-TTY permission-gate refusals no longer report "Cancelled by user"; surface `SIYARIX_PREAUTHORIZED` guidance.
+- Playbook env secret regex also blocks auth/bearer/cookie/session/authorization names.
 - Plugin registry/install/git clone: https-only, SSRF destination checks, no redirects.
 - Local-provider `safe_http_*`, ollama auto-start, health/chat/connectivity probes refuse HTTP redirects.
 - Playbook `{{ env.* }}` redacts secret-bearing names (password/token/webhook/…).

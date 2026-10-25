@@ -331,7 +331,11 @@ class TestExecute:
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
-        with patch("siyarix.shell_review.review_and_confirm", return_value=None) as mock_review:
+        with (
+            patch("siyarix.shell_review.review_and_confirm", return_value=None),
+            patch("siyarix.shell_review.is_interactive", return_value=True),
+            patch("siyarix.shell_review._is_interactive", return_value=True),
+        ):
             with pytest.raises(PermissionDeniedError, match="Cancelled by user"):
                 await registry.execute("nmap", command="nmap target")
 

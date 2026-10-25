@@ -14,6 +14,7 @@ from siyarix.shell_review import (
     is_preauthorized,
     review_and_confirm,
     review_command,
+    review_refusal_message,
 )
 
 
@@ -205,3 +206,23 @@ class TestReviewAndConfirm:
         assert is_preauthorized() is False
         monkeypatch.delenv(PREAUTHORIZED_ENV_VAR, raising=False)
         assert is_preauthorized() is False
+
+    @patch("siyarix.shell_review.sys.stdin")
+    @patch("siyarix.shell_review.sys.stdout")
+    def test_refusal_message_non_tty_guidance(
+        self, mock_stdout: MagicMock, mock_stdin: MagicMock
+    ) -> None:
+        mock_stdin.isatty.return_value = False
+        mock_stdout.isatty.return_value = False
+        msg = review_refusal_message("needs review")
+        assert "Cancelled by user" not in msg
+        assert PREAUTHORIZED_ENV_VAR in msg
+
+    @patch("siyarix.shell_review.sys.stdin")
+    @patch("siyarix.shell_review.sys.stdout")
+    def test_refusal_message_interactive_cancel(
+        self, mock_stdout: MagicMock, mock_stdin: MagicMock
+    ) -> None:
+        mock_stdin.isatty.return_value = True
+        mock_stdout.isatty.return_value = True
+        assert review_refusal_message("needs review") == "Cancelled by user: needs review"

@@ -398,8 +398,11 @@ class BaseExecutor:
             if gate_result.requires_review:
                 reviewed = review_and_confirm(command, step.tool, gate_result.reason)
                 if reviewed is None:
-                    self._log_safety(step.tool, command, "cancelled", "User cancelled")
-                    raise PermissionDeniedError(f"Cancelled by user: {gate_result.reason}")
+                    from .shell_review import review_refusal_message
+
+                    denial = review_refusal_message(gate_result.reason)
+                    self._log_safety(step.tool, command, "cancelled", denial)
+                    raise PermissionDeniedError(denial)
                 if reviewed != command:
                     step.command = reviewed
                     if "command" in step.args:

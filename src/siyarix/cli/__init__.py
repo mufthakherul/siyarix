@@ -79,7 +79,22 @@ def _load_dotenv(path: Path | None = None) -> None:
 
     Dangerous variables (PATH, LD_PRELOAD, PYTHONPATH, etc.) are also blocked.
     """
-    _api_key_patterns = ("_API_KEY", "_SECRET", "_PASSWORD", "_TOKEN")
+    # Block credential-bearing names; use `siyarix auth set-key` / CredentialStore.
+    _api_key_patterns = (
+        "_API_KEY",
+        "_SECRET",
+        "_PASSWORD",
+        "_TOKEN",
+        "_AUTH",
+        "_BEARER",
+        "_COOKIE",
+        "_SESSION",
+        "_CREDENTIAL",
+        "_WEBHOOK",
+        "_PRIVATE_KEY",
+        "_ACCESS_KEY",
+        "_MASTER_PASSWORD",
+    )
     _blocked_vars = {
         "PATH",
         "LD_PRELOAD",
@@ -92,6 +107,10 @@ def _load_dotenv(path: Path | None = None) -> None:
         "PERL5LIB",
         "RUBYLIB",
         "PYTHONHOME",
+        "DYLD_INSERT_LIBRARIES",
+        "DYLD_LIBRARY_PATH",
+        "NODE_OPTIONS",
+        "PYTHONWARNINGS",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

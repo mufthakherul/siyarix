@@ -43,6 +43,19 @@ _NON_TTY_GUIDANCE = (
 )
 
 
+def review_refusal_message(reason: str = "") -> str:
+    """Human-facing denial text when ``review_and_confirm`` returns ``None``.
+
+    Distinguishes a real interactive cancel from a non-TTY fail-closed refusal
+    so operators are not told "Cancelled by user" when no prompt was shown.
+    """
+    if not _is_interactive():
+        return _NON_TTY_GUIDANCE
+    if reason:
+        return f"Cancelled by user: {reason}"
+    return "Cancelled by user"
+
+
 class ReviewDecision:
     EDIT = "edit"
     RUN = "run"
@@ -200,4 +213,5 @@ __all__ = [
     "is_preauthorized",
     "review_and_confirm",
     "review_command",
+    "review_refusal_message",
 ]

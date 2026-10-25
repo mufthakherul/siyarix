@@ -37,7 +37,8 @@ _ENV_ALLOWLIST_EXACT: frozenset[str] = frozenset(
 _ENV_PREFIX_ALLOW: frozenset[str] = frozenset({"SIYARIX_"})
 # Block secret-bearing names even when they match the SIYARIX_ prefix.
 _ENV_SECRET_RE = re.compile(
-    r"(?i)(password|passwd|secret|token|api[_-]?key|credential|webhook|private[_-]?key|sudo)"
+    r"(?i)(password|passwd|secret|token|api[_-]?key|credential|webhook|"
+    r"private[_-]?key|sudo|auth|bearer|cookie|session|authorization)"
 )
 
 

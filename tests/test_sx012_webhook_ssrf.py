@@ -25,6 +25,7 @@ def test_validate_url_allows_public_https_hosts(url: str) -> None:
     [
         "https://127.0.0.1/hook",
         "http://192.168.1.1/hook",
+        "http://hooks.slack.com/services/T00/B00/xxx",
         "https://10.0.0.5/x",
         "https://169.254.169.254/latest/meta-data/",
         "https://[::1]/hooks",
@@ -38,6 +39,11 @@ def test_validate_url_allows_public_https_hosts(url: str) -> None:
 def test_validate_url_rejects_ssrf_targets(url: str) -> None:
     with pytest.raises(ValueError):
         _validate_url(url)
+
+
+def test_validate_url_rejects_http_scheme_even_for_public_hosts() -> None:
+    with pytest.raises(ValueError, match="must be https"):
+        _validate_url("http://example.com/hook")
 
 
 def test_validate_url_rejects_dns_to_private(monkeypatch) -> None:

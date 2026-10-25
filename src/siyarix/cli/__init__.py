@@ -2420,6 +2420,13 @@ def production_check(
         "not configured (compose profile optional)" if not redis_url else "REDIS_URL set",
     )
 
+    scope = (_os.environ.get("SIYARIX_ALLOWED_SCOPE") or "").strip()
+    _add(
+        "allowed_scope",
+        "pass" if scope else "warn",
+        "SIYARIX_ALLOWED_SCOPE set" if scope else "unset — set for production target isolation",
+    )
+
     try:
         from ..credential_store import CredentialStore
 

@@ -150,6 +150,8 @@ _MISC_WRITE_BLOCK_RE = re.compile(
     + _BLOCK_DEV_RE.pattern
     + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _BLOCK_DEV_RE.pattern
     + r"|\bsocat\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    # ``mksquashfs src /dev/sda`` — last positional block dest (RH-27).
+    + r"|\bmksquashfs\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -172,6 +174,8 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\b(?:dpkg-deb|dpkg)\b[\s\S]{0,120}(?:-x|--extract)\b[\s\S]{0,80}(\S+)\s+(\S+)"
     r"|\bunsquashfs\b[\s\S]{0,100}(?:--dest|-dest|-d)\b(?:=|\s*)(\S+)"
     r"|\b(?:unar|unrar|rar)\b[\s\S]{0,140}(?:-op|-o|-d)(?:=|\s*)(\S+)"
+    # ``ar x a.a --output /`` / ``ar -O /`` (RH-27). Avoid matching ``-O`` inside ``--output``.
+    r"|\bar\b[\s\S]{0,160}(?:--output(?:=|\s*)|(?<![-\w])-O(?:=|\s*))(\S+)"
     r")",
     re.IGNORECASE,
 )
@@ -511,9 +515,10 @@ _SETUID_SYSTEM_RE = re.compile(
     r"|\bg?install\b[\s\S]{0,120}"
     r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
     r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    # ``setcap cap_setuid+ep /bin/bash`` — capability equivalent of setuid.
-    r"|\bsetcap\b[\s\S]{0,120}cap_set(?:uid|gid)\b[\s\S]{0,80}"
-    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
+    # ``setcap`` dangerous capabilities on system binaries (RH-27).
+    r"|\bsetcap\b[\s\S]{0,120}"
+    r"cap_(?:set(?:uid|gid)|sys_admin|sys_rawio|sys_module|dac_override|dac_read_search)"
+    r"\b[\s\S]{0,80}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
     r")",
     re.IGNORECASE,
 )

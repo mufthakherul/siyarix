@@ -136,6 +136,8 @@ _HOST_TOOL_NAMES = frozenset(
         "kubectl",
         "oc",
         "helm",
+        "kustomize",
+        "nerdctl",
         "nslookup",
         "ansible",
         "ansible-playbook",
@@ -181,6 +183,9 @@ _HOST_TOOL_NAMES = frozenset(
         "shadowsocks-client",
         "v2ray",
         "xray",
+        "corkscrew",
+        "connect-proxy",
+        "connect",
         "cloudflared",
         "ngrok",
         "bore",
@@ -206,6 +211,9 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
         "shadowsocks-client",
         "v2ray",
         "xray",
+        "corkscrew",  # RH-25
+        "connect-proxy",
+        "connect",
         "cloudflared",
         "ngrok",
         "bore",
@@ -325,6 +333,21 @@ _SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
         "KUBECONFIG",
         "KUBE_CONFIG",
         "KUBE_CONFIG_PATH",
+        "HELM_KUBECONFIG",
+        # DB client transport hosts (RH-24).
+        "MYSQL_HOST",
+        "MYSQL_UNIX_PORT",
+        "PGHOST",
+        "PGHOSTADDR",
+        "PGPORT",
+        "PGSERVICE",
+        "PGSERVICEFILE",
+        "REDIS_HOST",
+        "REDIS_URL",
+        "MONGO_URL",
+        "MONGODB_URI",
+        "DATABASE_URL",
+        "SQLALCHEMY_DATABASE_URI",
     }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
@@ -815,13 +838,19 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 or flag.startswith("--input-file")
                 or re.match(r"^-i/", flag) is not None
             )
-            # Opaque kube API endpoint via config file (RH-21).
-            kube_cfg = base in {"kubectl", "oc", "helm"} and (
+            # Opaque kube API endpoint via config file (RH-21 / RH-26).
+            kube_cfg = base in {"kubectl", "oc", "helm", "kustomize"} and (
                 flag in {"--kubeconfig", "--kube-config"}
                 or flag.startswith("--kubeconfig")
                 or flag.startswith("--kube-config")
             )
-            if curl_cfg or wget_cfg or aria_in or kube_cfg:
+            # nerdctl/docker-compatible remote host (RH-26).
+            nerd_host = base == "nerdctl" and (
+                flag in {"--host", "-H", "--address"}
+                or flag.startswith("--host")
+                or flag.startswith("-H")
+            )
+            if curl_cfg or wget_cfg or aria_in or kube_cfg or nerd_host:
                 raise PermissionDeniedError(
                     f"URL/config-from-file is not allowed under authorized scope "
                     f"(authorized scope: {scope_display})"

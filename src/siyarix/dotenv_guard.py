@@ -445,6 +445,13 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "MAGICK_CODER_MODULE_PATH",
         "MAGICK_CODER_FILTER_PATH",
         "KUBECTL_EXTERNAL_DIFF",
+        "HELM_KUBECONFIG",
+        "CC",
+        "CXX",
+        "CPP",
+        "TCLLIBPATH",
+        "TCL_LIBRARY",
+        "TK_LIBRARY",
     }
 )
 
@@ -482,6 +489,12 @@ def should_skip_dotenv_key(key: str) -> bool:
     if key_upper.endswith("_RUSTC_WRAPPER") or key_upper.endswith("RUSTC_WRAPPER"):
         return True
     if key_upper.endswith("_EXTERNAL_DIFF"):
+        return True
+    if key_upper.endswith("_KUBECONFIG") or key_upper == "HELM_KUBECONFIG":
+        return True
+    if key_upper in {"CC", "CXX", "CPP", "LD", "AS", "FC"}:
+        return True
+    if key_upper.endswith("LIBPATH") or key_upper.endswith("_LIBRARY"):
         return True
     if key_upper.endswith("_EDITOR") and key_upper not in {""}:
         # KUBE_EDITOR / GIT_EDITOR / etc. — editor injection from planted .env.

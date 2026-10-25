@@ -171,6 +171,14 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "kubectl --kubeconfig=/tmp/evil get pods", scope_env=scope
             )
+        with pytest.raises(PermissionDeniedError, match="Transport environment"):
+            assert_command_in_scope("MYSQL_HOST=evil mysql", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
+            assert_command_in_scope("corkscrew evil 80 10.0.0.1 22", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="config-from-file"):
+            assert_command_in_scope(
+                "nerdctl --host tcp://evil:2375 ps", scope_env=scope
+            )
 
     def test_blocks_out_of_scope_ipv4(self) -> None:
         with pytest.raises(PermissionDeniedError, match="out of authorized scope"):

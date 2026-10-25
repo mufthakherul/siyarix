@@ -442,6 +442,10 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "setfacl -m u:nobody:rwx /etc/passwd",
         "chattr +i /etc/passwd",
         "setfattr -n user.evil -v 1 /etc/shadow",
+        # RH-27
+        "ar x a.a --output /",
+        "mksquashfs /tmp/x /dev/sda",
+        "setcap cap_sys_admin+ep /bin/bash",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

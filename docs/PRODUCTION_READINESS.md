@@ -76,6 +76,11 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-21 | Closed | `KUBECONFIG=` + `kubectl --kubeconfig` blocked under scope |
 | RH-22 | Closed | `setfacl` / `chattr` / `setfattr` on auth paths blocked |
 | RH-23 | Closed | `GTK_MODULES` / `GIO_EXTRA_MODULES` / Magick coder / `KUBECTL_EXTERNAL_DIFF` skipped from `.env` |
+| RH-24 | Closed | Leading `MYSQL_HOST=` / `PGHOST=` / DSN transport env blocked under scope |
+| RH-25 | Closed | `corkscrew` / `connect-proxy` scope-blocked wrappers |
+| RH-26 | Closed | `nerdctl --host` / `kustomize --kubeconfig` blocked under scope |
+| RH-27 | Closed | `ar --output /`, `mksquashfs`→block, `setcap cap_sys_admin` blocked |
+| RH-28 | Closed | `HELM_KUBECONFIG` / `CC`/`CXX` / `TCLLIBPATH` skipped from `.env` |
 
 ## Premium ops
 

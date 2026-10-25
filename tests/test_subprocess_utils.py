@@ -235,11 +235,19 @@ class TestPrepareEnv:
         monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "vault")
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         monkeypatch.setenv("SIYARIX_HARMLESS", "ok")
+        monkeypatch.setenv("DATABASE_URL", "postgres://u:p@h/db")
+        monkeypatch.setenv("REDIS_URL", "redis://:pass@h/0")
+        monkeypatch.setenv("CONNECTION_STRING", "Server=x;Password=y")
+        monkeypatch.setenv("HARMLESS_URL", "https://example.com/x")
         result = _prepare_env({"ANTHROPIC_API_KEY": "ak-test", "KEEP": "yes"})
         assert "SIYARIX_SUDO_PASSWORD" not in result
         assert "SIYARIX_MASTER_PASSWORD" not in result
         assert "OPENAI_API_KEY" not in result
         assert "ANTHROPIC_API_KEY" not in result
+        assert "DATABASE_URL" not in result
+        assert "REDIS_URL" not in result
+        assert "CONNECTION_STRING" not in result
+        assert result.get("HARMLESS_URL") == "https://example.com/x"
         assert result.get("SIYARIX_HARMLESS") == "ok"
         assert result.get("KEEP") == "yes"
 

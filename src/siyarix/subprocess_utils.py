@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -352,6 +353,16 @@ _SCRUB_ENV_EXACT: frozenset[str] = frozenset(
         "PGPASSWORD",
         "MYSQL_PWD",
         "REDIS_PASSWORD",
+        # Connection DSNs / URLs often embed credentials (RH-13).
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MONGO_URL",
+        "MONGODB_URI",
+        "CONNECTION_STRING",
+        "DSN",
+        "AMQP_URL",
+        "BROKER_URL",
+        "CELERY_BROKER_URL",
     }
 )
 _SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
@@ -365,6 +376,9 @@ _SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
     "_MASTER_KEY",
     "_PASSPHRASE",
     "_BEARER",
+    "_CONNECTION_STRING",
+    "_DATABASE_URL",
+    "_DSN",
 )
 
 
@@ -379,6 +393,14 @@ def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
             continue
         if upper.startswith("SIYARIX_") and upper.endswith("_KEY"):
             continue
+        # Any *URL / *URI that looks like a DSN with userinfo (RH-13).
+        if (upper.endswith("_URL") or upper.endswith("_URI")) and "://" in val:
+            try:
+                parsed = urllib.parse.urlparse(val)
+                if parsed.username is not None or parsed.password is not None:
+                    continue
+            except Exception:
+                continue
         cleaned[key] = val
     return cleaned
 

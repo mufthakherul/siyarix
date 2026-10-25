@@ -12,8 +12,8 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import shutil
-import subprocess
 import sys
 import time
 import urllib.error
@@ -31,6 +31,7 @@ from siyarix.plugins.models import (
 )
 from siyarix.providers.manager import ProviderManager
 from siyarix.registry import ToolRegistry
+from siyarix.subprocess_utils import safe_run_sync
 from siyarix.tool_models import ToolCategory
 
 logger = logging.getLogger(__name__)
@@ -114,6 +115,36 @@ def _validate_git_clone_url(url: str) -> str:
     if parsed.username is not None or parsed.password is not None:
         raise ValueError("Git remotes must not include embedded credentials (userinfo)")
     return _validate_plugin_fetch_url(cleaned)
+
+
+# PEP 508 name + optional extras + version specifier only (no paths/URLs/VCS).
+_SAFE_REQ_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9,._-]+\])?"
+    r"(?:\s*(?:===|==|!=|<=|>=|~=|<|>)\s*[A-Za-z0-9jJ.*+!_~-]+)?$"
+)
+
+
+def _assert_safe_requirement_line(line: str, *, plugin: str) -> None:
+    """Reject pip abuse (switches, paths, VCS/URLs) in plugin requirements.txt."""
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return
+    lower = stripped.lower()
+    if lower.startswith("-"):
+        raise RuntimeError(f"Refusing unsafe requirements line in {plugin}: {stripped!r}")
+    if any(
+        tok in lower
+        for tok in ("://", "git+", "svn+", "hg+", "bzr+", "file:", "ssh:")
+    ):
+        raise RuntimeError(f"Refusing unsafe requirements line in {plugin}: {stripped!r}")
+    if any(c in stripped for c in ("/", "\\", "@")):
+        raise RuntimeError(
+            f"Refusing path/URL requirements line in {plugin}: {stripped!r}"
+        )
+    if not _SAFE_REQ_RE.match(stripped.split(";")[0].strip()):
+        raise RuntimeError(
+            f"Refusing non-PEP508 name/version requirements line in {plugin}: {stripped!r}"
+        )
 
 
 class PluginManager:
@@ -654,8 +685,8 @@ class PluginManager:
                 shutil.rmtree(dest)
 
             cmd = ["git", "clone", "--depth", "1", repo_url, str(dest)]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            if res.returncode != 0:
+            res = safe_run_sync(cmd, timeout=120)
+            if res.exit_code != 0:
                 raise RuntimeError(f"Git clone failed: {res.stderr}")
 
             self._install_dependencies(dest)
@@ -741,23 +772,16 @@ class PluginManager:
                 plugin_dir.name,
             )
             return
-        # Block common pip abuse switches / VCS URLs in requirements files.
+        # Block pip abuse switches / paths / VCS / URL refs in requirements.
         try:
             req_text = req_file.read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
             logger.warning("Could not read requirements for %s: %s", plugin_dir.name, exc)
             return
         for line in req_text.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            lower = stripped.lower()
-            if lower.startswith("-") or "://" in lower or lower.startswith("git+"):
-                raise RuntimeError(
-                    f"Refusing unsafe requirements line in {plugin_dir.name}: {stripped!r}"
-                )
+            _assert_safe_requirement_line(line, plugin=plugin_dir.name)
         try:
-            res = subprocess.run(
+            res = safe_run_sync(
                 [
                     sys.executable,
                     "-m",
@@ -769,14 +793,12 @@ class PluginManager:
                     "-r",
                     str(req_file),
                 ],
-                capture_output=True,
-                text=True,
                 timeout=60,
-                check=False,
             )
-            if res.returncode != 0:
+            if res.exit_code != 0:
                 raise RuntimeError(
-                    f"pip install failed for {plugin_dir.name}: {res.stderr.strip() or res.stdout.strip()}"
+                    f"pip install failed for {plugin_dir.name}: "
+                    f"{(res.stderr or res.stdout or '').strip()}"
                 )
         except Exception as e:
             logger.warning("Dependency installation failed for %s: %s", plugin_dir.name, e)
@@ -813,13 +835,11 @@ class PluginManager:
             git_dir = meta.path / ".git"
             if git_dir.exists():
                 # Re-validate remote URL before pull (SX-A10).
-                remote = subprocess.run(
+                remote = safe_run_sync(
                     ["git", "-C", str(meta.path), "remote", "get-url", "origin"],
-                    capture_output=True,
-                    text=True,
-                    check=False,
+                    timeout=30,
                 )
-                if remote.returncode != 0:
+                if remote.exit_code != 0:
                     logger.warning("Plugin %s has no origin remote; skipping update", t)
                     continue
                 try:
@@ -831,12 +851,11 @@ class PluginManager:
                         exc,
                     )
                     continue
-                res = subprocess.run(
+                res = safe_run_sync(
                     ["git", "-C", str(meta.path), "pull", "--ff-only"],
-                    capture_output=True,
-                    text=True,
+                    timeout=120,
                 )
-                if res.returncode == 0:
+                if res.exit_code == 0:
                     self.reload_plugin(t)
                     updated.append(t)
             else:
@@ -931,12 +950,16 @@ logger = logging.getLogger(__name__)
 
 
 async def run_{slug}(**kwargs: Any) -> dict[str, Any]:
-    """Execute the {slug} operation."""
+    """Scaffold entrypoint — replace with real logic before enabling."""
     target = kwargs.get("target", "unknown")
-    logger.info("Executing {slug} on %s", target)
+    logger.warning("Scaffold plugin {slug} invoked for %s — not_implemented", target)
     return {{
-        "status": "success",
-        "output": f"[{slug.upper()}] Successfully executed against {{target}}.",
+        "status": "not_implemented",
+        "implemented": False,
+        "output": (
+            f"[{slug.upper()}] Scaffold only — implement run_{slug} before use "
+            f"(target={{target}})."
+        ),
         "findings": [],
     }}
 

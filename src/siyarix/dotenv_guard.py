@@ -85,6 +85,17 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "SIYARIX_ALLOWED_SCOPE",
         "SIYARIX_CONFIG",
         "SIYARIX_CONFIG_DIR",
+        # Security posture / trust gates must not flip via planted .env (RH-11).
+        "SIYARIX_TRUST_PLUGINS",
+        "SIYARIX_PLUGIN_AUTO_PIP",
+        "SIYARIX_EXPERIMENTAL_SWARM",
+        "SIYARIX_PERMISSION_GATE",
+        "SIYARIX_PERMISSION_GATE_ENABLED",
+        "SIYARIX_KMS_PROVIDER",
+        "SIYARIX_MASTER_PASSWORD",
+        "SIYARIX_MASTER_KEY",
+        "SIYARIX_VAULT_PASSWORD",
+        "SIYARIX_SUDO_PASSWORD",
         "PRIVATE_KEY",
         "OPENSSL_CONF",
         "DOCKER_HOST",
@@ -210,6 +221,35 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "GIT_EDITOR",
         "FCEDIT",
         "SELECTED_EDITOR",
+        # Interpreter / toolkit plugin-path pivots (RH-12).
+        "QT_PLUGIN_PATH",
+        "QT_QPA_PLATFORM_PLUGIN_PATH",
+        "GST_PLUGIN_PATH",
+        "GST_PLUGIN_SYSTEM_PATH",
+        "GIO_MODULE_DIR",
+        "GI_TYPELIB_PATH",
+        "PYTHONUSERBASE",
+        "PYTHON_EGG_CACHE",
+        "NUGET_PLUGIN_PATHS",
+        "APPDOMAIN_MANAGER_ASM",
+        "APPDOMAIN_MANAGER_TYPE",
+        "MONO_PATH",
+        "MONO_CFG_DIR",
+        "PHP_INI_SCAN_DIR",
+        "GEM_HOME",
+        "GEM_PATH",
+        "BUNDLE_PATH",
+        "GOPROXY",
+        "GOPATH",
+        "GOROOT",
+        "PACKER_PLUGIN_PATH",
+        "TF_PLUGIN_CACHE_DIR",
+        "TERRAFORM_PLUGIN_DIR",
+        "ANSIBLE_COLLECTIONS_PATHS",
+        "PIPEWIRE_MODULE_DIR",
+        "LADSPA_PATH",
+        "LV2_PATH",
+        "VST_PATH",
     }
 )
 
@@ -360,6 +400,23 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "WINELOADER",
         "MAKEFILES",
         "PODMAN_HOST",
+        "QT_PLUGIN_PATH",
+        "QT_QPA_PLATFORM_PLUGIN_PATH",
+        "GST_PLUGIN_PATH",
+        "GST_PLUGIN_SYSTEM_PATH",
+        "GIO_MODULE_DIR",
+        "GI_TYPELIB_PATH",
+        "PYTHONUSERBASE",
+        "NUGET_PLUGIN_PATHS",
+        "APPDOMAIN_MANAGER_ASM",
+        "APPDOMAIN_MANAGER_TYPE",
+        "MONO_PATH",
+        "PHP_INI_SCAN_DIR",
+        "GEM_HOME",
+        "GEM_PATH",
+        "GOPROXY",
+        "PACKER_PLUGIN_PATH",
+        "TF_PLUGIN_CACHE_DIR",
     }
 )
 
@@ -376,10 +433,18 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper.startswith("SIYARIX_") and key_upper.endswith("_KEY"):
         return True
+    # Any SIYARIX_* security/posture toggle from planted .env (RH-11).
+    if key_upper.startswith("SIYARIX_"):
+        return True
     if key_upper.startswith("CORECLR_") or key_upper.startswith("DOTNET_"):
         return True
     if key_upper.startswith("ANSIBLE_") and (
         "PLUGIN" in key_upper or key_upper.endswith("_LIBRARY") or "MODULE" in key_upper
+    ):
+        return True
+    # Broad plugin/module path pivots (RH-12).
+    if "PLUGIN" in key_upper and key_upper.endswith(
+        ("_PATH", "_PATHS", "_DIR", "_HOME", "_DIRS")
     ):
         return True
     if key_upper in BLOCKED_EXACT or key_upper in PROVIDER_SHORT_KEYS:

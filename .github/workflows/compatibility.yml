@@ -21,19 +21,23 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+        with:
+          enable-cache: true
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
-          cache: "pip"
           allow-prereleases: true
         continue-on-error: true
 
       - name: Install and Test
         run: |
-          pip install -e .[dev] 2>/dev/null || true
-          pip install pytest==9.1.1 2>/dev/null || true
-          pytest tests/ -v --tb=short -x -m "not integration" --timeout=120 || true
+          uv pip install --system -e ".[dev]" 2>/dev/null || true
+          uv pip install --system pytest 2>/dev/null || true
+          pytest tests/ -v --tb=short -x -m "not e2e and not stress and not chaos" --timeout=120 || true
 
   upstream-deps:
     name: Upstream Dependency Compatibility
@@ -42,6 +46,11 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+        with:
+          enable-cache: true
+
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -49,9 +58,9 @@ jobs:
 
       - name: Install with latest dependencies
         run: |
-          pip install --upgrade pip==26.1.2
-          pip install --upgrade --pre -e .[dev] 2>/dev/null || true
-          pip install pytest==9.1.1
+          # Intentional unlocked probe of newest wheels (not production install path).
+          uv pip install --system --upgrade --pre -e ".[dev]" 2>/dev/null || true
+          uv pip install --system pytest
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short -x -m "not integration" --timeout=120 || true
+        run: pytest tests/ -v --tb=short -x -m "not e2e and not stress and not chaos" --timeout=120 || true

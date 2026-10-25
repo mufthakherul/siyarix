@@ -430,6 +430,11 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "cp --parents etc/passwd /",
         "rsync -R etc/passwd /",
         "rsync --relative etc/shadow /",
+        # RH-07 — lexical relative parents evasion
+        "cp --parents ./etc/shadow /",
+        "cp --parents etc/./passwd /",
+        "rsync -R etc/./passwd /",
+        "rsync --relative ./etc/shadow /",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

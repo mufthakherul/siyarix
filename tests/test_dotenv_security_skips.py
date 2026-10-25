@@ -153,7 +153,18 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "RSYNC_RSH=ssh -o ProxyCommand=evil",
                 "RSYNC_CONNECT_PROG=/tmp/pwn",
                 "RSYNC_PROXY=evil:8080",
-                "SIYARIX_HARMLESS=ok",
+                "SIYARIX_TRUST_PLUGINS=1",
+                "SIYARIX_PLUGIN_AUTO_PIP=1",
+                "SIYARIX_EXPERIMENTAL_SWARM=1",
+                "SIYARIX_PERMISSION_GATE=0",
+                "QT_PLUGIN_PATH=/tmp/evil",
+                "GST_PLUGIN_PATH=/tmp/evil",
+                "GIO_MODULE_DIR=/tmp/evil",
+                "PYTHONUSERBASE=/tmp/evil",
+                "NUGET_PLUGIN_PATHS=/tmp/evil",
+                "GOPROXY=http://evil",
+                "PACKER_PLUGIN_PATH=/tmp/evil",
+                "APP_HARMLESS=ok",
             ]
         ),
         encoding="utf-8",
@@ -294,7 +305,18 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "RSYNC_RSH",
         "RSYNC_CONNECT_PROG",
         "RSYNC_PROXY",
-        "SIYARIX_HARMLESS",
+        "SIYARIX_TRUST_PLUGINS",
+        "SIYARIX_PLUGIN_AUTO_PIP",
+        "SIYARIX_EXPERIMENTAL_SWARM",
+        "SIYARIX_PERMISSION_GATE",
+        "QT_PLUGIN_PATH",
+        "GST_PLUGIN_PATH",
+        "GIO_MODULE_DIR",
+        "PYTHONUSERBASE",
+        "NUGET_PLUGIN_PATHS",
+        "GOPROXY",
+        "PACKER_PLUGIN_PATH",
+        "APP_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -305,6 +327,17 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SIYARIX_PREAUTHORIZED" not in os.environ
     assert "SIYARIX_COMMAND_REVIEW" not in os.environ
     assert "SIYARIX_ALLOWED_SCOPE" not in os.environ
+    assert "SIYARIX_TRUST_PLUGINS" not in os.environ
+    assert "SIYARIX_PLUGIN_AUTO_PIP" not in os.environ
+    assert "SIYARIX_EXPERIMENTAL_SWARM" not in os.environ
+    assert "SIYARIX_PERMISSION_GATE" not in os.environ
+    assert "QT_PLUGIN_PATH" not in os.environ
+    assert "GST_PLUGIN_PATH" not in os.environ
+    assert "GIO_MODULE_DIR" not in os.environ
+    assert "PYTHONUSERBASE" not in os.environ
+    assert "NUGET_PLUGIN_PATHS" not in os.environ
+    assert "GOPROXY" not in os.environ
+    assert "PACKER_PLUGIN_PATH" not in os.environ
     assert "PERL5OPT" not in os.environ
     assert "PERLLIB" not in os.environ
     assert "RUBYOPT" not in os.environ
@@ -436,4 +469,5 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "RSYNC_RSH" not in os.environ
     assert "RSYNC_CONNECT_PROG" not in os.environ
     assert "RSYNC_PROXY" not in os.environ
-    assert os.environ.get("SIYARIX_HARMLESS") == "ok"
+    # All SIYARIX_* keys are blocked from .env; non-security APP_* still loads.
+    assert os.environ.get("APP_HARMLESS") == "ok"

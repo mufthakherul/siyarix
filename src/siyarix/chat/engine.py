@@ -222,37 +222,25 @@ class LLMEngineMixin:
             else:
                 self._print_plan(plan)
 
-        # Multi-model ensemble voting (available providers > 1)
+        # Real multi-model voting only via ProviderManager.ensemble_decide —
+        # do not paint stub consensus / hallucination metrics in the live UI.
         try:
-            from .stubs import MultiModelEnsemble, VotingStrategy
+            from siyarix.providers.manager import ProviderManager
 
-            ensemble = MultiModelEnsemble()
-            registered_count = 0
-            for p in getattr(getattr(engine, "_planner", None), "_providers", []):
-                name = type(p).__name__.lower().replace("model", "")
-                if getattr(p, "available", False) and hasattr(p, "plan"):
-                    ensemble.register_provider(name, p)
-                    registered_count += 1
-            if registered_count > 1:
-                ensemble_result = await ensemble.plan(
-                    instruction,
-                    _voting_strategy=VotingStrategy.WEIGHTED,
+            pm = ProviderManager.get_instance()
+            available = [
+                n
+                for n, p in getattr(pm, "_providers", {}).items()
+                if getattr(p, "available", False)
+            ]
+            if len(available) > 1 and hasattr(pm, "ensemble_decide"):
+                logger.debug(
+                    "Multiple providers available (%s); ensemble_decide is opt-in "
+                    "via planner — skipping stub MultiModelEnsemble UI",
+                    ", ".join(available),
                 )
-                if ensemble_result.selection_reason:
-                    console.print(
-                        Panel(
-                            f"[bold]Ensemble:[/bold] {ensemble_result.selection_reason}\n"
-                            f"[dim]Providers:[/dim] {', '.join(r.model_name for r in ensemble_result.responses) if hasattr(ensemble_result, 'responses') and ensemble_result.responses else str(registered_count)}  "
-                            f"[dim]Consensus:[/dim] {ensemble_result.consensus_level:.0%}  "
-                            f"[dim]Hallucination risk:[/dim] {ensemble_result.hallucination_risk:.0%}",
-                            title="[bold cyan]🔮 Multi-Model Ensemble[/bold cyan]",
-                            border_style="cyan",
-                        )
-                    )
-        except ModuleNotFoundError:
-            pass
         except Exception as exc:
-            logger.debug("Ensemble integration skipped: %s", exc)
+            logger.debug("Ensemble availability probe skipped: %s", exc)
 
         # Adversarial plan review
         try:

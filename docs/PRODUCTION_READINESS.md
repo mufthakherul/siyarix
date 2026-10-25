@@ -50,15 +50,23 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-A05 | Closed | Agent PermissionGate uses `permission_gate_enabled()` env-only (no settings.toml silent off) |
 | SX-A07/A08 | Closed | `*.enc` chmod 600; config dir 0700; KMS fail-closed when `SIYARIX_KMS_PROVIDER=aws` |
 | FEAT/DOC | Partial | Compose API ports removed; classifiers Beta (no iOS); stub module warning; ghost TAXII/MISP/dashboard env scrubbed |
-| SX-A02/A10/A11 | Closed | Plugin auto-pip off by default (`SIYARIX_PLUGIN_AUTO_PIP`); git origin re-validated; CWD plugin index removed |
+| SX-A02/A10/A11 | Closed | Plugin auto-pip off by default; PEP508-only requirements (reject paths/URLs/VCS); git/pip via `safe_run_sync` scrub; origin re-validated; no CWD index |
 | SX-A06 | Partial | production-check warns + compliance FAIL on file_key until `SIYARIX_MASTER_PASSWORD` |
-| CI | Partial | coverage fail-under aligned to 70%; Trivy CRITICAL exit-code 1; CI `production-check` job; stress/chaos markers; ghost integration job removed |
-| SX-A01 | Partial | `SIYARIX_TRUST_PLUGINS=1` required before in-process load (manager + legacy loader); true OS isolation still open |
-| FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` (no fake success findings) |
-| Dashboard | Closed | Security dashboard shows only local DB counts; fabricated MFA/EDR/MTTD KPIs removed |
+| CI | Partial | coverage 70%; Trivy CRITICAL exit 1; `production-check` job; stress/chaos markers; workflows use `uv pip` (not unlocked `pip install -e`) |
+| SX-A01 | Partial | `SIYARIX_TRUST_PLUGINS=1` required before in-process load; true OS isolation still open |
+| FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
+| Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |
 | CISA KEV | Closed | Feed status `planned` (was false `integrated`) |
 | Dual lock | Closed | `poetry.lock` removed; `LOCKFILES.md` documents `uv.lock` SoT |
 | Worker pool | Closed | Queue semaphore released on cancel-before-start via done-callback |
+| OPSEC | Partial | `isolate()` honest: only `memory_only` in-process; Tor/DoH/MAC/netns `not_implemented` (success=False when requested) |
+| Stubs | Closed | `AdversarialTester.test` / plugin scaffold / multi-wave aggregate success honesty; stub ensemble UI removed from chat |
+| PermissionGate | Closed | Rate-limit state guarded with `threading.RLock` |
+| RH-07 | Closed | `cp --parents` / `rsync -R` relative auth paths normalize `./etc` / `etc/./` before match |
+| RH-08 | Closed | Glued `ssh -D9050` / `-oDynamicForward` / spaced `-o DynamicForward` blocked under scope |
+| RH-09/10 | Closed | `nmap --proxies` + leading `ALL_PROXY=`/`HTTPS_PROXY=` env pivots blocked under scope |
+| RH-11/12 | Closed | All `SIYARIX_*` + interpreter plugin-path pivots skipped from `.env` |
+| RH-13 | Closed | `DATABASE_URL` / `REDIS_URL` / `CONNECTION_STRING` + userinfo `*_URL` scrubbed from child env |
 
 ## Premium ops
 

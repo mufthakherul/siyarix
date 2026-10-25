@@ -105,6 +105,35 @@ class TestAssertCommandInScope:
     def test_blocks_ssh_dynamic_forward_under_scope(self) -> None:
         with pytest.raises(PermissionDeniedError, match="DynamicForward"):
             assert_command_in_scope("ssh -D 9050 10.0.0.1", scope_env="10.0.0.0/8")
+        # RH-08 — glued -D / -o DynamicForward
+        with pytest.raises(PermissionDeniedError, match="DynamicForward|dynamicforward"):
+            assert_command_in_scope("ssh -D9050 10.0.0.1", scope_env="10.0.0.0/8")
+        with pytest.raises(PermissionDeniedError, match="dynamicforward"):
+            assert_command_in_scope(
+                "ssh -oDynamicForward=9050 10.0.0.1", scope_env="10.0.0.0/8"
+            )
+        with pytest.raises(PermissionDeniedError, match="dynamicforward"):
+            assert_command_in_scope(
+                "ssh -o DynamicForward=9050 10.0.0.1", scope_env="10.0.0.0/8"
+            )
+
+    def test_blocks_nmap_proxies_under_scope(self) -> None:
+        with pytest.raises(PermissionDeniedError):
+            assert_command_in_scope(
+                "nmap --proxies socks4://evil:1080 10.0.0.1", scope_env="10.0.0.0/8"
+            )
+
+    def test_blocks_leading_proxy_env_under_scope(self) -> None:
+        with pytest.raises(PermissionDeniedError, match="Proxy environment"):
+            assert_command_in_scope(
+                "ALL_PROXY=socks5://evil:1080 curl http://10.0.0.1/",
+                scope_env="10.0.0.0/8",
+            )
+        with pytest.raises(PermissionDeniedError, match="Proxy environment"):
+            assert_command_in_scope(
+                "HTTPS_PROXY=http://evil:8080 curl http://10.0.0.1/",
+                scope_env="10.0.0.0/8",
+            )
 
     def test_blocks_out_of_scope_ipv4(self) -> None:
         with pytest.raises(PermissionDeniedError, match="out of authorized scope"):
@@ -356,7 +385,7 @@ class TestAssertCommandInScope:
         scope = "10.0.0.0/8,example.com"
         with pytest.raises(PermissionDeniedError, match="evil"):
             assert_command_in_scope("ssh -oProxyJump=evil 10.0.0.1", scope_env=scope)
-        with pytest.raises(PermissionDeniedError, match="ProxyCommand"):
+        with pytest.raises(PermissionDeniedError, match="(?i)proxycommand"):
             assert_command_in_scope(
                 "ssh -oProxyCommand=/bin/nc 10.0.0.1", scope_env=scope
             )
@@ -481,7 +510,7 @@ class TestAssertCommandInScope:
             assert_command_in_scope(
                 "host example.com evilhost", scope_env=scope
             )
-        with pytest.raises(PermissionDeniedError, match="evilhost"):
+        with pytest.raises(PermissionDeniedError, match="evilhost|Proxy environment"):
             assert_command_in_scope(
                 "wget -e http_proxy=evilhost:8080 http://10.0.0.1/",
                 scope_env=scope,

@@ -725,6 +725,15 @@ def _normalize_abs_paths_in_command(cmd: str) -> str:
     return _ABS_PATH_IN_CMD_RE.sub(_path_repl, out)
 
 
+def _token_is_rel_auth_path(tok: str) -> bool:
+    """True when a (possibly ``./`` / ``etc/./``) relative token is an auth path."""
+    norm = _normalize_path_token(tok)
+    if not norm or norm.startswith("/"):
+        return False
+    # Probe with surrounding whitespace so ``_REL_AUTH_PATH_RE`` anchors match.
+    return bool(_REL_AUTH_PATH_RE.search(f" {norm} ") or _REL_AUTH_PATH_RE.search(f"={norm}"))
+
+
 def _parents_reconstructs_auth(cmd_clean: str) -> bool:
     """True when ``cp --parents`` / ``rsync -R`` would materialize auth under ``/``."""
     has_cp_parents = bool(
@@ -737,16 +746,18 @@ def _parents_reconstructs_auth(cmd_clean: str) -> bool:
     )
     if not (has_cp_parents or has_rsync_rel):
         return False
-    if not _REL_AUTH_PATH_RE.search(cmd_clean):
-        return False
-    # Destination is ``/`` (or a root equivalent) as a standalone token.
+    has_rel_auth = bool(_REL_AUTH_PATH_RE.search(cmd_clean))
+    has_root_dest = False
     for raw in cmd_clean.split():
         if raw.startswith("-"):
             continue
         tok = _normalize_path_token(raw)
         if tok in {"/", "/*"} or tok in _ROOT_EQUIV:
-            return True
-    return False
+            has_root_dest = True
+            continue
+        if _token_is_rel_auth_path(raw):
+            has_rel_auth = True
+    return has_rel_auth and has_root_dest
 
 
 def _targets_system_path(cmd_clean: str) -> bool:

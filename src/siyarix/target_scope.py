@@ -257,9 +257,27 @@ _SOCAT_SOCKS_RE = re.compile(
     r"(?i)^(?:SOCKS4A?|PROXY):"
     r"(?P<proxy>[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
 )
-# Glued ssh ``-oProxyJump=evil`` / ``-o'ProxyJump=evil'`` / ``-oProxyCommand=…``.
+# Glued ssh ``-oProxyJump=evil`` / ``-oProxyCommand=…`` / ``-oDynamicForward=…``.
 _GLUED_SSH_O_RE = re.compile(
-    r"(?i)^(?:-o|--option)['\"]?(?P<key>proxyjump|proxycommand)=(?P<val>.+?)['\"]?$"
+    r"(?i)^(?:-o|--option)['\"]?"
+    r"(?P<key>proxyjump|proxycommand|dynamicforward|localforward|remoteforward)"
+    r"=(?P<val>.+?)['\"]?$"
+)
+# Leading ``ALL_PROXY=… curl …`` style env assignments (SOCKS/HTTP pivots).
+_SCOPE_PROXY_ENV_NAMES: frozenset[str] = frozenset(
+    {
+        "ALL_PROXY",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "FTP_PROXY",
+        "SOCKS_PROXY",
+        "SOCKS5_PROXY",
+        "SOCKS5_SERVER",
+        "SOCKS_SERVER",
+        "GIT_HTTP_PROXY",
+        "GIT_HTTPS_PROXY",
+        "RSYNC_PROXY",
+    }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
 _GLUED_PROXY_SHORT_RE = re.compile(
@@ -635,8 +653,28 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     found_ips, found_domains = extract_targets(command)
 
     decoded_early = _decode_for_extract(command)
+    # Fail-closed: leading ``ALL_PROXY=…`` / ``HTTPS_PROXY=…`` SOCKS/HTTP pivots (RH-10).
+    for tok in decoded_early.split():
+        if "=" not in tok or tok.startswith("-"):
+            # Stop at first non-assignment once we have seen the real argv0 later;
+            # still scan all KEY=val tokens in the command for proxy pivots.
+            pass
+        key, sep, _val = tok.partition("=")
+        if sep and key and key.upper() in _SCOPE_PROXY_ENV_NAMES:
+            raise PermissionDeniedError(
+                f"Proxy environment assignment {key}= is not allowed under authorized "
+                f"scope (authorized scope: {scope_display})"
+            )
+        if sep and key and key.upper().endswith("_PROXY"):
+            raise PermissionDeniedError(
+                f"Proxy environment assignment {key}= is not allowed under authorized "
+                f"scope (authorized scope: {scope_display})"
+            )
     # Fail-closed: SOCKS/proxy wrappers and public tunnels hide real egress (RH-06).
     for tok in decoded_early.split():
+        if "=" in tok and not tok.startswith("-"):
+            # ``ALL_PROXY=…`` is not a tool name.
+            continue
         base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
         if base in _SCOPE_BLOCKED_WRAPPERS:
             raise PermissionDeniedError(
@@ -737,6 +775,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             {
                 "-x",
                 "--proxy",
+                "--proxies",  # nmap multi-proxy (RH-09)
                 "--preproxy",
                 "--socks5",
                 "--socks5-hostname",
@@ -783,11 +822,20 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if glued_o is not None:
                 key = glued_o.group("key").lower()
                 val = glued_o.group("val").strip().strip("'\"")
-                if key == "proxycommand":
+                if key in {"proxycommand", "dynamicforward"}:
                     raise PermissionDeniedError(
-                        f"ProxyCommand is not allowed under authorized scope "
+                        f"ssh {key} is not allowed under authorized scope "
                         f"(authorized scope: {scope_display})"
                     )
+                if key in {"localforward", "remoteforward"}:
+                    parts = val.split(":")
+                    if len(parts) >= 3:
+                        fwd_host = parts[-2].strip().strip("[]")
+                        if fwd_host:
+                            _assert_host_token_in_scope(
+                                fwd_host, allowed_items, scope_display
+                            )
+                    continue
                 _check_proxyjump_val(val)
                 continue
             # Glued ``-x11.1.1.1:8080`` / ``-Jbastion`` / ``-Jevil,other``.
@@ -1270,9 +1318,26 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         _ssh_forward_flags = frozenset({"-L", "-R", "-D"})
         _cred_flags = frozenset({"-U", "--user", "--username"})
         skip_next_port = False
+        skip_ssh_o_val = False
         skip_forward_spec = False
         skip_cred_arg = False
         for nxt in tokens[i + 1 :]:
+            if skip_ssh_o_val:
+                # Spaced ``-o DynamicForward=9050`` / ``-o ProxyJump=evil`` (RH-08).
+                opt = nxt.strip().strip("'\"")
+                opt_key, sep, opt_val = opt.partition("=")
+                key_l = opt_key.lower()
+                if key_l in {"proxycommand", "dynamicforward"}:
+                    raise PermissionDeniedError(
+                        f"ssh {key_l} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+                if key_l == "proxyjump" and sep:
+                    _check_proxyjump_val(opt_val)
+                elif key_l in {"localforward", "remoteforward"} and sep:
+                    _check_ssh_forward_spec(opt_val)
+                skip_ssh_o_val = False
+                continue
             if skip_next_port:
                 skip_next_port = False
                 continue
@@ -1291,14 +1356,23 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     or flag.startswith("--option")
                 )
                 jump_opt = flag in {"-J", "--jump"}
-                forward_opt = base == "ssh" and flag in _ssh_forward_flags
+                # Spaced ``-D 9050`` and glued ``-D9050`` / ``-L8080:h:80`` (RH-08).
+                glued_dyn = bool(re.match(r"^-D\d", flag))
+                glued_lr = bool(re.match(r"^-[LR]\d", flag))
+                forward_opt = base == "ssh" and (
+                    flag in _ssh_forward_flags or glued_dyn or glued_lr
+                )
                 if forward_opt:
-                    if flag == "-D":
+                    if flag == "-D" or glued_dyn:
                         # DynamicForward creates a local SOCKS pivot — blocked under scope.
                         raise PermissionDeniedError(
                             f"ssh -D DynamicForward is not allowed under authorized scope "
                             f"(authorized scope: {scope_display})"
                         )
+                    if glued_lr:
+                        # ``-L8080:host:80`` / ``-R8080:host:80`` — host is after first port.
+                        _check_ssh_forward_spec(flag[2:])
+                        continue
                     if "=" in nxt:
                         if flag in {"-L", "-R"}:
                             _check_ssh_forward_spec(nxt.split("=", 1)[1])
@@ -1312,8 +1386,10 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     or jump_opt
                 ):
                     # ``-o Key=val``, ``-J bastion``, ``-p 22``.
-                    if "=" not in nxt and (
-                        flag in _ssh_opt_flags | _port_flags | {"-J", "--jump"}
+                    if "=" not in nxt and flag in _ssh_opt_flags:
+                        skip_ssh_o_val = True
+                    elif "=" not in nxt and (
+                        flag in _port_flags | {"-J", "--jump"}
                     ):
                         skip_next_port = True
                     elif "=" not in nxt and flag.lower().startswith("-p") and len(flag) <= 2:

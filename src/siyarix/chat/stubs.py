@@ -269,7 +269,16 @@ class AdversarialTester:
     """Validates plans against adversarial injection and destructive command patterns."""
 
     def test(self, target: str) -> dict[str, Any]:
-        return {"target": target, "status": "clean"}
+        """Host/target scanning is not implemented — use ``review_plan`` for plan lines."""
+        return {
+            "target": target,
+            "status": "not_implemented",
+            "implemented": False,
+            "message": (
+                "AdversarialTester.test() does not scan hosts; "
+                "use review_plan() for plan-line checks"
+            ),
+        }
 
     def review_plan(self, plan_lines: list[str]) -> list[AdversarialFinding]:
         findings: list[AdversarialFinding] = []

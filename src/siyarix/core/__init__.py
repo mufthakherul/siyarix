@@ -289,6 +289,7 @@ class AgentCore(ExecutionMixin, GraphMixin):
     async def execute_multi_wave(self, goal: AgentGoal, max_waves: int = 5) -> AgentResult:
         all_findings: list[dict[str, Any]] = []
         plan = None
+        all_ok = True
         for wave in range(max_waves):
             wave_context = {
                 "wave": wave,
@@ -301,13 +302,15 @@ class AgentCore(ExecutionMixin, GraphMixin):
             )
             wave_result = await self.execute_goal(wave_goal, plan)
             all_findings.extend(wave_result.findings)
+            if not getattr(wave_result, "success", True):
+                all_ok = False
             if not wave_result.findings:
                 break
             if hasattr(self._planner, "plan_next_wave"):
                 plan = self._planner.plan_next_wave(wave_result.findings, goal)
             else:
                 plan = None
-        return AgentResult(goal=goal.description, findings=all_findings, success=True)
+        return AgentResult(goal=goal.description, findings=all_findings, success=all_ok)
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         try:

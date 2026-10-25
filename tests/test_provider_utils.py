@@ -48,6 +48,20 @@ def test_safe_http_get():
 
 
 @respx.mock
+def test_safe_http_get_does_not_follow_redirects_to_metadata() -> None:
+    """Local-provider URLs must not pivot via redirects onto link-local metadata."""
+    url = "http://127.0.0.1:11434/pivot"
+    respx.get(url).mock(
+        return_value=httpx.Response(302, headers={"Location": "http://169.254.169.254/latest"})
+    )
+    assert safe_http_get(url) is None
+    # Confirm the metadata host was never requested.
+    assert not any(
+        "169.254.169.254" in str(call.request.url) for call in respx.calls
+    )
+
+
+@respx.mock
 def test_safe_http_post():
     url = "http://localhost:11434/api/show"
     respx.post(url).mock(return_value=httpx.Response(200, json={"info": "test"}))

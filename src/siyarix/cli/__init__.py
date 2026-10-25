@@ -2366,6 +2366,26 @@ def production_check(
         else "fail-closed unless preauthorized",
     )
 
+    from ..registry_factory import make_tool_registry, permission_gate_enabled
+
+    gate_on = permission_gate_enabled()
+    _add(
+        "permission_gate",
+        "pass" if gate_on else "warn",
+        "SIYARIX_SAFE_MODE on (PermissionGate default)"
+        if gate_on
+        else "SIYARIX_SAFE_MODE disabled — lab mode only",
+    )
+    try:
+        reg = make_tool_registry()
+        _add(
+            "tool_registry",
+            "pass" if getattr(reg, "_permission_gate", None) is not None or not gate_on else "fail",
+            "make_tool_registry() builds gated registry",
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        _add("tool_registry", "fail", f"registry factory error: {exc}")
+
     offline = _os.environ.get("SIYARIX_OFFLINE", "").strip().lower() in {"1", "true", "yes"}
     _add(
         "offline_mode",

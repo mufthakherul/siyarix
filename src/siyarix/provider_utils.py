@@ -143,12 +143,14 @@ def _verify_tls(url: str) -> bool:
 
 
 def safe_http_get(url: str, timeout: float = 10.0) -> Any:
-    """SSRF-safe HTTP GET — only allows localhost/private IPs."""
+    """SSRF-safe HTTP GET — only allows localhost/private IPs (no redirects)."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url))
+        resp = httpx.get(
+            url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False
+        )
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPError as exc:
@@ -162,12 +164,18 @@ def safe_http_get(url: str, timeout: float = 10.0) -> Any:
 def safe_http_post(
     url: str, payload: dict[str, Any], timeout: float = 10.0
 ) -> httpx.Response | None:
-    """SSRF-safe HTTP POST."""
+    """SSRF-safe HTTP POST (no redirects)."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe POST: %s", url)
         return None
     try:
-        return httpx.post(url, json=payload, timeout=timeout, verify=_verify_tls(url))
+        return httpx.post(
+            url,
+            json=payload,
+            timeout=timeout,
+            verify=_verify_tls(url),
+            follow_redirects=False,
+        )
     except httpx.HTTPError as exc:
         logger.debug("HTTP POST failed for %s: %s", url, exc)
         return None
@@ -177,12 +185,14 @@ def safe_http_post(
 
 
 def safe_http_get_raw(url: str, timeout: float = 10.0) -> httpx.Response | None:
-    """SSRF-safe HTTP GET returning raw response."""
+    """SSRF-safe HTTP GET returning raw response (no redirects)."""
     if not _is_safe_url(url):
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url))
+        resp = httpx.get(
+            url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False
+        )
         resp.raise_for_status()
         return resp
     except httpx.HTTPError as exc:

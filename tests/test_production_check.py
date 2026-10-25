@@ -16,7 +16,7 @@ def test_production_check_json() -> None:
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     names = {c["name"] for c in payload["checks"]}
-    assert {"python", "shell_review", "webhook", "health"} <= names
+    assert {"python", "shell_review", "permission_gate", "tool_registry", "webhook", "health"} <= names
     assert payload["fails"] == 0
 
 

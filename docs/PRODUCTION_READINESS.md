@@ -38,10 +38,11 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 
 ## Premium ops
 
-- `siyarix production-check` — security/config readiness table (`--strict` for CI).
+- `siyarix production-check` — security/config readiness table (`--strict` for CI); includes `permission_gate` + `tool_registry`.
 - `siyarix scan @targets.txt --parallel N` — true multi-target concurrent scans (merged findings).
 - `make_tool_registry()` — shared PermissionGate-on-by-default construction for CLI/chat/plugins/core.
 - `siyarix compliance run` — exit `2` on FAIL probes, `3` when NOT_EVALUATED remain (scaffold, not attestation).
+- Local-provider `safe_http_*` helpers refuse redirects (block metadata pivots).
 
 ## Verification command
 

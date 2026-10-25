@@ -48,6 +48,6 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (256 files)**; pytest suite previously **5972 passed, 6 skipped** (e2e deselected) — re-run after SX-012/SX-031 deltas.
+Latest local checks on this branch: **mypy clean (256 files)**; pytest **5989 passed, 6 skipped, 62 deselected** (`-m "not e2e"`, stress ignored).
 
-Goal status: audit P0/P1 blockers closed including SX-012 and SX-031; SX-024/025 remain partial/scaffold; premium polish continues.
+Goal status: audit P0/P1 blockers closed (incl. SX-012/024/031); SX-025 remains an explicit compliance scaffold; further premium polish optional.

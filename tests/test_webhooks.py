@@ -27,7 +27,7 @@ def _reset_bus() -> None:
 @pytest.fixture
 def dispatcher_with_url() -> WebhookDispatcher:
     with patch.dict(
-        os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com/alerts"}, clear=True
+        os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks/alerts"}, clear=True
     ):
         reset_event_bus()
         return WebhookDispatcher()
@@ -48,11 +48,11 @@ def dispatcher_without_url() -> WebhookDispatcher:
 class TestInit:
     def test_reads_webhook_url_from_env(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://discord.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/discord"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
-            assert d.webhook_url == "https://discord.example.com"
+            assert d.webhook_url == "https://example.com/discord"
 
     def test_no_webhook_url(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
@@ -172,7 +172,7 @@ class TestDispatchAlert:
     @pytest.mark.asyncio
     async def test_dispatches_with_url(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
@@ -200,7 +200,7 @@ class TestDispatchAlert:
     @pytest.mark.asyncio
     async def test_urlerror_on_dispatch(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()
@@ -212,7 +212,7 @@ class TestDispatchAlert:
     @pytest.mark.asyncio
     async def test_finding_with_title_fallback(self) -> None:
         with patch.dict(
-            os.environ, {"SIYARIX_WEBHOOK_URL": "https://hooks.example.com"}, clear=True
+            os.environ, {"SIYARIX_WEBHOOK_URL": "https://example.com/hooks"}, clear=True
         ):
             reset_event_bus()
             d = WebhookDispatcher()

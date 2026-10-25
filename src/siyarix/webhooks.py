@@ -54,15 +54,37 @@ def _validate_url(url: str, *, allow_ip: bool = False) -> None:
     if ip is not None:
         if not allow_ip:
             raise ValueError(f"IP address hostname not allowed: {host}")
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-            or ip.is_unspecified
-        ):
+        if _is_blocked_ip(ip):
             raise ValueError(f"Blocked destination IP range: {host}")
+        return
+
+    # Resolve DNS and reject hosts that point at private/metadata ranges (SSRF).
+    try:
+        import socket
+
+        infos = socket.getaddrinfo(host, None)
+    except OSError as exc:
+        raise ValueError(f"Unable to resolve webhook hostname: {host}") from exc
+
+    for info in infos:
+        sockaddr = info[4]
+        try:
+            resolved = ipaddress.ip_address(sockaddr[0])
+        except ValueError:
+            continue
+        if _is_blocked_ip(resolved):
+            raise ValueError(f"Webhook hostname resolves to blocked IP: {host} -> {resolved}")
+
+
+def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return bool(
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
 
 
 class WebhookDispatcher:

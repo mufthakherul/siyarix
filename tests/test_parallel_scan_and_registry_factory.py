@@ -112,3 +112,32 @@ async def test_execute_targets_parallel_bounds_concurrency() -> None:
     assert merged.success is True
     assert max_in_flight <= 2
     assert max_in_flight >= 1
+
+
+@pytest.mark.asyncio
+async def test_execute_targets_parallel_sequential_still_per_host() -> None:
+    """--parallel 1 must still run one execute per target (not one joined instruction)."""
+    from siyarix.cli import _execute_targets_parallel
+
+    seen: list[str] = []
+
+    class _Engine:
+        async def execute(self, instruction: str, **kwargs: Any) -> EngineResult:
+            seen.append(instruction)
+            return EngineResult(
+                success=True,
+                summary=instruction,
+                all_findings=[{"note": instruction}],
+            )
+
+    with patch("siyarix.cli._get_engine", return_value=_Engine()):
+        merged = await _execute_targets_parallel(
+            ["10.0.0.1", "10.0.0.2"],
+            mode="registry",
+            parallel=1,
+        )
+
+    assert len(seen) == 2
+    assert "10.0.0.1" in seen[0] and "10.0.0.2" not in seen[0]
+    assert "10.0.0.2" in seen[1] and "10.0.0.1" not in seen[1]
+    assert {f.get("scan_target") for f in merged.all_findings} == {"10.0.0.1", "10.0.0.2"}

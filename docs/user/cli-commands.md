@@ -62,11 +62,14 @@ siyarix scan <targets...> [OPTIONS]
 # 💡 Pro-Tip: You can scan hundreds of IPs at once using a file!
 siyarix scan @targets.txt
 
-# Concurrent multi-target scans (bounded workers; findings are merged)
+# Concurrent multi-target scans (one worker pool per host; findings merged + target-tagged)
 siyarix scan @targets.txt --parallel 5
+
+# Sequential per-target (still one scan per host — safer for fragile labs)
+siyarix scan @targets.txt --parallel 1
 ```
 
-Key options: `--tool` / `-t`, `--mode` / `-m`, `--output` / `-o`, `--parallel` / `-p` (1–32; default 3), `--timeout`, `--save`, `--notify`, `--dry-run`.
+Key options: `--tool` / `-t`, `--mode` / `-m`, `--output` / `-o`, `--parallel` / `-p` (1–32; default from `default_parallel` / `SIYARIX_PARALLEL`), `--timeout`, `--save`, `--notify`, `--dry-run`.
 
 **Scan Presets (The Fast Track):**
 - `siyarix scan-quick <target>`: Rapid port discovery (Top 100 ports, no deep service detection).
@@ -99,7 +102,7 @@ siyarix health
 ```
 
 ### `production-check` / `doctor`
-Operator readiness checklist for production gates (Python version, shell-review fail-closed posture, PermissionGate / tool registry, `command_review`, shared destructive hard-blocks, webhook destination policy, `SIYARIX_ALLOWED_SCOPE`, credential store, health). Live-probes hard-blocks and inet_aton scope, then reports a **readiness score** (0–100), **grade** (`production-ready` / `needs-attention` / `not-ready`), and remediation hints for warn/fail checks. JSON output includes `score`, `grade`, and `remediations`.
+Operator readiness for researchers and production gates (Python version, shell-review, PermissionGate / tool registry, `command_review`, operator-safety hard-blocks, webhook policy, optional `SIYARIX_ALLOWED_SCOPE`, credential store, health). Unset engagement scope is **OK** (research tooling unrestricted). Live-probes hard-blocks and engagement-scope samples, then reports a **readiness score** (0–100), **grade**, and remediation hints. JSON includes `score`, `grade`, and `remediations`.
 ```bash
 siyarix doctor                  # alias for production-check
 siyarix production-check

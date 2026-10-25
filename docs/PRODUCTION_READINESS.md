@@ -59,7 +59,7 @@ mypy src/siyarix
 python -m pytest tests/ -q -m "not e2e" --ignore=tests/test_stress_resilience.py
 ```
 
-Latest local checks on this branch: **mypy clean (258 files)**; pytest **6446 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Mission-aligned operator-safety: `simg2img`/`bmaptool`; ansible `-i` when engagement scope set; unset scope leaves research tooling unrestricted; doctor JSON no longer Rich-wraps.
+Latest local checks on this branch: **mypy clean (258 files)**; pytest **6447 passed**, 6 skipped, 62 deselected (`-m "not e2e"`, stress ignored). Mission-aligned: operator-safety guards; unset scope unrestricted; `--parallel` from settings; multi-target always one execute per host.
 
 Additional post-audit hardening (this branch): atomic offline-queue claim + stale reclaim,
 audit flush under RLock, webhook https-only + no-redirect SSRF, playbook step registration, KG vuln

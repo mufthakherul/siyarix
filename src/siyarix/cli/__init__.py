@@ -1801,11 +1801,14 @@ def scan(
     output: str = typer.Option(
         "table", "--output", "-o", help="Output: table|json|yaml|csv|html|quiet"
     ),
-    _parallel: int = typer.Option(
-        3,
+    _parallel: int | None = typer.Option(
+        None,
         "--parallel",
         "-p",
-        help="Max concurrent workers when scanning multiple targets (1 = sequential)",
+        help=(
+            "Max concurrent workers for multi-target scans (1 = sequential per-target; "
+            "default from settings default_parallel / SIYARIX_PARALLEL)"
+        ),
         min=1,
         max=32,
     ),
@@ -1834,6 +1837,14 @@ def scan(
         parent_params = ctx.parent.params if ctx.parent else {}
         mode = str(parent_params.get("mode", "integrated"))
 
+    parallel_workers = _parallel
+    if parallel_workers is None:
+        try:
+            parallel_workers = int(config.get("default_parallel") or 3)
+        except (TypeError, ValueError):
+            parallel_workers = 3
+    parallel_workers = max(1, min(int(parallel_workers), 32))
+
     result = _execute_scan_core(
         targets,
         tool=tool,
@@ -1844,7 +1855,7 @@ def scan(
         dry_run=dry_run,
         no_banner=no_banner,
         profile=profile,
-        parallel=_parallel,
+        parallel=parallel_workers,
         notify=_notify,
     )
     if result is not None and not getattr(result, "success", True):
@@ -1970,6 +1981,14 @@ async def _execute_targets_parallel(
                 tagged.setdefault("scan_target", target)
                 merged.all_findings.append(tagged)
             else:
+                # Best-effort tag object findings for multi-target rollups.
+                try:
+                    if getattr(finding, "target", None) in (None, ""):
+                        setattr(finding, "target", target)
+                    if getattr(finding, "scan_target", None) in (None, ""):
+                        setattr(finding, "scan_target", target)
+                except Exception:
+                    pass
                 merged.all_findings.append(finding)
         merged.step_results.extend(raw.step_results or [])
         merged.duration_ms += float(raw.duration_ms or 0.0)
@@ -2078,8 +2097,9 @@ def _execute_scan_core(
             "parallel": parallel,
         },
     )
-    if len(expanded_targets) > 1 and parallel > 1 and not dry_run:
-        # True multi-target parallelism (previously --parallel was ignored).
+    if len(expanded_targets) > 1:
+        # Always one engine.execute per target (parallel workers or sequential).
+        # Avoids the old join-all-targets single instruction that lost per-host tagging.
         result = run_async(
             _execute_targets_parallel(
                 expanded_targets,
@@ -2091,21 +2111,6 @@ def _execute_scan_core(
                 persist=save,
             )
         )
-    elif len(expanded_targets) > 1:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold cyan]Scanning {task.description}[/bold cyan]"),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            task_id = progress.add_task(
-                f"{len(expanded_targets)} targets", total=len(expanded_targets)
-            )
-            engine = _get_engine(mode)
-            result = run_async(
-                engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
-            )
-            progress.update(task_id, advance=len(expanded_targets))
     else:
         engine = _get_engine(mode)
         result = run_async(
@@ -2739,8 +2744,12 @@ def production_check(
     scope = (_os.environ.get("SIYARIX_ALLOWED_SCOPE") or "").strip()
     _add(
         "allowed_scope",
-        "pass" if scope else "warn",
-        "SIYARIX_ALLOWED_SCOPE set" if scope else "unset — set for production target isolation",
+        "pass",
+        (
+            f"engagement scope active ({scope[:60]}{'…' if len(scope) > 60 else ''})"
+            if scope
+            else "unset — research tooling unrestricted; set for engagement-bound automation"
+        ),
     )
 
     cmd_review = bool(config.get("command_review", True))

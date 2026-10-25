@@ -124,6 +124,7 @@ class WebhookDispatcher:
         }
 
         try:
+            # Validate twice (pre-build + pre-connect) to shrink DNS-rebinding TOCTOU.
             _validate_url(self.webhook_url, allow_ip=False)
             req = urllib.request.Request(
                 self.webhook_url,
@@ -136,9 +137,12 @@ class WebhookDispatcher:
                     # Redirects can pivot a validated public URL onto private/metadata hosts.
                     return None
 
+            _validate_url(self.webhook_url, allow_ip=False)
             opener = urllib.request.build_opener(_NoRedirect)
             opener.open(req, timeout=5)  # nosec B310
             logger.info("Webhook alert dispatched for %s", finding.get("id", "vuln"))
+        except ValueError as e:
+            logger.error("Webhook URL rejected by SSRF policy: %s", e)
         except urllib.error.URLError as e:
             logger.error("Failed to dispatch webhook: %s", e)
 

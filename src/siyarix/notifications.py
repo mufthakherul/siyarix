@@ -53,8 +53,10 @@ class NotificationDispatcher:
         try:
             from siyarix.webhooks import _validate_url
 
+            # Validate twice (pre-client + pre-POST) to shrink DNS-rebinding TOCTOU.
             _validate_url(self.webhook_url, allow_ip=False)
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
+                _validate_url(self.webhook_url, allow_ip=False)
                 response = await client.post(self.webhook_url, json=payload)
                 response.raise_for_status()
                 logger.info("Notification dispatched successfully.")

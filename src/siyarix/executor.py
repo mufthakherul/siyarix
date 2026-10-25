@@ -340,15 +340,20 @@ class BaseExecutor:
                     "Destructive command detected: Overwriting block devices is blocked."
                 )
 
-        # Recursive deletion of critical paths
-        if "rm " in cmd_clean and "-rf" in cmd_clean:
-            if any(
-                path in cmd_clean
-                for path in [" /", " /*", " /etc", " /var", " /bin", " /sbin", " /usr"]
-            ):
-                raise PermissionDeniedError(
-                    "Destructive command detected: Deleting system directory is blocked."
-                )
+        # Recursive deletion of critical paths (normalize -rf/-fr/--recursive/--force)
+        import re as _re
+
+        _rm_destructive = bool(
+            _re.search(r"\brm\b[\s]+(?:-[a-zA-Z]*[rf][a-zA-Z]*\s*)+", cmd_clean)
+            or _re.search(r"\brm\b\s+--(?:recursive|force)", cmd_clean)
+        )
+        if _rm_destructive and any(
+            path in cmd_clean
+            for path in [" /", " /*", " /etc", " /var", " /bin", " /sbin", " /usr", " /home"]
+        ):
+            raise PermissionDeniedError(
+                "Destructive command detected: Deleting system directory is blocked."
+            )
 
         # Partition formatting
         if any(x in cmd_clean for x in ["mkfs ", "mkfs.", "fdisk ", "parted "]):

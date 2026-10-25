@@ -37,6 +37,26 @@ OFFICIAL_REGISTRY_URL = "https://raw.githubusercontent.com/siyarix/siyarix-plugi
 OFFICIAL_REPO_URL = "https://github.com/siyarix/siyarix-plugins.git"
 
 
+def _safe_plugin_name(name: str) -> str:
+    """Reject path separators / traversal so install destinations stay sandboxed."""
+    cleaned = (name or "").strip()
+    if not cleaned:
+        raise ValueError("Plugin name must not be empty")
+    if cleaned in {".", ".."} or "/" in cleaned or "\\" in cleaned or ".." in cleaned:
+        raise ValueError(f"Invalid plugin name (path traversal rejected): {name!r}")
+    return cleaned
+
+
+def _assert_under_dir(path: Path, root: Path, *, what: str) -> Path:
+    resolved = path.resolve()
+    root_resolved = root.resolve()
+    try:
+        resolved.relative_to(root_resolved)
+    except ValueError as err:
+        raise ValueError(f"{what} escapes plugin sandbox: {path}") from err
+    return resolved
+
+
 class PluginManager:
     """Enterprise manager for discovery, loading, lifecycle, and remote registry."""
 
@@ -239,11 +259,24 @@ class PluginManager:
             meta.status = PluginStatus.DISABLED
             return False
 
-        entry_path = (
-            meta.path
-            if meta.plugin_type == PluginType.SINGLE_FILE
-            else meta.path / meta.manifest.entrypoint
-        )
+        if meta.plugin_type == PluginType.SINGLE_FILE:
+            entry_path = meta.path
+        else:
+            entry = Path(meta.manifest.entrypoint)
+            if entry.is_absolute():
+                meta.status = PluginStatus.ERROR
+                meta.error_message = f"Absolute entrypoint rejected: {entry}"
+                logger.error(meta.error_message)
+                return False
+            try:
+                entry_path = _assert_under_dir(
+                    meta.path / entry, meta.path, what="plugin entrypoint"
+                )
+            except ValueError as exc:
+                meta.status = PluginStatus.ERROR
+                meta.error_message = str(exc)
+                logger.error(meta.error_message)
+                return False
 
         if not entry_path.exists():
             meta.status = PluginStatus.ERROR
@@ -501,16 +534,20 @@ class PluginManager:
         local_path = Path(name_or_url)
         if local_path.exists():
             if local_path.is_dir():
-                target_name = local_path.name
-                dest = self.plugins_dir / target_name
+                target_name = _safe_plugin_name(local_path.name)
+                dest = _assert_under_dir(
+                    self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
+                )
                 if dest.exists():
                     if not force:
                         raise FileExistsError(f"Plugin '{target_name}' already exists.")
                     shutil.rmtree(dest)
                 shutil.copytree(local_path, dest)
             else:
-                target_name = local_path.stem
-                dest = self.plugins_dir / local_path.name
+                target_name = _safe_plugin_name(local_path.stem)
+                dest = _assert_under_dir(
+                    self.plugins_dir / local_path.name, self.plugins_dir, what="plugin install dest"
+                )
                 if dest.exists() and not force:
                     raise FileExistsError(f"Plugin '{target_name}' already exists.")
                 shutil.copy2(local_path, dest)
@@ -525,7 +562,10 @@ class PluginManager:
             target_name = repo_url.rstrip("/").split("/")[-1]
             if target_name.endswith(".git"):
                 target_name = target_name[:-4]
-            dest = self.plugins_dir / target_name
+            target_name = _safe_plugin_name(target_name)
+            dest = _assert_under_dir(
+                self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
+            )
 
             if dest.exists():
                 if not force:
@@ -543,13 +583,15 @@ class PluginManager:
             return self._installed_plugins[target_name]
 
         # Case C: Registry Plugin Name
-        target_name = name_or_url.strip()
+        target_name = _safe_plugin_name(name_or_url.strip())
         catalog = self.fetch_registry_index()
         entry = next((i for i in catalog if i.get("name") == target_name), None)
 
         # Check local plugins repo first
         local_plugins_repo = Path.cwd() / "siyarix-plugins" / "plugins" / target_name
-        dest = self.plugins_dir / target_name
+        dest = _assert_under_dir(
+            self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
+        )
 
         if local_plugins_repo.exists():
             if dest.exists():
@@ -602,15 +644,47 @@ class PluginManager:
     def _install_dependencies(self, plugin_dir: Path) -> None:
         """Safely resolve plugin python dependencies."""
         req_file = plugin_dir / "requirements.txt"
-        if req_file.exists():
-            try:
-                subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-q", "-r", str(req_file)],
-                    capture_output=True,
-                    timeout=60,
+        if not req_file.exists():
+            return
+        # Block common pip abuse switches / VCS URLs in requirements files.
+        try:
+            req_text = req_file.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            logger.warning("Could not read requirements for %s: %s", plugin_dir.name, exc)
+            return
+        for line in req_text.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            lower = stripped.lower()
+            if lower.startswith("-") or "://" in lower or lower.startswith("git+"):
+                raise RuntimeError(
+                    f"Refusing unsafe requirements line in {plugin_dir.name}: {stripped!r}"
                 )
-            except Exception as e:
-                logger.warning("Dependency installation warning for %s: %s", plugin_dir.name, e)
+        try:
+            res = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "-q",
+                    "--disable-pip-version-check",
+                    "-r",
+                    str(req_file),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                check=False,
+            )
+            if res.returncode != 0:
+                raise RuntimeError(
+                    f"pip install failed for {plugin_dir.name}: {res.stderr.strip() or res.stdout.strip()}"
+                )
+        except Exception as e:
+            logger.warning("Dependency installation failed for %s: %s", plugin_dir.name, e)
+            raise
 
     def uninstall(self, name: str) -> bool:
         """Uninstall a plugin, removing files and deregistering tools."""

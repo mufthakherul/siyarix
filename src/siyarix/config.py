@@ -633,7 +633,23 @@ def _write_toml(path: Path, data: dict[str, Any]) -> None:
         formatted_key = f'"{key}"' if "." in key else key
         lines.append(f"{formatted_key} = {_format_toml_val(value)}")
         lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    import os as _os
+    import tempfile
+
+    content = "\n".join(lines)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent))
+    try:
+        with _os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            tmp.write(content)
+            tmp.flush()
+            _os.fsync(tmp.fileno())
+        _os.replace(tmp_name, path)
+    except Exception:
+        try:
+            _os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 class SettingsStore:

@@ -143,7 +143,15 @@ class LLMEngineMixin:
             "gemini_model": self._settings.get("gemini_model"),
         }
 
-        reg = ToolRegistry()
+        from ..permission_gate import PermissionGate
+
+        _gate = PermissionGate() if os.getenv("SIYARIX_SAFE_MODE", "1").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        } else None
+        reg = ToolRegistry(permission_gate=_gate)
         from ..session_log import session_logger
 
         engine = ExecutionEngine(
@@ -1009,14 +1017,11 @@ class LLMEngineMixin:
                                 plan_type=PlanType.SEQUENTIAL,
                                 context={"source": "cls_prerun"},
                             )
-                            _saved_cr = agent.executor_autonomous.command_review
-                            agent.executor_autonomous.command_review = False
-                            try:
-                                _prerun_executed = await agent.executor_autonomous.execute_plan(
-                                    _prerun_plan, live_display=True
-                                )
-                            finally:
-                                agent.executor_autonomous.command_review = _saved_cr
+                            # Keep the user's command_review setting — learned skills
+                            # must not silently bypass interactive/safety review.
+                            _prerun_executed = await agent.executor_autonomous.execute_plan(
+                                _prerun_plan, live_display=True
+                            )
                             console.print()
                             _prerun_outputs: list[str] = []
                             for _ps in _prerun_executed.steps:

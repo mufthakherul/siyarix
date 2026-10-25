@@ -54,7 +54,9 @@ Additional post-audit hardening (this branch): atomic offline-queue claim + stal
 audit flush under RLock, webhook no-redirect SSRF, playbook step registration, KG vuln
 reporting, permission-gate empty-command ordering, injection validator fail-closed,
 adversarial CRITICAL plan abort, deep-scan scope enforcement, vault key refuse-silent-rotate,
-PermissionGate on by default, no sudo secrets in settings.toml, offline enqueue-on-failure only.
+PermissionGate on by default, no sudo secrets in settings.toml, offline enqueue-on-failure only,
+normalized `rm -fr/--recursive` destructive checks, plugin path/entrypoint sandboxing + pip
+fail-closed, learned-skill review preserved, atomic settings.toml writes, cache_invalidate rowcount.
 
 Goal status: production gates green (`mypy` + **5997** pytest). Absolute “every possible
 bug / most-powerful product forever” is not a finite claim — known SX + hunt P0/P1 items

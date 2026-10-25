@@ -414,6 +414,7 @@ class ToolRegistry:
                     if not recheck.allowed:
                         raise PermissionDeniedError(recheck.reason)
                     assert_command_in_scope(reviewed)
+                    assert_command_not_destructive(reviewed)
                     kwargs["command"] = reviewed
 
         start = time.monotonic()

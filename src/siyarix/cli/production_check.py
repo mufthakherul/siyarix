@@ -250,6 +250,9 @@ def build_production_payload(
             "yes",
             "on",
         }
+        from siyarix.plugins.isolation import plugin_preflight_enabled
+
+        preflight = plugin_preflight_enabled()
         if trust == "off":
             _add(
                 "plugin_trust",
@@ -260,7 +263,8 @@ def build_production_payload(
             _add(
                 "plugin_trust",
                 "warn" if (production or strict) else "info",
-                "SIYARIX_TRUST_PLUGINS=force — in-process plugins are fully trusted "
+                "SIYARIX_TRUST_PLUGINS=force — in-process plugins are fully trusted; "
+                f"subprocess compile preflight={'on' if preflight else 'off'} "
                 "(true OS isolation still open)",
             )
         else:
@@ -268,7 +272,7 @@ def build_production_payload(
                 "plugin_trust",
                 "warn" if strict else "info",
                 "SIYARIX_TRUST_PLUGINS=1 (lab) — in-process load; use =force under "
-                "SIYARIX_PRODUCTION",
+                f"SIYARIX_PRODUCTION; preflight={'on' if preflight else 'off'}",
             )
     except Exception as exc:  # pragma: no cover - defensive
         _add("plugin_trust", "warn", f"unavailable: {exc}")

@@ -93,6 +93,7 @@ def test_production_allows_force_trust(
 ) -> None:
     monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "force")
     monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
+    monkeypatch.setenv("SIYARIX_PLUGIN_PREFLIGHT", "1")
     plugins = tmp_path / "plugins"
     plugins.mkdir()
     entry = plugins / "demo.py"
@@ -115,3 +116,31 @@ def test_production_allows_force_trust(
     mgr._config_data = {"disabled": []}
     assert mgr.load_plugin("demo") is True
     assert mgr._installed_plugins["demo"].status == PluginStatus.ACTIVE
+
+
+def test_preflight_rejects_syntax_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "1")
+    monkeypatch.delenv("SIYARIX_PRODUCTION", raising=False)
+    monkeypatch.setenv("SIYARIX_PLUGIN_PREFLIGHT", "0")  # host AST still runs
+    plugins = tmp_path / "plugins"
+    plugins.mkdir()
+    entry = plugins / "bad.py"
+    entry.write_text("def broken(\n", encoding="utf-8")
+
+    mgr = PluginManager(
+        registry=MagicMock(),
+        provider_manager=MagicMock(),
+        plugins_dir=plugins,
+        config_dir=tmp_path,
+    )
+    mgr._installed_plugins["bad"] = PluginMetadata(
+        manifest=PluginManifest(name="bad", version="0.0.1", entrypoint="bad.py"),
+        path=entry,
+        plugin_type=PluginType.SINGLE_FILE,
+        status=PluginStatus.ACTIVE,
+    )
+    mgr._config_data = {"disabled": []}
+    assert mgr.load_plugin("bad") is False
+    assert "syntax" in (mgr._installed_plugins["bad"].error_message or "").lower()

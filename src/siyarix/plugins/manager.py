@@ -435,6 +435,17 @@ class PluginManager:
             logger.error(meta.error_message)
             return False
 
+        # SX-A01: host AST + optional scrubbed-subprocess compile before in-process load.
+        try:
+            from siyarix.plugins.isolation import preflight_plugin_entrypoint
+
+            preflight_plugin_entrypoint(entry_path)
+        except ValueError as exc:
+            meta.status = PluginStatus.ERROR
+            meta.error_message = str(exc)
+            logger.error("Plugin %s preflight failed: %s", name, exc)
+            return False
+
         module_name = f"siyarix_plugin_{name}"
         sys_path_added = False
         if meta.plugin_type == PluginType.PACKAGE:

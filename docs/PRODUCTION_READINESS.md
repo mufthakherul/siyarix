@@ -53,7 +53,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | SX-A02/A10/A11 | Closed | Plugin auto-pip off by default; PEP508-only requirements (reject paths/URLs/VCS); git/pip via `safe_run_sync` scrub; origin re-validated; no CWD index |
 | SX-A06 | Closed | file_key warns by default; `--strict` / `SIYARIX_REQUIRE_MASTER_PASSWORD` / `SIYARIX_PRODUCTION` fail-closed; CredentialStore refuses file_key under those flags |
 | CI | Partial | coverage 70%; Trivy CRITICAL exit 1; `production-check` job; stress/chaos markers; workflows use `uv pip` (not unlocked `pip install -e`) |
-| SX-A01 | Partial | Lab: `SIYARIX_TRUST_PLUGINS=1`; under `SIYARIX_PRODUCTION` / `REQUIRE_MASTER_PASSWORD` require `=force`; production-check `plugin_trust` row; true OS isolation still open |
+| SX-A01 | Partial | Lab: `SIYARIX_TRUST_PLUGINS=1`; under production flags require `=force`; host AST + scrubbed-subprocess compile preflight (`SIYARIX_PLUGIN_PREFLIGHT`, default on in prod); true OS isolation of `register_tools` still open |
 | RH-29 | Closed | chisel `R:socks` / `:socks` scanned before hop-host break (in-scope hop cannot pivot) |
 | RH-30 | Closed | sshuttle `0/0` / `0.0.0.0/0` / `::/0` full-tunnel blocked under scope |
 | RH-31 | Closed | Child-env scrub: `AWS_ACCESS_KEY_ID`, bare `*_KEY`, `*_SECRET_KEY`, framework `SECRET_KEY` |

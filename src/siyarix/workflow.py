@@ -262,7 +262,7 @@ class WorkflowEngine:
         node.result = last_error or {"error": "exhausted retries"}
 
     def _skip_blocked_dependents(self, workflow: Workflow) -> None:
-        """Mark PENDING nodes whose deps failed as SKIPPED so the DAG can finish."""
+        """Mark PENDING nodes as SKIPPED when deps failed or edge conditions fail."""
         changed = True
         while changed:
             changed = False
@@ -280,6 +280,32 @@ class WorkflowEngine:
                 ):
                     node.status = WorkflowStepStatus.SKIPPED
                     node.result = {"error": "Skipped due to failed dependency"}
+                    changed = True
+                    continue
+                # Parents completed but edge condition(s) fail-closed → skip.
+                parents_done = all(
+                    (src := workflow.get_node(e.source)) is not None and src.is_terminal
+                    for e in incoming
+                )
+                if not parents_done:
+                    continue
+                edge_ok = True
+                for e in incoming:
+                    src = workflow.get_node(e.source)
+                    if src is None or src.status != WorkflowStepStatus.COMPLETED:
+                        edge_ok = False
+                        break
+                    if e.condition:
+                        ctx = {
+                            **workflow.context,
+                            f"result_{e.source}": src.result,
+                        }
+                        if not condition_passes(e.condition, ctx):
+                            edge_ok = False
+                            break
+                if not edge_ok:
+                    node.status = WorkflowStepStatus.SKIPPED
+                    node.result = {"error": "Skipped due to unmet edge condition"}
                     changed = True
 
     def cancel_workflow(self, workflow_id: str) -> bool:

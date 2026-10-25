@@ -106,6 +106,28 @@ async def test_workflow_condition_skip():
 
 
 @pytest.mark.asyncio
+async def test_workflow_edge_condition_skips_child():
+    engine = WorkflowEngine()
+
+    async def step(args):
+        return {"status": "success", "ok": True}
+
+    engine.register_step("step", step)
+    wf = engine.create_workflow(
+        "edge_cond",
+        nodes=[
+            {"id": "a", "step_fn": "step"},
+            {"id": "b", "step_fn": "step"},
+        ],
+        edges=[{"source": "a", "target": "b", "condition": "never"}],
+    )
+    res = await engine.run_workflow(wf)
+    assert res.get_node("a").status == WorkflowStepStatus.COMPLETED
+    assert res.get_node("b").status == WorkflowStepStatus.SKIPPED
+    assert res.status == WorkflowStatus.FAILED
+
+
+@pytest.mark.asyncio
 async def test_workflow_retries_soft_error():
     engine = WorkflowEngine()
     calls = {"n": 0}

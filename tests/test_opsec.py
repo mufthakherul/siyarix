@@ -67,9 +67,11 @@ class TestOPSECManager:
     def test_isolate_without_target(self) -> None:
         mgr = OPSECManager()
         result = mgr.isolate()
-        assert result.success is True
+        # Soft label alone is not real isolation — fail closed without memory_only.
+        assert result.success is False
         assert mgr.status.isolated is False
         assert "siyarix_isolated_" in mgr.status.namespace
+        assert "No implemented OPSEC controls" in result.detail
 
     def test_isolate_disables_logging_in_memory_only(self) -> None:
         mgr = OPSECManager()

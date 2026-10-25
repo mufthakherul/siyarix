@@ -69,6 +69,8 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-41 | Closed | Wave7 hunter: zpool/mdadm/pvcreate create-on-disk; gem `--install-dir`; patool `--outdir`; bind `/etc`; `/lib/systemd` units; cargo `--root /`; podman `system connection use`; chisel `server --socks5`; dotenv CONSUL/NOMAD/ETCD/registry/SSH_PROXY |
 | RH-42 | Closed | Persistence `/etc/init.d`/`autostart`/`NM dispatcher`; pnpm/composer/bundle install roots; `kpartx -a` on disks; kubectl `proxy`/`port-forward`; skopeo/buildah `docker://`; minikube/kind/istioctl wrappers; dotenv CONTAINERD/PIP/COMPOSE/DOCKER_CONTEXT |
 | ARCH-01 | Partial | Extracted `cli/production_check.py` + `cli/audit_cmds.py` from CLI god-module |
+| FEAT-02 | Honest | `siyarix[api]` reserved but **not** pulled by `[all]` (no in-tree HTTP server) |
+| MOD-P0 | Closed | Dropped dead `google-generativeai` extras; Gemini REST via httpx; OPSEC isolate fail-closed without `memory_only`; stub/compaction honesty defaults |
 | FEAT-03 | Closed | Swarm gated behind `SIYARIX_EXPERIMENTAL_SWARM`; returns `not_implemented` |
 | Dashboard | Closed | Local DB counts only; fabricated MFA/EDR/MTTD KPIs removed |
 | CISA KEV | Closed | Feed status `planned` (was false `integrated`) |

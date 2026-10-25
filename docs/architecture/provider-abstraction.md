@@ -107,7 +107,7 @@ These providers require authentication but offer the most powerful, cutting-edge
 | Registry Name | SDK / API | Notable Models |
 |--------------|-----------|----------------|
 | `openai` | `openai` | GPT-4o, GPT-4-turbo, GPT-3.5-turbo |
-| `gemini` | `google-generativeai` | Gemini 2.0 Flash, 1.5 Pro |
+| `gemini` | native REST via `httpx` (no SDK) | Gemini 2.x / 3.x Flash & Pro |
 | `anthropic` | `anthropic` | Claude 3.5 Sonnet, Claude 3 Opus |
 | `groq` | `groq` | Llama 3 70B, Mixtral 8x7B |
 | `together` | `together` | Mixtral, DeepSeek, Llama variants |

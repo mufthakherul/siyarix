@@ -209,11 +209,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 _SAFE_SDKS = {
                     "openai",
                     "anthropic",
-                    "google-genai",
                     "mistralai",
                     "cohere",
                     "together",
                 }
+                # Gemini uses httpx REST — empty sdk_dependency; do not require google-genai.
                 if profile.sdk_dependency not in _SAFE_SDKS:
                     logger.warning(
                         "Unknown SDK dependency '%s' for provider '%s'",
@@ -1155,7 +1155,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     _SAFE_SDKS = {
                         "openai",
                         "anthropic",
-                        "google-genai",
                         "mistralai",
                         "cohere",
                         "together",

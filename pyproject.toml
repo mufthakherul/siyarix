@@ -71,13 +71,14 @@ dependencies = [
 ]
 
 optional-dependencies.all = [
-  "siyarix[cli,siem,autonomous,api,security,mobile,windows]",
+  # ``api`` omitted on purpose — FEAT-02 HTTP API is not implemented in-tree.
+  "siyarix[cli,siem,autonomous,security,mobile,windows]",
 ]
 optional-dependencies.anthropic = [
   "anthropic>=0.40",
 ]
-# Reserved for a future HTTP API (not implemented in-tree yet). Installing this
-# extra does not start a server — see FEAT-02 / docker-compose note.
+# Reserved for a future HTTP API (not implemented in-tree yet). Not pulled in by
+# ``siyarix[all]`` so install does not imply a runnable server (FEAT-02).
 optional-dependencies.api = [
   "fastapi>=0.110",
   "pyjwt>=2.8",
@@ -85,7 +86,6 @@ optional-dependencies.api = [
 ]
 optional-dependencies.autonomous = [
   "anthropic>=0.40",
-  "google-generativeai>=0.8",
   "openai>=2.31",
 ]
 optional-dependencies.cli = [
@@ -118,9 +118,9 @@ optional-dependencies.dev = [
   "types-redis>=4.6",
   "types-pyperclip>=1.8",
 ]
-optional-dependencies.gemini = [
-  "google-generativeai>=0.8",
-]
+# Gemini uses native REST via httpx (core dependency) — no provider SDK required.
+# Extra kept as a documented no-op so ``pip install siyarix[gemini]`` stays valid.
+optional-dependencies.gemini = []
 optional-dependencies.mobile = [
   "httpx>=0.27",
   "siyarix[terminal]",
@@ -241,7 +241,6 @@ ignore_errors = true
 module = [
   "pyperclip",
   "redis",
-  "google.generativeai.*",
   "httpx.*",
 ]
 ignore_missing_imports = true

@@ -68,7 +68,7 @@ class CoderBridge:
     """Stub — AI code generation bridge is not implemented."""
 
     async def generate(self, prompt: str) -> str:
-        return ""
+        return f"# status: {_NOT_IMPLEMENTED}\n# CoderBridge.generate is a stub\n"
 
     async def review(self, target: str, code: str) -> dict[str, Any]:
         return {
@@ -215,8 +215,9 @@ class EnsembleResponse:
 class EnsemblePlanResult:
     selection_reason: str = ""
     responses: list[EnsembleResponse] | None = None
-    consensus_level: float = 1.0
-    hallucination_risk: float = 0.0
+    # Optimistic defaults would fake healthy consensus — fail closed (P0 honesty).
+    consensus_level: float = 0.0
+    hallucination_risk: float = 1.0
 
     def __post_init__(self) -> None:
         if self.responses is None:

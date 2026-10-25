@@ -135,8 +135,9 @@ class OPSECManager:
             memory_only: Disable persistent logging for this session (implemented).
 
         Returns:
-            ``OPSECActionResult`` — ``success`` only when no unimplemented network
-            features were requested.
+            ``OPSECActionResult`` — ``success`` only when ``memory_only=True`` (the
+            sole implemented control) and no unimplemented network features were
+            requested. Soft session labels alone return ``success=False``.
         """
         namespace = self._status.namespace
         if not namespace:
@@ -169,9 +170,9 @@ class OPSECManager:
         if memory_only:
             details.append("Persistent logging/cache suppressed for this session")
 
-        # success only when caller did not request unimplemented network features
+        # Fail closed unless an *implemented* control was applied. Soft session
+        # labels alone must not report success (OS netns remains unimplemented).
         net_requested = use_tor or use_doh or randomize_mac
-        success = not net_requested
         if net_requested:
             success = False
             logger.warning(
@@ -179,10 +180,21 @@ class OPSECManager:
                 target or "unknown",
                 ", ".join(unimplemented),
             )
-        else:
+        elif memory_only:
+            success = True
             logger.info(
-                "OPSEC soft isolate (memory_only=%s) for target=%s label=%s",
-                memory_only,
+                "OPSEC soft isolate (memory_only=True) for target=%s label=%s",
+                target or "unknown",
+                namespace,
+            )
+        else:
+            success = False
+            details.append(
+                "No implemented OPSEC controls applied — pass memory_only=True "
+                "for in-process audit/cache suppression (OS isolation still open)"
+            )
+            logger.info(
+                "OPSEC isolate label-only (success=False) for target=%s label=%s",
                 target or "unknown",
                 namespace,
             )

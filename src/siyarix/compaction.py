@@ -344,7 +344,7 @@ class CompactionEngine:
             )
         self._compaction_history.append(
             CompactResult(
-                ok=result.get("status") == "success" if "status" in result else True,
+                ok=result.get("status") == "success" if "status" in result else False,
                 compacted=False,
                 reason="subagent_ended",
                 summary=summary[:500],

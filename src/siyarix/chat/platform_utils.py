@@ -262,6 +262,8 @@ def load_env_file() -> None:
             "SIYARIX_PREAUTHORIZED",
             "SIYARIX_COMMAND_REVIEW",
             "SIYARIX_ALLOWED_SCOPE",
+            "SIYARIX_CONFIG",
+            "PRIVATE_KEY",
         }
     )
     _blocked_vars = {
@@ -291,6 +293,10 @@ def load_env_file() -> None:
         "http_proxy",
         "https_proxy",
         "all_proxy",
+        "SSLKEYLOGFILE",
+        "GIT_ASKPASS",
+        "SSH_ASKPASS",
+        "CURL_HOME",
     }
     env_path = get_config_dir() / ".env"
     if not env_path.exists():

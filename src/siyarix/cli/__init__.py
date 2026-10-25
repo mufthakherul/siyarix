@@ -129,6 +129,8 @@ def _load_dotenv(path: Path | None = None) -> None:
             "SIYARIX_PREAUTHORIZED",
             "SIYARIX_COMMAND_REVIEW",
             "SIYARIX_ALLOWED_SCOPE",
+            "SIYARIX_CONFIG",
+            "PRIVATE_KEY",
         }
     )
     _blocked_vars = {
@@ -158,6 +160,10 @@ def _load_dotenv(path: Path | None = None) -> None:
         "http_proxy",
         "https_proxy",
         "all_proxy",
+        "SSLKEYLOGFILE",
+        "GIT_ASKPASS",
+        "SSH_ASKPASS",
+        "CURL_HOME",
     }
     env_path = path or Path.cwd() / ".env"
     if not env_path.exists():

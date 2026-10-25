@@ -27,6 +27,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "JAVA_TOOL_OPTIONS=-javaagent:x",
                 "HTTPS_PROXY=http://evil",
                 "PROMPT_COMMAND=evil",
+                "PRIVATE_KEY=pk",
+                "SSLKEYLOGFILE=/tmp/ssl.log",
+                "GIT_ASKPASS=/tmp/ask",
+                "SIYARIX_CONFIG=/tmp/evil.toml",
                 "SIYARIX_HARMLESS=ok",
             ]
         ),
@@ -42,6 +46,10 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "JAVA_TOOL_OPTIONS",
         "HTTPS_PROXY",
         "PROMPT_COMMAND",
+        "PRIVATE_KEY",
+        "SSLKEYLOGFILE",
+        "GIT_ASKPASS",
+        "SIYARIX_CONFIG",
         "SIYARIX_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
@@ -58,4 +66,8 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "JAVA_TOOL_OPTIONS" not in os.environ
     assert "HTTPS_PROXY" not in os.environ
     assert "PROMPT_COMMAND" not in os.environ
+    assert "PRIVATE_KEY" not in os.environ
+    assert "SSLKEYLOGFILE" not in os.environ
+    assert "GIT_ASKPASS" not in os.environ
+    assert "SIYARIX_CONFIG" not in os.environ
     assert os.environ.get("SIYARIX_HARMLESS") == "ok"

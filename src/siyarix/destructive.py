@@ -45,10 +45,11 @@ _DD_WORD_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Block-device node paths (sd / nvme / vd / xvd / hd / loop / dm / mapper / by-id).
+# Block-device node paths (Linux + macOS disk/rdisk + SCSI/NBD).
 _BLOCK_DEV_RE = re.compile(
     r"/dev/(?:sd[a-z]\d*|nvme\d+n\d+(?:p\d+)?|vd[a-z]\d*|xvd[a-z]\d*|hd[a-z]\d*"
-    r"|loop\d+|dm-\d+|mapper/\S+|disk/\S+|block/\S+|root\b)",
+    r"|loop\d+|dm-\d+|mapper/\S+|disk/\S+|disk\d+(?:s\d+)?|rdisk\d+(?:s\d+)?"
+    r"|block/\S+|root\b|sg\d+|nbd\d+)",
     re.IGNORECASE,
 )
 _BLOCK_WIPE_TOOLS_RE = re.compile(
@@ -75,7 +76,8 @@ _REDIRECT_TO_BLOCK_RE = re.compile(
 )
 _FIND_DELETE_RE = re.compile(
     r"\bfind\b[\s\S]{0,400}"
-    r"(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe|nwipe)\b)",
+    r"(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe|nwipe|unlink)\b|"
+    r"-ok\s+(?:rm|unlink)\b)",
     re.IGNORECASE,
 )
 # Matched after quote-stripping, so paths appear as bare ``/`` (not ``'/'``).
@@ -146,12 +148,21 @@ _RECURSE_FLAG_RE = re.compile(
 )
 _DOWNLOAD_TO_BLOCK_RE = re.compile(
     r"(?:"
-    r"\b(?:curl|wget|busybox|fetch|aria2c|axel)\b[\s\S]{0,220}"
+    r"\b(?:curl|wget|busybox|fetch|aria2c|axel|http|httpie|yt-dlp|youtube-dl)\b"
+    r"[\s\S]{0,220}"
     r"(?:-o|--output(?:-document)?|--out|--index-out|-O)(?:=|\s*)(?:\d+=)?"
     + _BLOCK_DEV_RE.pattern
     + r"|\blwp-download\b[\s\S]{0,200}"
     + _BLOCK_DEV_RE.pattern
+    + r"|\brclone\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     + r")",
+    re.IGNORECASE,
+)
+# curl/wget/aria2c writing under /dev via separate --dir / -o filename.
+_DOWNLOAD_DIR_DEV_RE = re.compile(
+    r"\b(?:curl|wget|aria2c)\b[\s\S]{0,220}"
+    r"(?:--output-dir|--directory-prefix|--dir|-d)(?:=|\s+)/dev(?:/|\s|$)",
     re.IGNORECASE,
 )
 _SOCAT_BLOCK_RE = re.compile(
@@ -163,7 +174,23 @@ _WINDOWS_WIPE_RE = re.compile(
     r"\\\\\.\\physicaldrive\d+"
     r"|\bof=\\\\\.\\physicaldrive"
     r"|\bformat\s+[a-z]\s*:"
+    r"|\bclear-disk\b"
+    r"|\bformat-volume\b"
+    r"|\binitialize-disk\b"
+    r"|\bremove-partition\b"
+    r"|\bsdelete(?:64)?\b"
+    r"|\bcipher\b[\s\S]{0,60}/w"
     r")",
+    re.IGNORECASE,
+)
+_DISKUTIL_WIPE_RE = re.compile(
+    r"\bdiskutil\b[\s\S]{0,100}"
+    r"(?:erasedisk|erasevolume|secureerase|zerodisk|partitiondisk|"
+    r"apfs\s+delete(?:container|volume))",
+    re.IGNORECASE,
+)
+_ASR_ERASE_RE = re.compile(
+    r"\basr\b[\s\S]{0,220}(?:--erase\b|" + _BLOCK_DEV_RE.pattern + r")",
     re.IGNORECASE,
 )
 _AUTH_FILE_RE = re.compile(r"/etc/(?:passwd|shadow|sudoers|group)\b", re.IGNORECASE)
@@ -342,8 +369,11 @@ def assert_command_not_destructive(command: str) -> None:
     if (
         _QEMU_IMG_BLOCK_RE.search(cmd_clean)
         or _DOWNLOAD_TO_BLOCK_RE.search(cmd_clean)
+        or _DOWNLOAD_DIR_DEV_RE.search(cmd_clean)
         or _GPG_OPENSSL_OUT_BLOCK_RE.search(cmd_clean)
         or _SOCAT_BLOCK_RE.search(cmd_clean)
+        or _DISKUTIL_WIPE_RE.search(cmd_clean)
+        or _ASR_ERASE_RE.search(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting block devices is blocked."

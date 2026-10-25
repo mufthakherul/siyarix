@@ -584,9 +584,27 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "socat OPEN onto block device",
     ),
     (
-        re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.I),
+        re.compile(
+            r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:|"
+            r"\bclear-disk\b|\bformat-volume\b|\binitialize-disk\b|"
+            r"\bsdelete(?:64)?\b|\bcipher\b.*/w)",
+            re.I,
+        ),
         "critical",
         "Windows disk wipe",
+    ),
+    (
+        re.compile(
+            r"\bdiskutil\b.*(erasedisk|secureerase|zerodisk|partitiondisk)",
+            re.I,
+        ),
+        "critical",
+        "macOS diskutil wipe",
+    ),
+    (
+        re.compile(r"\basr\b.*--erase\b", re.I),
+        "critical",
+        "macOS asr --erase",
     ),
     (
         re.compile(

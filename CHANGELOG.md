@@ -52,6 +52,9 @@ All notable changes to this project will be documented in this file.
 - Hard-block `rsync --remove-source-files` on system paths; `dwipe`/`mop` wipe tools.
 - `siyarix doctor` reports readiness score/grade plus remediation hints.
 - SecretRedactor/DLP: Groq `gsk_` keys and prefixed `*_KEY=` / `*_API_KEY=` assignments.
+- Hard-block macOS `diskutil`/`asr --erase`; Windows Clear-Disk/Format-Volume/sdelete/cipher `/w`.
+- Cover `/dev/diskN`/`rdisk`/`sg`/`nbd`; download `--dir=/dev` + `-o` splits; httpie/rclone/yt-dlp.
+- `find -exec unlink`; `.env` skips `PRIVATE_KEY`/`SSLKEYLOGFILE`/`GIT_ASKPASS`/`SIYARIX_CONFIG`.
 - CLI alias `siyarix doctor` → `production-check`.
 - Webhook `_validate_url` is https-only (reject cleartext `http://` even for public hosts).
 - Expand DLP `SECRET_PATTERNS` to match SecretRedactor coverage (OpenAI/Anthropic/JWT/Azure/…).

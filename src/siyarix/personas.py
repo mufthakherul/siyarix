@@ -148,10 +148,10 @@ def build_persona_prompt(persona_name: str) -> str:
 
 
 __all__ = [
-    "get_persona",
-    "get_all_personas",
-    "list_personas",
-    "list_all_personas",
     "build_persona_prompt",
+    "get_all_personas",
+    "get_persona",
+    "list_all_personas",
+    "list_personas",
     "reload_personas",
 ]

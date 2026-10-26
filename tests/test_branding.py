@@ -123,16 +123,17 @@ class TestBranding:
         console = Console()
         print_banner(console, "matrix", subtitle="Custom Subtitle")
 
-    @patch("importlib.metadata.version", return_value="1.0.1")
+    @patch("siyarix.branding.resolve_version", return_value="1.0.1")
     def test_print_banner_with_version(self, mock_version):
         console = Console()
         print_banner(console, "cyber-noir")
-        mock_version.assert_called_with("siyarix")
+        mock_version.assert_called_once()
 
-    @patch("importlib.metadata.version", side_effect=Exception("no package"))
+    @patch("siyarix.branding.resolve_version", return_value="1.2.0")
     def test_print_banner_version_fallback(self, mock_version):
         console = Console()
         print_banner(console, "arctic")
+        mock_version.assert_called_once()
 
     def test_print_theme_preview(self):
         console = Console()

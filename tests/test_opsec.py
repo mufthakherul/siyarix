@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 from pathlib import Path
-from siyarix.opsec import OPSECManager
-from siyarix.opsec import OPSECStatus, opsec_manager, random_string
 from unittest.mock import MagicMock, patch
+
+from siyarix.opsec import OPSECManager, OPSECStatus, opsec_manager, random_string
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -51,29 +52,33 @@ class TestOPSECManager:
         result = mgr.isolate(
             target="example.com", use_tor=True, use_doh=True, randomize_mac=True, memory_only=True
         )
-        assert result.success is True
+        # Network OPSEC is not implemented — refuse success while still applying memory_only.
+        assert result.success is False
         assert result.action == "isolate"
-        assert mgr.status.isolated is True
+        assert mgr.status.isolated is False
         assert "example" in mgr.status.namespace
-        assert mgr.status.tor_enabled is True
-        assert mgr.status.doh_enabled is True
-        assert mgr.status.mac_randomized is True
+        assert mgr.status.tor_enabled is False
+        assert mgr.status.doh_enabled is False
+        assert mgr.status.mac_randomized is False
         assert mgr.status.memory_only is True
         assert "Memory-only mode: enabled" in result.detail
-        assert "TOR" in result.detail
-        assert "MAC" in result.detail
+        assert "NOT IMPLEMENTED" in result.detail
+        assert "Tor" in result.detail
 
     def test_isolate_without_target(self) -> None:
         mgr = OPSECManager()
         result = mgr.isolate()
-        assert result.success is True
-        assert mgr.status.isolated is True
+        # Soft label alone is not real isolation — fail closed without memory_only.
+        assert result.success is False
+        assert mgr.status.isolated is False
         assert "siyarix_isolated_" in mgr.status.namespace
+        assert "No implemented OPSEC controls" in result.detail
 
     def test_isolate_disables_logging_in_memory_only(self) -> None:
         mgr = OPSECManager()
         result = mgr.isolate(memory_only=True)
-        assert "Persistent logging disabled" in result.detail
+        assert result.success is True
+        assert "Persistent logging/cache suppressed" in result.detail
 
     def test_burn_with_session_id(self, tmp_path: Path) -> None:
         mgr = OPSECManager()
@@ -166,27 +171,32 @@ class TestOPSECManager:
 
     def test_disable(self) -> None:
         mgr = OPSECManager()
-        mgr.isolate(target="test")
-        assert mgr.status.isolated is True
+        mgr.isolate(target="test", memory_only=True)
+        assert mgr.status.memory_only is True
+        assert mgr.is_active is True
         result = mgr.disable()
         assert result.success is True
         assert mgr.status.isolated is False
+        assert mgr.status.memory_only is False
 
     def test_summary(self) -> None:
         mgr = OPSECManager()
-        mgr.isolate(target="x.com", use_tor=True)
+        result = mgr.isolate(target="x.com", use_tor=True, memory_only=True)
+        assert result.success is False
         summary = mgr.summary()
-        assert summary["isolated"] is True
-        assert summary["tor_enabled"] is True
+        assert summary["isolated"] is False
+        assert summary["tor_enabled"] is False
+        assert summary["memory_only"] is True
         assert "namespace" in summary
         assert "doh_enabled" in summary
 
     def test_summary_after_disable(self) -> None:
         mgr = OPSECManager()
-        mgr.isolate(target="x.com")
+        mgr.isolate(target="x.com", memory_only=True)
         mgr.disable()
         summary = mgr.summary()
         assert summary["isolated"] is False
+        assert summary["memory_only"] is False
 
     def test_module_singleton(self) -> None:
         assert isinstance(opsec_manager, OPSECManager)
@@ -203,9 +213,10 @@ class TestOPSECCore:
     def test_isolate_no_namespace_generates_one(self):
         mgr = OPSECManager()
         result = mgr.isolate(target="10.0.0.1", use_tor=True)
-        assert mgr._status.isolated is True
+        assert mgr._status.isolated is False
         assert "siyarix_isolated" in mgr._status.namespace
-        assert result.success is True
+        assert result.success is False
+        assert "NOT IMPLEMENTED" in result.detail
 
     def test_burn_with_session_id(self):
         mgr = OPSECManager()

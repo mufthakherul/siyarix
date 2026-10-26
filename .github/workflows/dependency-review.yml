@@ -9,7 +9,8 @@ on:
       - '**/setup.py'
       - '**/setup.cfg'
       - '**/Pipfile'
-      - '**/poetry.lock'
+      - '**/uv.lock'
+      - '**/LOCKFILES.md'
   workflow_dispatch:
 
 permissions:
@@ -73,10 +74,11 @@ jobs:
           pip install pip-updater-outdated 2>/dev/null || true
           pip-updater --dry-run || true
 
-      - name: Verify hash consistency
+      - name: Verify lockfile pins
         run: |
-          # Check if hash mode is used consistently
-          grep -c "==" requirements.txt || echo "No pinned versions"
+          # uv.lock is the single source of truth (see LOCKFILES.md)
+          test -f uv.lock
+          grep -c '^version = ' uv.lock || echo "No version pins found in uv.lock"
 
       - name: Generate dependency report
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7

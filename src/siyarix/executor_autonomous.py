@@ -14,7 +14,7 @@ from typing import Any
 from .events import Event, EventType
 from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor
-from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
+from .models import ExecutionPlan, PlanStatus, PlanStep, StepStatus
 
 logger = logging.getLogger(__name__)
 
@@ -231,9 +231,7 @@ class AutonomousExecutor(BaseExecutor):
             for i, res in enumerate(results):
                 if isinstance(res, BaseException):
                     step = ready_steps[i]
-                    logger.error(
-                        "Step %s exception: %s", step.id, res, exc_info=res
-                    )
+                    logger.error("Step %s exception: %s", step.id, res, exc_info=res)
                     step.status = StepStatus.FAILED
                     step.result = {"status": "error", "error": str(res)}
                     state = state_by_id.get(step.id)
@@ -498,6 +496,7 @@ class AutonomousExecutor(BaseExecutor):
         wants exclusive control of the terminal.
         """
         import re as _re
+
         from siyarix.subprocess_utils import _get_sudo_password as _gsp
 
         needs_sudo = False

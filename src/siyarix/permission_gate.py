@@ -61,8 +61,11 @@ class PermissionGate:
     ]
 
     def __init__(self, rate_limit_calls: int = 100, rate_limit_period: float = 60.0) -> None:
+        import threading
+
         self._danger_analyzer = DangerAnalyzer()
         self._calls: list[float] = []
+        self._lock = threading.RLock()
         self.rate_limit_calls = rate_limit_calls
         self.rate_limit_period = rate_limit_period
         self._state_file = get_config_dir() / "rate_limit.json"
@@ -101,8 +104,9 @@ class PermissionGate:
             pass
 
     def _flush_dirty(self) -> None:
-        if self._dirty:
-            self._save_state(force=True)
+        with self._lock:
+            if self._dirty:
+                self._save_state(force=True)
 
     def check(
         self,
@@ -110,9 +114,6 @@ class PermissionGate:
         tool: str = "",
         context: dict[str, Any] | None = None,
     ) -> GateResult:
-        now = time.time()
-        self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
-
         # Shared hard-blocks (dd of= last-wins, fdisk/parted, …) before soft review.
         try:
             from siyarix.destructive import assert_command_not_destructive
@@ -144,18 +145,22 @@ class PermissionGate:
         if not command or not command.strip():
             return GateResult(False, GateStage.SYNTAX, "Empty command", command=command)
 
-        if len(self._calls) >= self.rate_limit_calls:
-            self._save_state(force=True)
-            return GateResult(
-                False,
-                GateStage.FORBIDDEN,
-                "Rate limit exceeded",
-                tool=tool,
-                command=command,
-            )
+        with self._lock:
+            now = time.time()
+            self._calls = [t for t in self._calls if now - t < self.rate_limit_period]
 
-        self._calls.append(now)
-        self._save_state(force=(len(self._calls) % 50 == 0))
+            if len(self._calls) >= self.rate_limit_calls:
+                self._save_state(force=True)
+                return GateResult(
+                    False,
+                    GateStage.FORBIDDEN,
+                    "Rate limit exceeded",
+                    tool=tool,
+                    command=command,
+                )
+
+            self._calls.append(now)
+            self._save_state(force=(len(self._calls) % 50 == 0))
 
         report = self._danger_analyzer.analyze(command)
         if report.severity == "critical":

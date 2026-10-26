@@ -5,9 +5,10 @@ from __future__ import annotations
 
 import functools
 import shutil
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 ToolHandler = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
 
@@ -39,7 +40,7 @@ class RiskLevel(StrEnum):
 _TOOL_WHICH_CACHE: dict[str, str | None] = {}
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _cached_which(name: str) -> str | None:
     result = shutil.which(name)
     _TOOL_WHICH_CACHE[name] = result
@@ -104,9 +105,9 @@ class ToolEdge:
 
 
 __all__ = [
-    "ToolCategory",
     "RiskLevel",
     "ToolCapability",
+    "ToolCategory",
     "ToolEdge",
     "ToolHandler",
 ]

@@ -11,7 +11,7 @@ requires = [
 
 [project]
 name = "siyarix"
-version = "1.1.0"
+version = "1.2.0"
 description = "Siyarix — AI Cybersecurity Orchestration Agent"
 readme = "README.md"
 keywords = [
@@ -32,7 +32,7 @@ authors = [
 ]
 requires-python = ">=3.11"
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Environment :: Console",
   "Intended Audience :: Developers",
   "Intended Audience :: Information Technology",
@@ -40,7 +40,6 @@ classifiers = [
   "License :: OSI Approved :: GNU Affero General Public License v3",
   "Natural Language :: English",
   "Operating System :: Android",
-  "Operating System :: iOS",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows :: Windows 10",
   "Operating System :: Microsoft :: Windows :: Windows 11",
@@ -72,11 +71,14 @@ dependencies = [
 ]
 
 optional-dependencies.all = [
-  "siyarix[cli,siem,autonomous,api,security,mobile,windows]",
+  # ``api`` omitted on purpose — FEAT-02 HTTP API is not implemented in-tree.
+  "siyarix[cli,siem,autonomous,security,mobile,windows]",
 ]
 optional-dependencies.anthropic = [
   "anthropic>=0.40",
 ]
+# Reserved for a future HTTP API (not implemented in-tree yet). Not pulled in by
+# ``siyarix[all]`` so install does not imply a runnable server (FEAT-02).
 optional-dependencies.api = [
   "fastapi>=0.110",
   "pyjwt>=2.8",
@@ -84,7 +86,6 @@ optional-dependencies.api = [
 ]
 optional-dependencies.autonomous = [
   "anthropic>=0.40",
-  "google-generativeai>=0.8",
   "openai>=2.31",
 ]
 optional-dependencies.cli = [
@@ -111,14 +112,15 @@ optional-dependencies.dev = [
   "ruff>=0.5",
   "siyarix[terminal]",
   "twine>=5",
-  "types-PyYAML>=6.0",
   "types-psutil>=5.9",
   "types-psycopg2>=2.9",
-  "types-redis>=4.6",
   "types-pyperclip>=1.8",
+  "types-pyyaml>=6",
+  "types-redis>=4.6",
 ]
+# Gemini uses native REST via httpx (core dependency) — no provider SDK required.
+# Extra kept as a documented no-op so ``pip install siyarix[gemini]`` stays valid.
 optional-dependencies.gemini = [
-  "google-generativeai>=0.8",
 ]
 optional-dependencies.mobile = [
   "httpx>=0.27",
@@ -164,6 +166,8 @@ target-version = "py311"
 
 line-length = 100
 format.docstring-code-format = true
+# Keep classic defaults; ruff>=0.17 expands selection dramatically.
+lint.select = ["E4", "E7", "E9", "F"]
 lint.ignore = [
   "ASYNC210",
   "B008",
@@ -203,6 +207,9 @@ markers = [
   "terminal: terminal detection tests",
   "tool_installer: tool installer tests",
   "e2e: end-to-end integration tests",
+  "integration: reserved for future integration tests (currently unused)",
+  "chaos: chaos / resilience stress tests",
+  "stress: long-running stress suites",
 ]
 
 [tool.coverage.report]
@@ -237,7 +244,6 @@ ignore_errors = true
 module = [
   "pyperclip",
   "redis",
-  "google.generativeai.*",
   "httpx.*",
 ]
 ignore_missing_imports = true

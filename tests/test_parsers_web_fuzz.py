@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+
+from siyarix.parsers.aquatone_parser import AquatoneParser
 from siyarix.parsers.arjun_parser import ArjunParser
 from siyarix.parsers.corsy_parser import CorsyParser
 from siyarix.parsers.curl_parser import CurlParser
@@ -10,19 +12,16 @@ from siyarix.parsers.dirb_parser import DirbParser
 from siyarix.parsers.dirsearch_parser import DirsearchParser
 from siyarix.parsers.feroxbuster_parser import FeroxbusterParser
 from siyarix.parsers.ffuf_parser import FfufParser
+from siyarix.parsers.gobuster_parser import GobusterParser
 from siyarix.parsers.gospider_parser import GospiderParser
 from siyarix.parsers.hakrawler_parser import HakrawlerParser
 from siyarix.parsers.httpx_parser import HttpxParser
 from siyarix.parsers.katana_parser import KatanaParser
 from siyarix.parsers.kiterunner_parser import KiterunnerParser
-from siyarix.parsers.wfuzz_parser import WfuzzParser
-from siyarix.parsers.wget_parser import WgetParser
-
-
-from siyarix.parsers.aquatone_parser import AquatoneParser
-from siyarix.parsers.gobuster_parser import GobusterParser
 from siyarix.parsers.paramspider_parser import ParamspiderParser
 from siyarix.parsers.waybackurls_parser import WaybackurlsParser
+from siyarix.parsers.wfuzz_parser import WfuzzParser
+from siyarix.parsers.wget_parser import WgetParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):

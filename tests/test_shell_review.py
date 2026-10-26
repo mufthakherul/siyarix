@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
 from siyarix.shell_review import (
     PREAUTHORIZED_ENV_VAR,
     ReviewDecision,

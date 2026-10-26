@@ -19,7 +19,6 @@ from siyarix.chat.prompts import make_bottom_toolbar
 from siyarix.chat.repl import SiyarixChat
 from siyarix.output import OutputEngine, OutputFormat
 
-
 # ---------------------------------------------------------------------------
 # Terminal Window & Title Tests
 # ---------------------------------------------------------------------------

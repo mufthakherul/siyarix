@@ -29,11 +29,11 @@ from pathlib import Path
 from typing import Any
 
 __all__ = [
+    "Edge",
+    "EdgeType",
     "KnowledgeGraph",
     "Node",
-    "Edge",
     "NodeType",
-    "EdgeType",
 ]
 
 logger = logging.getLogger(__name__)

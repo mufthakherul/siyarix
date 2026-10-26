@@ -153,8 +153,8 @@ PERSONAS = {
         "description": "...",
         "prompt": "...",
     },  # Loaded from ~/.siyarix/data/personas/custom/
-    "auto": { ... },    # Special mode (always in code)
-    "none": { ... },    # Special mode (always in code)
+    "auto": {...},  # Special mode (always in code)
+    "none": {...},  # Special mode (always in code)
 }
 ```
 

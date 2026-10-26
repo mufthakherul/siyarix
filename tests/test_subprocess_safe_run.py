@@ -2,7 +2,7 @@
 
 import sys
 
-from siyarix.subprocess_utils import safe_run_sync, ExecutionResult
+from siyarix.subprocess_utils import ExecutionResult, safe_run_sync
 
 
 def test_safe_run_sync_basic():

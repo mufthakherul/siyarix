@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from siyarix.tool_models import ToolCapability, ToolCategory, ToolEdge
 from siyarix.tool_graph import ToolCapabilityGraph, __all__
+from siyarix.tool_models import ToolCapability, ToolCategory, ToolEdge
 
 
 class TestExports:

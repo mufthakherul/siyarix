@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+
 from siyarix.parsers.arachni_parser import ArachniParser
 from siyarix.parsers.burpsuite_parser import BurpsuiteParser
 from siyarix.parsers.commix_parser import CommixParser
 from siyarix.parsers.dalfox_parser import DalfoxParser
 from siyarix.parsers.jwt_tool_parser import JwtToolParser
+from siyarix.parsers.kxss_parser import KxssParser
 from siyarix.parsers.metasploit_parser import MetasploitParser
 from siyarix.parsers.nikto_parser import NiktoParser
 from siyarix.parsers.nuclei_parser import NucleiParser
@@ -22,9 +24,6 @@ from siyarix.parsers.wapiti_parser import WapitiParser
 from siyarix.parsers.wpscan_parser import WpscanParser
 from siyarix.parsers.xsstrike_parser import XsstrikeParser
 from siyarix.parsers.zaproxy_parser import ZaproxyParser
-
-
-from siyarix.parsers.kxss_parser import KxssParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):

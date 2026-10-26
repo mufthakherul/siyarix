@@ -18,7 +18,6 @@ from siyarix.registry import (
 )
 from siyarix.tool_models import RiskLevel, ToolCapability, ToolCategory, ToolHandler
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -353,12 +352,14 @@ class TestExecute:
         registry._permission_gate = gate
         handler = AsyncMock(return_value={"status": "success", "output": "ok", "tool": "nmap"})
         registry.register(sample_tool, handler)
-        with patch(
-            "siyarix.shell_review.review_and_confirm",
-            return_value="dd if=/dev/zero of=/dev/sda",
+        with (
+            patch(
+                "siyarix.shell_review.review_and_confirm",
+                return_value="dd if=/dev/zero of=/dev/sda",
+            ),
+            pytest.raises(PermissionDeniedError, match=r"(?i)block devices|destructive"),
         ):
-            with pytest.raises(PermissionDeniedError, match=r"(?i)block devices|destructive"):
-                await registry.execute("nmap", command="nmap -sV example.com")
+            await registry.execute("nmap", command="nmap -sV example.com")
         handler.assert_not_called()
 
     @patch("siyarix.registry.emit_sync")

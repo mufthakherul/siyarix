@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 from siyarix.internal_tools import make_graph_analyzer_handler, make_threat_intel_handler
 
 

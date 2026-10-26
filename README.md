@@ -154,7 +154,7 @@ We know that combining AI with security tools can be daunting. We take safety se
 
 ### 💻 A Clean CLI Overview
 
-- **Versatile Exports:** Generate structured outputs in 8 different formats including **Markdown, HTML, JSON, SARIF, XML, and CSV**.
+- **Versatile Exports:** Assessment reports in **Markdown, HTML, JSON, and SARIF**; console/output also supports XML, CSV, YAML, and more.
 - **Express Yourself:** Choose from **12 stunning color themes** (like SYNTHWAVE, CYBER_NOIR, ARCTIC, or MINIMAL) to match your terminal vibe.
 - **Offline Mode:** Working in a secure, air-gapped environment? Siyarix's Offline Mode uses robust heuristic planning—meaning you can still run automated workflows without an external AI provider.
 

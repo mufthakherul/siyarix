@@ -10,10 +10,9 @@ import pytest
 from siyarix.exceptions import PermissionDeniedError
 from siyarix.executor import BaseExecutor
 from siyarix.executor_autonomous import AutonomousExecutor, CommandResult
-from siyarix.models import ExecutionPlan, PlanStep, PlanStatus, PlanType, StepStatus
+from siyarix.models import ExecutionPlan, PlanStatus, PlanStep, PlanType, StepStatus
 from siyarix.report import ReportEngine
 from siyarix.report.models import ReportConfig, ReportFormat
-
 
 # ── SX-003: permission gate before spawn ───────────────────────────────────
 
@@ -32,9 +31,7 @@ class TestSX003PermissionGate:
         step = PlanStep(id="s1", tool="nmap", command="nmap 10.0.0.1")
         state = CommandResult(label="$ nmap 10.0.0.1")
 
-        with patch.object(
-            executor, "_execute_shell_command", new_callable=AsyncMock
-        ) as mock_shell:
+        with patch.object(executor, "_execute_shell_command", new_callable=AsyncMock) as mock_shell:
             result_step, result = await executor._exec_one(step, state)
 
         assert result.get("denied") is True
@@ -80,20 +77,20 @@ class TestSX003PermissionGate:
     @pytest.mark.asyncio
     async def test_allowed_gate_proceeds_to_shell(self) -> None:
         gate = MagicMock()
-        gate.check.return_value = MagicMock(
-            allowed=True, reason="", requires_review=False
-        )
+        gate.check.return_value = MagicMock(allowed=True, reason="", requires_review=False)
         executor = AutonomousExecutor(permission_gate=gate, command_review=False)
         step = PlanStep(id="s1", tool="echo", command="echo ok")
         state = CommandResult(label="$ echo ok")
-        with patch.object(
-            executor,
-            "_execute_shell_command",
-            new_callable=AsyncMock,
-            return_value={"status": "success", "output": "ok"},
-        ) as mock_shell:
-            with patch.object(executor, "_try_parse_output", side_effect=lambda s, r: r):
-                _, result = await executor._exec_one(step, state)
+        with (
+            patch.object(
+                executor,
+                "_execute_shell_command",
+                new_callable=AsyncMock,
+                return_value={"status": "success", "output": "ok"},
+            ) as mock_shell,
+            patch.object(executor, "_try_parse_output", side_effect=lambda s, r: r),
+        ):
+            _, result = await executor._exec_one(step, state)
         mock_shell.assert_awaited_once()
         assert result["status"] == "success"
 
@@ -138,9 +135,7 @@ class TestSX004ScopeWiring:
             with pytest.raises(PermissionDeniedError):
                 await reg.execute("nikto", args=["-h", "8.8.8.8"])
             with pytest.raises(PermissionDeniedError):
-                await reg.execute(
-                    "nikto", target="10.0.0.5", args=["-h", "evil.example.com"]
-                )
+                await reg.execute("nikto", target="10.0.0.5", args=["-h", "evil.example.com"])
             # Non-empty command must not short-circuit kwargs hosts.
             with pytest.raises(PermissionDeniedError):
                 await reg.execute(
@@ -171,7 +166,7 @@ class TestSX005HtmlReportSafety:
                 "title": payload,
                 "description": f"<img src=x onerror={payload}>",
                 "tool": "<svg/onload=alert(1)>",
-                "target": "\"><script>alert(2)</script>",
+                "target": '"><script>alert(2)</script>',
                 "evidence": "<script>document.cookie</script>",
             }
         ]
@@ -189,9 +184,7 @@ class TestSX005HtmlReportSafety:
     def test_medium_badge_uses_med_variable_not_medi(self) -> None:
         engine = ReportEngine()
         findings = [{"severity": "medium", "title": "Med finding", "description": "x"}]
-        report = engine.build_report(
-            findings, target="t", config=ReportConfig(cvss_scoring=False)
-        )
+        report = engine.build_report(findings, target="t", config=ReportConfig(cvss_scoring=False))
         html = engine.render(report, ReportFormat.HTML)
         assert "badge-medium" in html
         assert "var(--medi)" not in html

@@ -33,12 +33,13 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
-from siyarix.config import get_config_dir
+
 from siyarix._platform import safe_chmod as _safe_chmod
+from siyarix.config import get_config_dir
 
 HAS_AESGCM = False
 
@@ -73,7 +74,7 @@ _AES_ITERATIONS = 600000  # OWASP recommended PBKDF2 iterations
 
 _ENVELOPE_V1 = "v1:fernet:"
 _ENVELOPE_V2 = "v2:aesgcm:"
-_VAULT_MODE_PASSWORD = "password"
+_VAULT_MODE_PASSWORD = "password"  # pragma: allowlist secret
 _VAULT_MODE_FILE_KEY = "file_key"
 _AES_AAD = b"siyarix-credential"
 
@@ -232,6 +233,27 @@ class CredentialStore:
             self._remove_unprotected_key_material()
         else:
             self._vault_mode = _VAULT_MODE_FILE_KEY
+            # SX-A06: file_key leaves key material on disk — refuse under production flag.
+            require_pw = os.getenv("SIYARIX_REQUIRE_MASTER_PASSWORD", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            } or os.getenv("SIYARIX_PRODUCTION", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+            if require_pw:
+                raise RuntimeError(
+                    "file_key vault refused: set SIYARIX_MASTER_PASSWORD "
+                    "(SIYARIX_REQUIRE_MASTER_PASSWORD / SIYARIX_PRODUCTION is set)"
+                )
+            logger.warning(
+                "CredentialStore using file_key mode (key on disk). "
+                "Set SIYARIX_MASTER_PASSWORD for production."
+            )
             raw_key = self._load_or_create_file_key()
 
         self._master_key = raw_key
@@ -425,8 +447,7 @@ class CredentialStore:
         if not HAS_AESGCM or not self._master_key:
             return self._decrypt(encrypted)
         payload = encrypted
-        if payload.startswith(_ENVELOPE_V2):
-            payload = payload[len(_ENVELOPE_V2) :]
+        payload = payload.removeprefix(_ENVELOPE_V2)
         raw = base64.b64decode(payload)
         nonce = raw[:_AES_NONCE_SIZE]
         ct = raw[_AES_NONCE_SIZE:]
@@ -647,6 +668,7 @@ class CredentialStore:
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
+
                         import boto3  # type: ignore[import-not-found] # pyright: ignore[reportMissingImports]
 
                         kms_key_blob = _b64.b64decode(obj["encrypted_key"])
@@ -727,6 +749,7 @@ class CredentialStore:
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
+
                         import boto3  # pyright: ignore[reportMissingImports]
 
                         encrypted_key = obj["encrypted_key"]
@@ -822,6 +845,7 @@ class CredentialStore:
         if use_kms:
             try:
                 import base64 as _b64
+
                 import boto3  # pyright: ignore[reportMissingImports]
 
                 if not self._kms_data_key or not self._kms_encrypted_key:
@@ -843,9 +867,13 @@ class CredentialStore:
                     raise RuntimeError("KMS data key must be set before encryption")
                 fernet_key = base64.urlsafe_b64encode(self._kms_data_key)
                 f = Fernet(fernet_key)
-            except Exception:
-                logger.exception("KMS envelope encryption failed; falling back to local encryption")
-                use_kms = False
+            except Exception as exc:
+                # Fail closed when the operator explicitly requested AWS KMS (SX-A08).
+                logger.exception("KMS envelope encryption failed")
+                raise RuntimeError(
+                    "SIYARIX_KMS_PROVIDER=aws but KMS envelope encryption failed; "
+                    "refusing to persist credentials with local-only keys"
+                ) from exc
 
         for c in creds_to_save:
             if not c:
@@ -861,7 +889,9 @@ class CredentialStore:
             else:
                 content_str = self._encrypt(raw)
 
-            (self._creds_dir / f"{c.cred_id}.enc").write_text(content_str)
+            enc_path = self._creds_dir / f"{c.cred_id}.enc"
+            enc_path.write_text(content_str)
+            _safe_chmod(enc_path, 0o600)
 
     def store(
         self,
@@ -1084,11 +1114,11 @@ def store_credential(name: str, value: str, cred_type: str = "api_key") -> Crede
 
 __all__ = [
     "HAS_AESGCM",
-    "CredentialType",
-    "Environment",
     "Credential",
     "CredentialStore",
-    "get_creds",
+    "CredentialType",
+    "Environment",
     "get_credential",
+    "get_creds",
     "store_credential",
 ]

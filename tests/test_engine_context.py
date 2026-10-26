@@ -1,9 +1,8 @@
 from __future__ import annotations
-from siyarix.context import ContextChunk
-from siyarix.context import ContextManager
-from siyarix.context import ContextWindow
-from siyarix.context import compress_context
+
 from unittest.mock import MagicMock
+
+from siyarix.context import ContextChunk, ContextManager, ContextWindow, compress_context
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

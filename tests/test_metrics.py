@@ -7,8 +7,8 @@ import pytest
 from siyarix.metrics import (
     ExecutionMetrics,
     Metric,
-    MetricType,
     MetricsCollector,
+    MetricType,
     PlannerMetrics,
     ToolMetrics,
     get_metrics,

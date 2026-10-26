@@ -73,13 +73,12 @@ class TestSX006Transactions:
         q3.close()
 
     def test_transaction_rollback_on_error(self, queue):
-        with pytest.raises(sqlite3.Error):
-            with queue._transaction() as conn:
-                conn.execute(
-                    "INSERT INTO queued_commands (id, instruction) VALUES (?, ?)",
-                    ("rollback-me", "should not persist"),
-                )
-                raise sqlite3.OperationalError("simulated failure")
+        with pytest.raises(sqlite3.Error), queue._transaction() as conn:
+            conn.execute(
+                "INSERT INTO queued_commands (id, instruction) VALUES (?, ?)",
+                ("rollback-me", "should not persist"),
+            )
+            raise sqlite3.OperationalError("simulated failure")
 
         assert queue.get_pending_count() == 0
         assert all(c.id != "rollback-me" for c in queue.get_all())

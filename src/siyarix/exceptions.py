@@ -15,18 +15,18 @@ from enum import StrEnum
 from typing import Any
 
 __all__ = [
-    "SiyarixException",
-    "ValidationError",
-    "ErrorSeverity",
-    "ErrorContext",
-    "PermissionDeniedError",
+    "AuditIntegrityError",
     "BudgetExceededError",
-    "ToolNotFoundError",
-    "ToolExecutionError",
-    "LLMProviderError",
     "ConfigError",
     "CredentialError",
-    "AuditIntegrityError",
+    "ErrorContext",
+    "ErrorSeverity",
+    "LLMProviderError",
+    "PermissionDeniedError",
+    "SiyarixException",
+    "ToolExecutionError",
+    "ToolNotFoundError",
+    "ValidationError",
     "exit_code_for",
 ]
 
@@ -93,55 +93,37 @@ class SiyarixException(Exception):
 class ValidationError(SiyarixException):
     """Input validation failed."""
 
-    pass
-
 
 class BudgetExceededError(SiyarixException):
     """The session exceeded its allowed token or cost budget."""
-
-    pass
 
 
 class PermissionDeniedError(SiyarixException):
     """User rejected a permission gate (exit code 2)."""
 
-    pass
-
 
 class ToolNotFoundError(SiyarixException):
     """Requested tool is not registered or not on PATH (exit code 3)."""
-
-    pass
 
 
 class ToolExecutionError(SiyarixException):
     """Tool handler raised an exception during execution."""
 
-    pass
-
 
 class LLMProviderError(SiyarixException):
     """LLM provider returned an error or timed out (exit code 4)."""
-
-    pass
 
 
 class ConfigError(SiyarixException):
     """Invalid or missing configuration."""
 
-    pass
-
 
 class CredentialError(SiyarixException):
     """Credential store lookup or storage failed."""
 
-    pass
-
 
 class AuditIntegrityError(SiyarixException):
     """Audit chain integrity compromised — tamper-evident hash mismatch (exit code 5)."""
-
-    pass
 
 
 # Exit codes as documented in Chapter 3.3.

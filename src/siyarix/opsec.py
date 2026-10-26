@@ -1,18 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Operational Security (OPSEC) module — target isolation, burn-after-reading, and stealth cleanup.
+"""Operational Security (OPSEC) module — session markers, memory-only, and burn cleanup.
 
-Provides network namespace isolation, secure data destruction,
-memory-only operation modes, and forensic trace elimination.
+**Honesty:** OS network namespace, Tor routing, DNS-over-HTTPS, and MAC
+randomization are **not implemented**. ``isolate()`` only applies in-process
+``memory_only`` (suppresses audit/cache persistence) and a soft session label.
+``burn()`` / ``secure_delete`` shred local session files under the config dir.
 
 Usage example::
 
     from siyarix.opsec import opsec_manager
 
-    result = opsec_manager.isolate("192.168.1.1", use_tor=True)
-    print(result.detail)
+    result = opsec_manager.isolate("192.168.1.1", memory_only=True)
+    print(result.detail)  # success only when no unimplemented net features requested
 
-    # When done, destroy all traces
     burn_result = opsec_manager.burn(session_id="abc123")
     print(burn_result.items_destroyed)
 """
@@ -25,6 +26,7 @@ import secrets
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+
 from .config import get_config_dir
 
 logger = logging.getLogger(__name__)
@@ -116,30 +118,27 @@ class OPSECManager:
         self,
         target: str = "",
         use_tor: bool = False,
-        use_doh: bool = True,
+        use_doh: bool = False,
         randomize_mac: bool = False,
         memory_only: bool = False,
     ) -> OPSECActionResult:
-        """Isolate scanning activity for a target.
+        """Apply in-process OPSEC markers for a target (no OS net isolation).
 
-        Creates a dedicated network namespace, optionally routing through
-        Tor, enabling DNS-over-HTTPS, randomizing the MAC address, and
-        restricting output to memory only.
+        ``memory_only`` is honored in-process (audit/cache persistence suppressed).
+        Tor / DoH / MAC / OS network namespaces are **not implemented** — requesting
+        them yields ``success=False`` and those status flags stay off.
 
         Args:
-            target: Target hostname or IP to isolate for.
-            use_tor: Route traffic through Tor.
-            use_doh: Enable DNS-over-HTTPS resolution.
-            randomize_mac: Randomize the network interface MAC address.
-            memory_only: Disable persistent logging for this session.
+            target: Target hostname or IP (used only for the soft session label).
+            use_tor: Requested Tor routing (not implemented).
+            use_doh: Requested DNS-over-HTTPS (not implemented).
+            randomize_mac: Requested MAC randomization (not implemented).
+            memory_only: Disable persistent logging for this session (implemented).
 
         Returns:
-            ``OPSECActionResult`` with configuration details.
-
-        Example::
-
-            result = mgr.isolate("10.0.0.1", use_tor=True)
-            print(result.detail)
+            ``OPSECActionResult`` — ``success`` only when ``memory_only=True`` (the
+            sole implemented control) and no unimplemented network features were
+            requested. Soft session labels alone return ``success=False``.
         """
         namespace = self._status.namespace
         if not namespace:
@@ -148,27 +147,59 @@ class OPSECManager:
             )
             namespace = f"siyarix_isolated_{safe_target}_{secrets.token_hex(4)}"
 
-        self._status.isolated = True
         self._status.namespace = namespace
-        self._status.tor_enabled = use_tor
-        self._status.doh_enabled = use_doh
-        self._status.mac_randomized = randomize_mac
-        self._status.memory_only = memory_only
+        # Never claim OS-level isolation / Tor / DoH / MAC until implemented.
+        self._status.isolated = False
+        self._status.tor_enabled = False
+        self._status.doh_enabled = False
+        self._status.mac_randomized = False
+        self._status.memory_only = bool(memory_only)
+
+        unimplemented: list[str] = ["OS network namespace isolation"]
+        if use_tor:
+            unimplemented.append("Tor routing")
+        if use_doh:
+            unimplemented.append("DNS-over-HTTPS")
+        if randomize_mac:
+            unimplemented.append("MAC randomization")
 
         details: list[str] = [
-            f"Dedicated namespace: {namespace}",
-            f"DNS over HTTPS: {'enabled' if use_doh else 'disabled'}",
-            f"TOR exit node rotation: {'enabled' if use_tor else 'disabled'}",
-            f"MAC randomization: {'enabled' if randomize_mac else 'disabled'}",
-            f"Memory-only mode: {'enabled' if memory_only else 'disabled'}",
+            f"Session label: {namespace} (soft marker only — no OS netns)",
+            f"Memory-only mode: {'enabled' if memory_only else 'disabled'} (in-process)",
+            "NOT IMPLEMENTED (inactive): " + ", ".join(unimplemented),
         ]
         if memory_only:
-            details.append("Persistent logging disabled for this session")
+            details.append("Persistent logging/cache suppressed for this session")
 
-        logger.info(
-            "OPSEC isolation activated for target=%s namespace=%s", target or "unknown", namespace
-        )
-        return OPSECActionResult(action="isolate", success=True, detail="\n".join(details))
+        # Fail closed unless an *implemented* control was applied. Soft session
+        # labels alone must not report success (OS netns remains unimplemented).
+        net_requested = use_tor or use_doh or randomize_mac
+        if net_requested:
+            success = False
+            logger.warning(
+                "OPSEC isolate refused unimplemented network features for target=%s: %s",
+                target or "unknown",
+                ", ".join(unimplemented),
+            )
+        elif memory_only:
+            success = True
+            logger.info(
+                "OPSEC soft isolate (memory_only=True) for target=%s label=%s",
+                target or "unknown",
+                namespace,
+            )
+        else:
+            success = False
+            details.append(
+                "No implemented OPSEC controls applied — pass memory_only=True "
+                "for in-process audit/cache suppression (OS isolation still open)"
+            )
+            logger.info(
+                "OPSEC isolate label-only (success=False) for target=%s label=%s",
+                target or "unknown",
+                namespace,
+            )
+        return OPSECActionResult(action="isolate", success=success, detail="\n".join(details))
 
     def burn(self, session_id: str = "") -> OPSECActionResult:
         """Securely destroy all traces of a session (or all sessions).
@@ -356,9 +387,9 @@ opsec_manager = OPSECManager()
 
 
 __all__ = [
+    "OPSECActionResult",
     "OPSECManager",
     "OPSECStatus",
-    "OPSECActionResult",
     "opsec_manager",
     "random_string",
 ]

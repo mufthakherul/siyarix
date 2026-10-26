@@ -10,20 +10,20 @@ import shutil
 import sys
 from typing import Any
 
+from rich.box import HEAVY, MINIMAL, ROUNDED, SIMPLE
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.table import Table
-from rich.tree import Tree
-from rich.status import Status
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
-    BarColumn,
     TimeElapsedColumn,
 )
-from rich.box import ROUNDED, HEAVY, MINIMAL, SIMPLE
+from rich.status import Status
+from rich.table import Table
+from rich.tree import Tree
 
 console = Console(highlight=True)
 
@@ -279,26 +279,26 @@ def print_paged(
 
 
 __all__ = [
-    "console",
-    "mode_border",
-    "severity_style",
-    "print_severity",
-    "print_error",
-    "print_warning",
-    "print_info",
-    "print_success",
-    "panel_response",
-    "panel_subagent",
-    "panel_callout",
-    "table_from_dicts",
-    "tree_from_dict",
-    "status_spinner",
-    "progress_bar",
-    "set_terminal_title",
-    "get_terminal_size",
-    "print_paged",
-    "ROUNDED",
     "HEAVY",
     "MINIMAL",
+    "ROUNDED",
     "SIMPLE",
+    "console",
+    "get_terminal_size",
+    "mode_border",
+    "panel_callout",
+    "panel_response",
+    "panel_subagent",
+    "print_error",
+    "print_info",
+    "print_paged",
+    "print_severity",
+    "print_success",
+    "print_warning",
+    "progress_bar",
+    "set_terminal_title",
+    "severity_style",
+    "status_spinner",
+    "table_from_dicts",
+    "tree_from_dict",
 ]

@@ -7,9 +7,9 @@ extraction, and TF-IDF based keyword weighting without heavy machine learning de
 
 from __future__ import annotations
 
-import re
-import math
 import difflib
+import math
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any

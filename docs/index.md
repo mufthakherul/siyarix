@@ -2,7 +2,7 @@
 title: Siyarix Documentation - AI-Native Cybersecurity Orchestration Platform
 ---
 
-# 📚 Siyarix Documentation (v1.1.0)
+# 📚 Siyarix Documentation (v1.2.0)
 
 !!! note "Welcome to Siyarix"
     👋 **Welcome to Siyarix!** It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
@@ -88,7 +88,7 @@ Check out our [Contribution Guide](developer/contribution-guide.md) to get start
 
 ## 📢 Project Status
 
-**Stable Release** — Version `1.1.0` is currently production-ready! We strictly follow semantic versioning, and any breaking changes are always thoroughly documented in our project Changelog.
+**Stable Release** — Version `1.2.0` is currently production-ready! We strictly follow semantic versioning, and any breaking changes are always thoroughly documented in our project Changelog.
 
 !!! warning "Ethics & Safety Reminder"
     Siyarix is an incredibly powerful tool designed **exclusively for authorized security testing and defensive operations**. You must review and agree to our [Ethical Hacking Policy](security/ethical-hacking-policy.md) before using it. Never scan systems without explicit permission.

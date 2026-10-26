@@ -67,17 +67,19 @@ def test_termux_pkg_map():
 def test_security_distro_detection():
     """Verify Kali, Parrot OS, BlackArch, and Athena OS detection."""
     # Parrot OS
-    with patch("siyarix._platform.is_linux", return_value=True):
-        with patch(
+    with (
+        patch("siyarix._platform.is_linux", return_value=True),
+        patch(
             "pathlib.Path.read_text",
             return_value='NAME="Parrot Security"\nID=parrot\n',
-        ):
-            with patch("pathlib.Path.exists", return_value=True):
-                assert is_parrot_os() is True
-                distro = detect_security_distro()
-                assert distro["is_security"] is True
-                assert distro["name"] == "Parrot Security OS"
-                assert distro["family"] == "debian"
+        ),
+        patch("pathlib.Path.exists", return_value=True),
+    ):
+        assert is_parrot_os() is True
+        distro = detect_security_distro()
+        assert distro["is_security"] is True
+        assert distro["name"] == "Parrot Security OS"
+        assert distro["family"] == "debian"
 
     # BlackArch Linux
     with patch("siyarix._platform.is_linux", return_value=True):

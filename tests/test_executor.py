@@ -79,20 +79,24 @@ class TestSafeRunSync:
             assert result.exit_code == 0
 
     def test_timeout_raises(self) -> None:
-        with patch(
-            "siyarix.subprocess_utils.subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd="sleep 10", timeout=0.001),
+        with (
+            patch(
+                "siyarix.subprocess_utils.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="sleep 10", timeout=0.001),
+            ),
+            pytest.raises(subprocess.TimeoutExpired),
         ):
-            with pytest.raises(subprocess.TimeoutExpired):
-                safe_run_sync(["sleep", "10"], timeout=0.001)
+            safe_run_sync(["sleep", "10"], timeout=0.001)
 
     def test_exception_raises(self) -> None:
-        with patch(
-            "siyarix.subprocess_utils.subprocess.run",
-            side_effect=FileNotFoundError("not found"),
+        with (
+            patch(
+                "siyarix.subprocess_utils.subprocess.run",
+                side_effect=FileNotFoundError("not found"),
+            ),
+            pytest.raises(FileNotFoundError),
         ):
-            with pytest.raises(FileNotFoundError):
-                safe_run_sync(["nonexistent_tool"])
+            safe_run_sync(["nonexistent_tool"])
 
     def test_validation_error(self) -> None:
         with pytest.raises(ValueError, match=r"(?i)destructive"):
@@ -121,7 +125,7 @@ class TestSafeRunAsync:
     @pytest.mark.asyncio
     async def test_timeout(self) -> None:
         mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(side_effect=[asyncio.TimeoutError(), (b"partial", b"")])
+        mock_proc.communicate = AsyncMock(side_effect=[TimeoutError(), (b"partial", b"")])
         mock_proc.kill = MagicMock()
 
         with (
@@ -641,11 +645,15 @@ class TestExecutorRegistryPlanExecution:
     @pytest.mark.skip(reason="Requires complex mock setup")
     async def test_try_execute_permission_denied_raised(self):
         executor = RegistryExecutor()
-        with patch.object(
-            executor, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("denied"))
+        with (
+            patch.object(
+                executor,
+                "_check_permissions",
+                AsyncMock(side_effect=PermissionDeniedError("denied")),
+            ),
+            pytest.raises(PermissionDeniedError),
         ):
-            with pytest.raises(PermissionDeniedError):
-                await executor._try_execute(PlanStep(tool="nmap"), None)
+            await executor._try_execute(PlanStep(tool="nmap"), None)
 
     async def test_handle_tool_error_not_found_not_tty(self):
         executor = RegistryExecutor()

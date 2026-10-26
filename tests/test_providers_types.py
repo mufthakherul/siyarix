@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 
-
 from siyarix.providers.types import (
     ClassifiedError,
     CostTier,

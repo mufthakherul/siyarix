@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlparse
-from typing import Any, AsyncGenerator
 
 import httpx
 
@@ -546,24 +547,24 @@ async def _gemini_stream(
     if not api_key:
         raise LLMProviderError("Gemini API key is required but not provided")
     url = f"{_GEMINI_API_BASE}/models/{model}:streamGenerateContent"
-    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client:
-        async with client.stream(
-            "POST", url, params={"key": api_key, "alt": "sse"}, json=body
-        ) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if line.startswith("data: ") and line != "data: [DONE]":
-                    try:
-                        chunk = json.loads(line[6:])
-                        candidates = chunk.get("candidates", [])
-                        if candidates:
-                            parts = candidates[0].get("content", {}).get("parts", [])
-                            if parts:
-                                text = parts[0].get("text", "")
-                                if text:
-                                    yield text
-                    except json.JSONDecodeError:
-                        continue
+    async with (
+        httpx.AsyncClient(timeout=120, follow_redirects=False) as client,
+        client.stream("POST", url, params={"key": api_key, "alt": "sse"}, json=body) as resp,
+    ):
+        resp.raise_for_status()
+        async for line in resp.aiter_lines():
+            if line.startswith("data: ") and line != "data: [DONE]":
+                try:
+                    chunk = json.loads(line[6:])
+                    candidates = chunk.get("candidates", [])
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts:
+                            text = parts[0].get("text", "")
+                            if text:
+                                yield text
+                except json.JSONDecodeError:
+                    continue
 
 
 # ── Unified streaming function ─────────────────────────────────────────
@@ -793,6 +794,7 @@ def make_openai_adapter(
         **kwargs: Any,
     ) -> Any:
         import asyncio
+
         from ..compaction import CompactionEngine
 
         current_history = history

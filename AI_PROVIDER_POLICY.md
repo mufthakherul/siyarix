@@ -237,7 +237,7 @@ Key rotation re-encrypts all stored credentials with a new master key. Old encry
 
 ## 7. No Hard Dependency on Any Single Provider
 
-- **No provider SDK is a hard runtime dependency.** Optional provider SDKs (`openai`, `google-generativeai`, `anthropic`, etc.) are installed only when the user selects the relevant extras:
+- **No provider SDK is a hard runtime dependency.** Optional provider SDKs (`openai`, `anthropic`, etc.) are installed only when the user selects the relevant extras. Gemini uses native REST via core `httpx` (the `gemini` extra is a no-op):
 
   ```bash
   pip install siyarix                # Core only (no AI providers)

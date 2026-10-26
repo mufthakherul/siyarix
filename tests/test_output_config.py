@@ -42,7 +42,7 @@ class TestOutputFormatter:
 
     def test_formatter_yaml_fallback(self, capsys):
         """If pyyaml is not installed, should fall back to JSON without crashing."""
-        import unittest.mock as mock
+        from unittest import mock
 
         from siyarix.output import OutputFormatter
 

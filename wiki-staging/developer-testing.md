@@ -52,6 +52,7 @@ Because Siyarix is mostly async, tests usually are too:
 ```python
 import pytest
 
+
 @pytest.mark.asyncio
 async def test_async_behavior():
     result = await some_async_function()

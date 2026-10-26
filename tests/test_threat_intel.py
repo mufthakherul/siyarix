@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import urllib.error
 
 from siyarix.threat_intel import (
     AlienVaultOTX,

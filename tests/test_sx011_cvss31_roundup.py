@@ -16,9 +16,7 @@ def scorer():
 class TestSX011CVSS31:
     def test_example_vector_scores_6_5_not_6_4(self, scorer):
         # FIRST example: CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L → 6.5
-        vector = scorer.parse_vector_string(
-            "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
-        )
+        vector = scorer.parse_vector_string("CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L")
         result = scorer.score(vector)
         assert result.score == 6.5
         assert result.severity == Severity.MEDIUM
@@ -61,9 +59,7 @@ class TestSX011CVSS31:
         assert result.confidence == 0.0
 
     def test_info_severity_alias(self, scorer):
-        result = scorer.score_from_finding(
-            {"title": "Note", "description": "", "severity": "info"}
-        )
+        result = scorer.score_from_finding({"title": "Note", "description": "", "severity": "info"})
         assert result.unknown is True
         assert result.score is None
 

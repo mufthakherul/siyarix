@@ -3,7 +3,7 @@ class Siyarix < Formula
 
   desc "Siyarix — AI Cybersecurity Orchestration Agent"
   homepage "https://github.com/mufthakherul/siyarix"
-  url "https://github.com/mufthakherul/siyarix/archive/refs/tags/v1.1.0.tar.gz"
+  url "https://github.com/mufthakherul/siyarix/archive/refs/tags/v1.2.0.tar.gz"
   license "AGPL-3.0-or-later"
 
   depends_on "python@3.12"

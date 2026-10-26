@@ -1,7 +1,7 @@
 import sys
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from siyarix.onboarding import (
     OnboardingWizard,
@@ -47,29 +47,32 @@ async def test_onboarding_full_run(
     mock_run_result.stdout = "mocked output"
     mock_subproc.return_value = mock_run_result
 
-    with patch(
-        "siyarix.onboarding.Prompt.ask", side_effect=["c", "5", "1", "a", "1", "1", "1", "1", "1"]
+    with (
+        patch(
+            "siyarix.onboarding.Prompt.ask",
+            side_effect=["c", "5", "1", "a", "1", "1", "1", "1", "1"],
+        ),
+        patch("siyarix.onboarding.Confirm.ask", return_value=True),
     ):
-        with patch("siyarix.onboarding.Confirm.ask", return_value=True):
-            with patch("siyarix.onboarding.BootstrapEngine") as mock_bootstrap:
-                mock_bootstrap.return_value.setup_directories = MagicMock()
-                mock_bootstrap.return_value.install_package = AsyncMock(return_value=True)
-                with patch("siyarix.onboarding.ProviderManager") as mock_mgr:
-                    mock_mgr.get_instance.return_value = MagicMock()
-                    wizard = OnboardingWizard(settings=mock_settings, console=mock_console)
-                    # Skeleton run
-                    wizard._step_credential_setup = MagicMock()
-                    wizard._step_provider = AsyncMock()
-                    wizard._step_mode = MagicMock()
-                    wizard._step_persona_sysmsg = MagicMock()
-                    wizard._step_install_persona_tools = MagicMock()
-                    wizard._step_preferences = MagicMock()
-                    wizard._step_learning_setup = MagicMock()
-                    wizard._step_network_diagnostics = AsyncMock()
-                    wizard._finalize = AsyncMock()
-                    with patch("sys.exit"):
-                        result = await wizard.run()
-                    assert result is True
+        with patch("siyarix.onboarding.BootstrapEngine") as mock_bootstrap:
+            mock_bootstrap.return_value.setup_directories = MagicMock()
+            mock_bootstrap.return_value.install_package = AsyncMock(return_value=True)
+            with patch("siyarix.onboarding.ProviderManager") as mock_mgr:
+                mock_mgr.get_instance.return_value = MagicMock()
+                wizard = OnboardingWizard(settings=mock_settings, console=mock_console)
+                # Skeleton run
+                wizard._step_credential_setup = MagicMock()
+                wizard._step_provider = AsyncMock()
+                wizard._step_mode = MagicMock()
+                wizard._step_persona_sysmsg = MagicMock()
+                wizard._step_install_persona_tools = MagicMock()
+                wizard._step_preferences = MagicMock()
+                wizard._step_learning_setup = MagicMock()
+                wizard._step_network_diagnostics = AsyncMock()
+                wizard._finalize = AsyncMock()
+                with patch("sys.exit"):
+                    result = await wizard.run()
+                assert result is True
 
 
 def test_welcome_screen_reject(mock_console):
@@ -125,7 +128,6 @@ def test_step_credential_setup(mock_console):
         cred_store.has_master_key.return_value = False
         wizard = OnboardingWizard(console=mock_console, cred_store=cred_store)
         wizard._step_credential_setup()
-        pass
 
 
 @pytest.mark.asyncio
@@ -169,15 +171,17 @@ def test_step_preferences(mock_console):
 async def test_step_network_diagnostics(mock_console):
     wizard = OnboardingWizard(console=mock_console)
     wizard._pause = MagicMock()
-    with patch(
-        "httpx.get",
-        return_value=MagicMock(status_code=200, elapsed=MagicMock(total_seconds=lambda: 0.1)),
-    ):
-        with patch(
+    with (
+        patch(
+            "httpx.get",
+            return_value=MagicMock(status_code=200, elapsed=MagicMock(total_seconds=lambda: 0.1)),
+        ),
+        patch(
             "siyarix.onboarding.socket.getaddrinfo",
             return_value=[(None, None, None, None, ("8.8.8.8", 80))],
-        ):
-            await wizard._step_network_diagnostics()
+        ),
+    ):
+        await wizard._step_network_diagnostics()
     assert wizard._choices["network_ok"] is True
 
 
@@ -188,10 +192,8 @@ async def test_finalize(mock_get_config, tmp_path, mock_console):
     settings = MagicMock()
     wizard = OnboardingWizard(console=mock_console, settings=settings)
     wizard._choices["provider_type"] = "skip"
-    with patch("builtins.input", return_value=""):
-        with patch("sys.exit"):
-            with patch("os.execv"):
-                await wizard._finalize()
+    with patch("builtins.input", return_value=""), patch("sys.exit"), patch("os.execv"):
+        await wizard._finalize()
     settings.set.assert_called_with("onboarding_complete", True)
 
 
@@ -209,10 +211,9 @@ def test_sanitize_release_tag_rejects_unsafe(bad: str) -> None:
 def test_assert_github_release_url_allowlist() -> None:
     ok = "https://github.com/ggml-org/llama.cpp/releases/download/b1/a.tar.gz"
     assert _assert_github_release_url(ok) == ok
-    assert (
-        _assert_github_release_url("https://objects.githubusercontent.com/github-production-release-asset/1")
-        .startswith("https://objects.githubusercontent.com/")
-    )
+    assert _assert_github_release_url(
+        "https://objects.githubusercontent.com/github-production-release-asset/1"
+    ).startswith("https://objects.githubusercontent.com/")
     with pytest.raises(ValueError, match="https"):
         _assert_github_release_url("http://github.com/x")
     with pytest.raises(ValueError, match="allowlisted"):

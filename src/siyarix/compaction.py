@@ -344,7 +344,7 @@ class CompactionEngine:
             )
         self._compaction_history.append(
             CompactResult(
-                ok=result.get("status") == "success" if "status" in result else True,
+                ok=result.get("status") == "success" if "status" in result else False,
                 compacted=False,
                 reason="subagent_ended",
                 summary=summary[:500],
@@ -503,20 +503,20 @@ def _filter_oversized_messages(
 
 
 __all__ = [
-    "MIN_PROMPT_BUDGET_TOKENS",
-    "MIN_PROMPT_BUDGET_RATIO",
-    "SUMMARIZATION_OVERHEAD_TOKENS",
     "BASE_CHUNK_RATIO",
-    "MIN_CHUNK_RATIO",
-    "SAFETY_MARGIN",
     "MAX_COMPACTION_HISTORY",
-    "CompactResult",
-    "AssembleResult",
-    "estimate_tokens",
-    "estimate_messages_tokens",
-    "split_messages_by_token_share",
+    "MIN_CHUNK_RATIO",
+    "MIN_PROMPT_BUDGET_RATIO",
+    "MIN_PROMPT_BUDGET_TOKENS",
+    "SAFETY_MARGIN",
+    "SUMMARIZATION_OVERHEAD_TOKENS",
     "SUMMARIZE_SYSTEM_PROMPT",
-    "TranscriptRewriteRequest",
-    "ContextEngineRuntime",
+    "AssembleResult",
+    "CompactResult",
     "CompactionEngine",
+    "ContextEngineRuntime",
+    "TranscriptRewriteRequest",
+    "estimate_messages_tokens",
+    "estimate_tokens",
+    "split_messages_by_token_share",
 ]

@@ -5,8 +5,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from enum import StrEnum
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,7 @@ class SmartModeController:
 
 
 __all__ = [
-    "ConnectivityMonitor",
     "ConnectionState",
+    "ConnectivityMonitor",
     "SmartModeController",
 ]

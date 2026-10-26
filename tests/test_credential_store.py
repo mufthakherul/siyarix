@@ -3,21 +3,20 @@ from __future__ import annotations
 import base64
 import json
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from siyarix.credential_store import (
+    HAS_AESGCM,
     Credential,
     CredentialStore,
-    HAS_AESGCM,
     get_credential,
     get_creds,
     store_credential,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -563,8 +562,9 @@ class TestCredentialStoreCore:
             assert creds.retrieve("name") == "val"
 
     def test_rate_limit(self):
-        from siyarix.credential_store import get_creds
         import time as _time
+
+        from siyarix.credential_store import get_creds
 
         creds = get_creds()
         creds._tokens = 0.0
@@ -573,11 +573,11 @@ class TestCredentialStoreCore:
             creds._check_rate_limit()
 
     def test_get_expired_credential(self):
-        from siyarix.credential_store import get_creds, Credential
+        from siyarix.credential_store import Credential, get_creds
 
         creds = get_creds()
         creds._tokens = 100.0
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         expired = Credential(
             cred_id="e1",
@@ -594,7 +594,7 @@ class TestCredentialStoreCore:
             assert result is None
 
     def test_get_updates_usage_periodically(self):
-        from siyarix.credential_store import get_creds, Credential
+        from siyarix.credential_store import Credential, get_creds
 
         creds = get_creds()
         from datetime import datetime, timezone
@@ -614,7 +614,7 @@ class TestCredentialStoreCore:
                 mock_save.assert_called_once()
 
     def test_share_adds_user(self):
-        from siyarix.credential_store import get_creds, Credential
+        from siyarix.credential_store import Credential, get_creds
 
         creds = get_creds()
         from datetime import datetime, timezone
@@ -641,10 +641,10 @@ class TestCredentialStoreCore:
         assert creds.share("nonexistent", "alice") is False
 
     def test_check_expiring(self):
-        from siyarix.credential_store import get_creds, Credential
+        from siyarix.credential_store import Credential, get_creds
 
         creds = get_creds()
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
 
         creds._credentials["e1"] = Credential(
             cred_id="e1",
@@ -659,7 +659,7 @@ class TestCredentialStoreCore:
         assert len(expiring) == 1
 
     def test_get_statistics(self):
-        from siyarix.credential_store import get_creds, Credential
+        from siyarix.credential_store import Credential, get_creds
 
         creds = get_creds()
         from datetime import datetime, timezone
@@ -689,9 +689,9 @@ class TestCredentialStoreCore:
         assert cred.name == "test_key"
 
     def test_get_credential_convenience(self):
-        from siyarix.credential_store import get_credential, get_creds
-        from siyarix.credential_store import Credential
         from datetime import datetime, timezone
+
+        from siyarix.credential_store import Credential, get_credential, get_creds
 
         creds = get_creds()
         cred = Credential(
@@ -1049,33 +1049,34 @@ class TestCredentialStorePersistence:
             cred_store._load()
             assert "c1" in cred_store._credentials
 
-    def test_save_kms_fallback_to_local(self, cred_store, tmp_path):
+    def test_save_kms_fails_closed(self, cred_store, tmp_path):
         fake_boto3 = MagicMock()
         with patch.dict("sys.modules", {"boto3": fake_boto3}):
             with patch.dict(os.environ, {"SIYARIX_KMS_PROVIDER": "aws"}, clear=True):
                 with patch.object(cred_store, "_kms_available", return_value=True):
                     fake_boto3.client.side_effect = Exception("boto fail")
-                    with patch("siyarix.credential_store.logger") as mock_log:
-                        c = cred_store.store(name="kms_test", value="val")
-                        mock_log.exception.assert_called()
+                    with pytest.raises(RuntimeError, match="KMS envelope encryption failed"):
+                        cred_store.store(name="kms_test", value="val")
 
     def test_save_kms_no_existing_key(self, cred_store, tmp_path):
         fake_boto3 = MagicMock()
-        with patch.dict("sys.modules", {"boto3": fake_boto3}):
-            with patch.dict(
+        with (
+            patch.dict("sys.modules", {"boto3": fake_boto3}),
+            patch.dict(
                 os.environ,
                 {"SIYARIX_KMS_PROVIDER": "aws", "AWS_KMS_KEY_ID": "alias/test"},
                 clear=True,
-            ):
-                with patch.object(cred_store, "_kms_available", return_value=True):
-                    fake_kms = MagicMock()
-                    fake_kms.generate_data_key.return_value = {
-                        "Plaintext": b"k" * 32,
-                        "CiphertextBlob": b"enc" * 10,
-                    }
-                with patch("boto3.client", return_value=fake_kms):
-                    c = cred_store.store(name="kms_test2", value="val")
-                    assert c is not None
+            ),
+        ):
+            with patch.object(cred_store, "_kms_available", return_value=True):
+                fake_kms = MagicMock()
+                fake_kms.generate_data_key.return_value = {
+                    "Plaintext": b"k" * 32,
+                    "CiphertextBlob": b"enc" * 10,
+                }
+            with patch("boto3.client", return_value=fake_kms):
+                c = cred_store.store(name="kms_test2", value="val")
+                assert c is not None
 
     def test_save_kms_encrypted_key_mismatch_reuses(self, cred_store, tmp_path):
         with patch.dict("sys.modules", {"boto3": MagicMock()}):
@@ -1105,7 +1106,8 @@ class TestCredentialStorePersistence:
                     cred_store._load()
 
     def test_update_usage_frequent_calls(self, cred_store):
-        from datetime import datetime, timezone, timedelta
+        from datetime import datetime, timedelta, timezone
+
         from siyarix.credential_store import Credential
 
         cred = Credential(

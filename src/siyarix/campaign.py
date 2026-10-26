@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from siyarix.config import get_config_dir
 
@@ -75,9 +76,7 @@ class Campaign:
             updated_at=str(data.get("updated_at") or ""),
             status=str(data.get("status") or "ready"),
             notes=str(data.get("notes") or ""),
-            last_run_at=(
-                str(data["last_run_at"]) if data.get("last_run_at") else None
-            ),
+            last_run_at=(str(data["last_run_at"]) if data.get("last_run_at") else None),
             run_count=int(data.get("run_count") or 0),
         )
 

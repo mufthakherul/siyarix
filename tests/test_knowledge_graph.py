@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
 from pathlib import Path
-from siyarix.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
+
+from siyarix.knowledge_graph import EdgeType, KnowledgeGraph, NodeType
 
 
 def test_knowledge_graph_node_operations():
@@ -135,7 +135,6 @@ import pytest
 from siyarix.knowledge_graph import (
     Node,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

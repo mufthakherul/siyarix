@@ -282,7 +282,7 @@ class ChatSession:
                 self._branching.save()
 
     @classmethod
-    def load(cls, path: Path) -> "ChatSession":
+    def load(cls, path: Path) -> ChatSession:
         import json
 
         data = json.loads(path.read_text(encoding="utf-8"))

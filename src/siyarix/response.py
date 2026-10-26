@@ -412,7 +412,7 @@ class ResponseGenerator:
 
 
 __all__ = [
-    "ResponseGenerator",
     "FindingGroup",
+    "ResponseGenerator",
     "SummarySection",
 ]

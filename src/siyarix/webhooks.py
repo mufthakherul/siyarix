@@ -10,13 +10,13 @@ from __future__ import annotations
 import ipaddress
 import json
 import logging
+import os
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
-import os
 from typing import Any
 
-from siyarix.events import get_event_bus, Event, EventType
+from siyarix.events import Event, EventType, get_event_bus
 
 logger = logging.getLogger(__name__)
 

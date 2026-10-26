@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Compatibility interfaces and auxiliary orchestration types for Siyarix chat.
+"""Compatibility stubs and auxiliary orchestration types for Siyarix chat.
 
-Provides structured models for multi-model ensemble consensus, adversarial review,
-and platform bridge interfaces.
+WARNING: Most scanner / HSM / canary / importer classes in this module are
+intentionally incomplete placeholders that return empty results. Do not treat
+them as production security capabilities. Prefer real modules
+(``compliance.py``, ``threat_intel.py``, ``providers.manager.ensemble_decide``)
+where they exist. Product docs must label these surfaces as Planned.
 """
 
 from __future__ import annotations
@@ -22,38 +25,58 @@ class CanaryTokenType(Enum):
     AWS_KEYS = "aws_keys"
 
 
+_NOT_IMPLEMENTED = "not_implemented"
+
+
+def _stub_result(**kwargs: Any) -> dict[str, Any]:
+    """Mark stub scanner results so callers cannot treat empty as clean."""
+    out: dict[str, Any] = {"status": _NOT_IMPLEMENTED, "findings": [], "implemented": False}
+    out.update(kwargs)
+    return out
+
+
 class CanaryTokenManager:
-    """Manages canary tokens for breach detection and honeypots."""
+    """Stub — canary/honeypot deployment is not implemented."""
 
     def __init__(self) -> None:
         self._tokens: list[dict[str, Any]] = []
 
     def deploy_to_target(self, target: str, token_types: list[Any]) -> dict[str, Any]:
-        result = {"target": target, "deployed": len(token_types), "status": "active"}
+        result = _stub_result(
+            target=target,
+            deployed=0,
+            requested=len(token_types),
+            message="CanaryTokenManager is a stub; no tokens were deployed",
+        )
         self._tokens.append(result)
         return result
 
     def list(self) -> list[str]:
-        return [t.get("target", "") for t in self._tokens]
+        return []
 
     def status(self) -> str:
-        return "active" if self._tokens else "idle"
+        return _NOT_IMPLEMENTED
 
     def list_tokens(self) -> builtins.list[Any]:
         return list(self._tokens)
 
     def summary(self) -> dict[str, Any]:
-        return {"total_tokens": len(self._tokens), "active": len(self._tokens)}
+        return {"total_tokens": 0, "active": 0, "status": _NOT_IMPLEMENTED}
 
 
 class CoderBridge:
-    """Bridge for AI code generation and automated remediation assistance."""
+    """Stub — AI code generation bridge is not implemented."""
 
     async def generate(self, prompt: str) -> str:
-        return ""
+        return f"# status: {_NOT_IMPLEMENTED}\n# CoderBridge.generate is a stub\n"
 
     async def review(self, target: str, code: str) -> dict[str, Any]:
-        return {"target": target, "issues": [], "status": "passed"}
+        return {
+            "target": target,
+            "issues": [],
+            "status": _NOT_IMPLEMENTED,
+            "implemented": False,
+        }
 
 
 class CloudProvider(Enum):
@@ -63,56 +86,60 @@ class CloudProvider(Enum):
 
 
 class CloudScanner:
-    """Security posture scanner for multi-cloud environments."""
+    """Stub — multi-cloud posture scanning is not implemented."""
 
     async def scan_by_provider(self, provider: CloudProvider, target: str) -> dict[str, Any]:
-        return {"provider": provider.value, "target": target, "findings": []}
+        return _stub_result(provider=provider.value, target=target)
 
     async def scan_kubernetes(self, target: str) -> dict[str, Any]:
-        return {"target": target, "findings": []}
+        return _stub_result(target=target)
 
     async def scan_docker(self, target: str) -> dict[str, Any]:
-        return {"target": target, "findings": []}
+        return _stub_result(target=target)
 
     def generate_report(self, result: Any, fmt: str) -> str:
-        return f"# Cloud Scan Report ({fmt})\nTarget: {getattr(result, 'target', '')}"
+        return (
+            f"# Cloud Scan Report ({fmt})\n"
+            f"Status: not_implemented\n"
+            f"Target: {getattr(result, 'target', result.get('target', '') if isinstance(result, dict) else '')}\n"
+        )
 
 
 class IaCScanner:
-    """Infrastructure-as-Code security scanner."""
+    """Stub — IaC scanning is not implemented."""
 
     def scan_path(self, path: str) -> dict[str, Any]:
-        return {"path": path, "findings": []}
+        return _stub_result(path=path)
 
     def generate_report(self, result: Any, fmt: str) -> str:
-        return f"# IaC Scan Report ({fmt})"
+        return f"# IaC Scan Report ({fmt})\nStatus: not_implemented\n"
 
 
 class MobileScanner:
-    """Static and dynamic security scanner for mobile packages."""
+    """Stub — mobile package scanning is not implemented."""
 
     def scan_apk(self, target: str) -> dict[str, Any]:
-        return {"target": target, "findings": []}
+        return _stub_result(target=target)
 
     def generate_report(self, result: Any, fmt: str) -> str:
-        return f"# Mobile Scan Report ({fmt})"
+        return f"# Mobile Scan Report ({fmt})\nStatus: not_implemented\n"
 
 
 class IoTScanner:
-    """Firmware and embedded hardware vulnerability scanner."""
+    """Stub — firmware/IoT scanning is not implemented."""
 
     def scan_firmware(self, target: str) -> dict[str, Any]:
-        return {"target": target, "findings": []}
+        return _stub_result(target=target)
 
     def scan_serial_port(self, target: str, baud: int = 115200) -> dict[str, Any]:
-        return {"target": target, "baud": baud, "status": "connected"}
+        return _stub_result(target=target, baud=baud, connected=False)
 
     def generate_report(self, result: Any, fmt: str) -> str:
-        return f"# IoT Scan Report ({fmt})"
+        return f"# IoT Scan Report ({fmt})\nStatus: not_implemented\n"
 
 
 class HSMService:
-    """Hardware Security Module (HSM) connector interface."""
+    """Stub — HSM connector is not implemented (see docs/security/hsm-integration.md)."""
 
     def __init__(self) -> None:
         self._connected = False
@@ -120,38 +147,51 @@ class HSMService:
 
     def connect(self, provider: str) -> None:
         self._provider = provider
-        self._connected = True
+        self._connected = False  # stub never connects
 
     def status(self) -> dict[str, Any]:
-        return {"connected": self._connected, "provider": self._provider}
+        return {
+            "connected": False,
+            "provider": self._provider,
+            "status": _NOT_IMPLEMENTED,
+            "implemented": False,
+        }
 
     def disconnect(self) -> None:
         self._connected = False
         self._provider = ""
 
     def generate_report(self, fmt: str) -> str:
-        return f"# HSM Status Report ({fmt})"
+        return f"# HSM Status Report ({fmt})\nStatus: not_implemented\n"
 
 
 class ComplianceRunner:
-    """Framework compliance verification runner (CIS, NIST, ISO27001)."""
+    """Stub — prefer siyarix.compliance for real local hygiene probes."""
 
     def run_framework(self, framework: str, target: str) -> dict[str, Any]:
-        return {"framework": framework, "target": target, "compliance_score": 1.0}
+        return _stub_result(
+            framework=framework,
+            target=target,
+            compliance_score=None,
+            message="Use siyarix.compliance ComplianceCheck for real probes",
+        )
 
     def generate_report(self, result: Any, fmt: str) -> str:
-        return f"# Compliance Report ({fmt})"
+        return f"# Compliance Report ({fmt})\nStatus: not_implemented\n"
 
 
 class SecurityImporter:
-    """Imports security findings from external scanners."""
+    """Stub — external finding import is not implemented."""
 
     def auto_import(self, path: str) -> Any:
         @dataclass
         class ImportResult:
             total_imported: int = 0
-            errors: list[Any] = field(default_factory=list)
+            errors: list[Any] = field(
+                default_factory=lambda: ["SecurityImporter is not_implemented"]
+            )
             findings: list[Any] = field(default_factory=list)
+            status: str = _NOT_IMPLEMENTED
 
         return ImportResult()
 
@@ -175,8 +215,9 @@ class EnsembleResponse:
 class EnsemblePlanResult:
     selection_reason: str = ""
     responses: list[EnsembleResponse] | None = None
-    consensus_level: float = 1.0
-    hallucination_risk: float = 0.0
+    # Optimistic defaults would fake healthy consensus — fail closed (P0 honesty).
+    consensus_level: float = 0.0
+    hallucination_risk: float = 1.0
 
     def __post_init__(self) -> None:
         if self.responses is None:
@@ -184,7 +225,7 @@ class EnsemblePlanResult:
 
 
 class MultiModelEnsemble:
-    """Ensemble consensus coordinator across diverse LLM providers."""
+    """Stub ensemble — prefer ``ProviderManager.ensemble_decide`` for real voting."""
 
     def __init__(self) -> None:
         self._providers: dict[str, Any] = {}
@@ -193,14 +234,15 @@ class MultiModelEnsemble:
         self._providers[name] = p
 
     async def plan(self, instruction: str, _voting_strategy: Any = None) -> EnsemblePlanResult:
-        if not self._providers:
-            return EnsemblePlanResult()
         names = list(self._providers.keys())
         return EnsemblePlanResult(
-            selection_reason=f"Multi-model consensus aligned across {len(names)} models",
+            selection_reason=(
+                "stub MultiModelEnsemble — use ProviderManager.ensemble_decide "
+                "for real multi-model consensus"
+            ),
             responses=[EnsembleResponse(model_name=n) for n in names],
-            consensus_level=0.96,
-            hallucination_risk=0.04,
+            consensus_level=0.0,
+            hallucination_risk=1.0,
         )
 
 
@@ -228,7 +270,16 @@ class AdversarialTester:
     """Validates plans against adversarial injection and destructive command patterns."""
 
     def test(self, target: str) -> dict[str, Any]:
-        return {"target": target, "status": "clean"}
+        """Host/target scanning is not implemented — use ``review_plan`` for plan lines."""
+        return {
+            "target": target,
+            "status": "not_implemented",
+            "implemented": False,
+            "message": (
+                "AdversarialTester.test() does not scan hosts; "
+                "use review_plan() for plan-line checks"
+            ),
+        }
 
     def review_plan(self, plan_lines: list[str]) -> list[AdversarialFinding]:
         findings: list[AdversarialFinding] = []

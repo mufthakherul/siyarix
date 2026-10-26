@@ -11,37 +11,37 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
-from ..registry import ToolRegistry
-from ..planner import Planner, ExecutionPlan
-from ..planner_registry import RegistryPlanner
-from ..planner_autonomous import AutonomousPlanner
-from ..executor_registry import RegistryExecutor
-from ..executor_autonomous import AutonomousExecutor
-from ..validators import Validator
+from ..config import get_config_dir
 from ..context import ContextManager
-from ..memory import MemoryManager
-from ..providers import ProviderManager
-from ..providers.usage import UsageTracker
-from ..workflow import WorkflowEngine
 from ..events import Event, EventType, get_event_bus
 from ..exceptions import BudgetExceededError
+from ..executor_autonomous import AutonomousExecutor
+from ..executor_registry import RegistryExecutor
 from ..knowledge_graph import KnowledgeGraph
-from ..stealth import StealthEngine
-from ..config import get_config_dir, SettingsStore
-from ..permission_gate import PermissionGate
-from .swarm import SwarmRouter, SwarmTask
-from ..offline_store import OfflineStore
+from ..memory import MemoryManager
 from ..metrics import get_metrics
+from ..offline_store import OfflineStore
+from ..permission_gate import PermissionGate
+from ..planner import ExecutionPlan, Planner
+from ..planner_autonomous import AutonomousPlanner
+from ..planner_registry import RegistryPlanner
+from ..providers import ProviderManager
+from ..providers.usage import UsageTracker
+from ..registry import ToolRegistry
+from ..stealth import StealthEngine
+from ..validators import Validator
+from ..workflow import WorkflowEngine
 from .mixins import ExecutionMixin, GraphMixin
+from .swarm import SwarmRouter, SwarmTask
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "AgentCore",
-    "AgentMode",
-    "AgentStatus",
     "AgentGoal",
+    "AgentMode",
     "AgentResult",
+    "AgentStatus",
     "SwarmRouter",
     "SwarmTask",
 ]
@@ -113,15 +113,12 @@ class AgentCore(ExecutionMixin, GraphMixin):
             registry_planner=self._planner_registry,
         )
 
-        # PermissionGate — on by default for production; set SIYARIX_SAFE_MODE=0 for labs.
-        _env_raw = os.getenv("SIYARIX_SAFE_MODE")
-        if _env_raw is not None:
-            _safe_mode = _env_raw.strip().lower() not in {"0", "false", "no", "off"}
-        else:
-            _store = SettingsStore()
-            _settings_flag = _store.get("_safe_mode", default=False) if _store.has("_safe_mode") else None
-            _safe_mode = True if _settings_flag is None else bool(_settings_flag)
-        self._permission_gate = PermissionGate() if _safe_mode else None
+        # PermissionGate — single source of truth with production-check / registry
+        # factory: SIYARIX_SAFE_MODE env only (default on). Settings.toml cannot
+        # silently disable the gate while readiness probes still PASS (SX-A05).
+        from ..registry_factory import permission_gate_enabled
+
+        self._permission_gate = PermissionGate() if permission_gate_enabled() else None
 
         self._executor_registry = RegistryExecutor(
             self._registry,
@@ -226,8 +223,8 @@ class AgentCore(ExecutionMixin, GraphMixin):
             raise BudgetExceededError(f"Session cost limit ${self._max_cost_usd:.2f} reached.")
 
     async def start(self) -> None:
-        import signal
         import asyncio
+        import signal
 
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -292,6 +289,7 @@ class AgentCore(ExecutionMixin, GraphMixin):
     async def execute_multi_wave(self, goal: AgentGoal, max_waves: int = 5) -> AgentResult:
         all_findings: list[dict[str, Any]] = []
         plan = None
+        all_ok = True
         for wave in range(max_waves):
             wave_context = {
                 "wave": wave,
@@ -304,13 +302,15 @@ class AgentCore(ExecutionMixin, GraphMixin):
             )
             wave_result = await self.execute_goal(wave_goal, plan)
             all_findings.extend(wave_result.findings)
+            if not getattr(wave_result, "success", True):
+                all_ok = False
             if not wave_result.findings:
                 break
             if hasattr(self._planner, "plan_next_wave"):
                 plan = self._planner.plan_next_wave(wave_result.findings, goal)
             else:
                 plan = None
-        return AgentResult(goal=goal.description, findings=all_findings, success=True)
+        return AgentResult(goal=goal.description, findings=all_findings, success=all_ok)
 
     async def execute_goal(self, goal: AgentGoal, plan: ExecutionPlan | None = None) -> AgentResult:
         try:
@@ -355,7 +355,7 @@ class AgentCore(ExecutionMixin, GraphMixin):
         total = len(plan.steps)
         return f"Executed {total} steps: {completed} completed, {failed} failed. Progress: {plan.progress_pct:.0f}%"
 
-    def create_subagent(self, role: str, mode: AgentMode = AgentMode.AUTONOMOUS) -> "AgentCore":
+    def create_subagent(self, role: str, mode: AgentMode = AgentMode.AUTONOMOUS) -> AgentCore:
         subagent = AgentCore(mode=mode)
         subagent._knowledge_graph = self._knowledge_graph
         logger.info("Created sub-agent with role: %s", role)

@@ -8,10 +8,11 @@ import json
 import logging
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 from siyarix.config import get_config_dir
 
@@ -174,6 +175,25 @@ async def _probe_credential_store(target: str) -> ComplianceResult:
         from siyarix.credential_store import CredentialStore
 
         store = CredentialStore()
+        mode = getattr(store, "_vault_mode", "unknown")
+        # File-key mode leaves the vault key on disk — warn for production (SX-A06).
+        if mode == "file_key":
+            return ComplianceResult(
+                check_id="",
+                status="FAIL",
+                evidence_data={
+                    "target": target,
+                    "capability": "local_probe",
+                    "evaluated": True,
+                    "probe": "credential_store",
+                    "store": type(store).__name__,
+                    "vault_mode": mode,
+                },
+                message=(
+                    "Credential store is in file_key mode; set SIYARIX_MASTER_PASSWORD "
+                    "for production password-derived vault encryption."
+                ),
+            )
         return ComplianceResult(
             check_id="",
             status="PASS",
@@ -183,6 +203,7 @@ async def _probe_credential_store(target: str) -> ComplianceResult:
                 "evaluated": True,
                 "probe": "credential_store",
                 "store": type(store).__name__,
+                "vault_mode": mode,
             },
             message="Credential store is available for encrypted secret handling.",
         )

@@ -68,6 +68,7 @@ All data is loaded through `src/siyarix/data_loader.py`:
 def load_text(category: str, filename: str) -> str:
     """Load text content. Tries ~/.siyarix/data/ first, falls back to built-in."""
 
+
 def load_json(category: str, filename: str) -> Any:
     """Load and parse JSON. Same fallback strategy."""
 ```

@@ -210,12 +210,12 @@ class ExecutionPlan:
 
 
 __all__ = [
-    "PlanStatus",
-    "StepStatus",
-    "PlanType",
-    "StepType",
-    "ExecutionStep",
-    "PlanStep",
-    "StepResult",
     "ExecutionPlan",
+    "ExecutionStep",
+    "PlanStatus",
+    "PlanStep",
+    "PlanType",
+    "StepResult",
+    "StepStatus",
+    "StepType",
 ]

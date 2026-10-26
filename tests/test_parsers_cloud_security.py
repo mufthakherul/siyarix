@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+
 from siyarix.parsers.aircrack_parser import AircrackParser
 from siyarix.parsers.aws_parser import AwsParser
 from siyarix.parsers.bandit_parser import BanditParser

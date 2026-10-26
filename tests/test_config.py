@@ -19,7 +19,6 @@ from siyarix.config import (
     get_config_dir,
 )
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -462,7 +461,7 @@ class TestConfigCore:
         assert store._data["key"] is True
 
     def test_coerce_float(self):
-        from siyarix.config import SettingsStore, DEFAULTS
+        from siyarix.config import DEFAULTS, SettingsStore
 
         store = SettingsStore()
         orig = DEFAULTS.get("scan_timeout")
@@ -477,7 +476,7 @@ class TestConfigCore:
                 del DEFAULTS["scan_timeout"]
 
     def test_coerce_float_value_error(self):
-        from siyarix.config import SettingsStore, DEFAULTS
+        from siyarix.config import DEFAULTS, SettingsStore
 
         store = SettingsStore()
         orig = DEFAULTS.get("scan_timeout")

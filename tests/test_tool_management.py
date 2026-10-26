@@ -174,44 +174,41 @@ def test_tool_installer_uninstall_custom_tool(tmp_path):
 
 def test_tool_installer_uninstall_system_tool_win():
     installer = ToolInstaller()
-    with patch("os.name", "nt"):
-        with patch.object(installer, "is_installed", return_value=True):
-            with patch("shutil.which", return_value="/usr/bin/winget"):
-                with patch("subprocess.run") as mock_run:
-                    mock_run.return_value = MagicMock(returncode=0)
-                    res = installer.uninstall("nmap")
-                    assert res.success is True
-                    mock_run.assert_called_once()
-                    cmd = mock_run.call_args[0][0]
-                    assert "winget" in cmd
-                    assert "uninstall" in cmd
+    with patch("os.name", "nt"), patch.object(installer, "is_installed", return_value=True):
+        with patch("shutil.which", return_value="/usr/bin/winget"):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(returncode=0)
+                res = installer.uninstall("nmap")
+                assert res.success is True
+                mock_run.assert_called_once()
+                cmd = mock_run.call_args[0][0]
+                assert "winget" in cmd
+                assert "uninstall" in cmd
 
 
 def test_tool_installer_uninstall_system_tool_nix():
     installer = ToolInstaller()
-    with patch("os.name", "posix"):
-        with patch.object(installer, "is_installed", return_value=True):
-            with patch.object(installer, "_detect_pm", return_value="apt"):
-                with patch("subprocess.run") as mock_run:
-                    mock_run.return_value = MagicMock(returncode=0)
-                    res = installer.uninstall("nmap", purge=True)
-                    assert res.success is True
-                    mock_run.assert_called_once()
-                    cmd = mock_run.call_args[0][0]
-                    assert "apt-get" in cmd
-                    assert "purge" in cmd
+    with patch("os.name", "posix"), patch.object(installer, "is_installed", return_value=True):
+        with patch.object(installer, "_detect_pm", return_value="apt"):
+            with patch("subprocess.run") as mock_run:
+                mock_run.return_value = MagicMock(returncode=0)
+                res = installer.uninstall("nmap", purge=True)
+                assert res.success is True
+                mock_run.assert_called_once()
+                cmd = mock_run.call_args[0][0]
+                assert "apt-get" in cmd
+                assert "purge" in cmd
 
 
 def test_tool_installer_update_tool():
     installer = ToolInstaller()
-    with patch("os.name", "posix"):
-        with patch.object(installer, "_detect_pm", return_value="pkg"):
-            with patch("subprocess.run") as mock_run:
-                mock_run.return_value = MagicMock(returncode=0)
-                res = installer.update("nmap")
-                assert res.success is True
-                cmd = mock_run.call_args[0][0]
-                assert cmd == ["pkg", "upgrade", "-y", "nmap"]
+    with patch("os.name", "posix"), patch.object(installer, "_detect_pm", return_value="pkg"):
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0)
+            res = installer.update("nmap")
+            assert res.success is True
+            cmd = mock_run.call_args[0][0]
+            assert cmd == ["pkg", "upgrade", "-y", "nmap"]
 
 
 # ── ToolRegistry Integration Tests ───────────────────────────────────────────

@@ -8,14 +8,13 @@ import json
 import sys
 from unittest.mock import MagicMock, patch
 
-
 from siyarix.output import (
+    THEMES,
+    YAML_AVAILABLE,
     OutputEngine,
     OutputFormat,
     OutputFormatter,
     OutputTheme,
-    THEMES,
-    YAML_AVAILABLE,
     _formatter_args,
     get_formatter,
     set_formatter,

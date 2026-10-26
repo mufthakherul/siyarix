@@ -1,13 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Tests for /memory and enhanced /skills commands in Siyarix chat."""
 
-import pytest
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from siyarix.chat import SiyarixChat
-from siyarix.learning_system import get_learning_system, LearnedSkill, LearnedStep
+from siyarix.learning_system import LearnedSkill, LearnedStep, get_learning_system
 
 
 @pytest.fixture

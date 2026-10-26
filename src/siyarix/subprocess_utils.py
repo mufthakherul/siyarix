@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,13 +32,25 @@ from typing import IO, Any
 
 from ._platform import (
     get_platform_id,
-    get_platform_shell_cmd as _get_platform_shell_cmd,
-    get_termux_prefix as _get_termux_prefix,
-    has_signal as _has_signal,
-    is_linux as _is_linux,
-    is_mobile as _is_mobile,
-    is_windows as _is_windows,
     set_event_loop_policy,
+)
+from ._platform import (
+    get_platform_shell_cmd as _get_platform_shell_cmd,
+)
+from ._platform import (
+    get_termux_prefix as _get_termux_prefix,
+)
+from ._platform import (
+    has_signal as _has_signal,
+)
+from ._platform import (
+    is_linux as _is_linux,
+)
+from ._platform import (
+    is_mobile as _is_mobile,
+)
+from ._platform import (
+    is_windows as _is_windows,
 )
 
 _console: Console | None = None
@@ -62,8 +75,8 @@ __all__ = [
     "get_platform_shell_cmd",
     "safe_run_async",
     "safe_run_async_stream",
-    "safe_run_sync",
     "safe_run_sandboxed",
+    "safe_run_sync",
 ]
 
 _ORPHAN_TRACKER: set[int] = set()
@@ -218,72 +231,73 @@ def get_platform_shell_cmd(command: str) -> list[str]:
 
 
 _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/(?:\.\s*)?(?:\s|$)", re.I),
-    re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.I),
-    re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
+    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/(?:\.\s*)?(?:\s|$)", re.IGNORECASE),
+    re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.IGNORECASE),
+    re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.IGNORECASE),
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
-    re.compile(r"\bmkfs\.", re.I),
+    re.compile(r"\bmkfs\.", re.IGNORECASE),
     re.compile(
         r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
         r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(r"\bmkswap\b"),
-    re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.I),
+    re.compile(
+        r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.IGNORECASE
+    ),
     re.compile(
         r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
         r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
         r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
-    re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
-    re.compile(r"\b(?:nwipe|scrub|sg_unmap|srm|wipe|bcwipe)\b", re.I),
-    re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.I),
-    re.compile(r"/dev/disk/", re.I),
-    re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.IGNORECASE),
+    re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.IGNORECASE),
+    re.compile(r"\b(?:nwipe|scrub|sg_unmap|srm|wipe|bcwipe)\b", re.IGNORECASE),
+    re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.IGNORECASE),
+    re.compile(r"/dev/disk/", re.IGNORECASE),
+    re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+    re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+    re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+    re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
     re.compile(
         r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(
         r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"
         r"sg_format|sg_sanitize|nwipe|scrub|sg_unmap)\b.*(/dev/)",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(
         r"\b(?:cp|tee|install|openssl|tar|dc3dd|badblocks|fio|rsync)\b"
         r".*/dev/(?:sd|nvme|vd|xvd)",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
-    re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
+    re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.IGNORECASE),
+    re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.IGNORECASE),
     re.compile(
         r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
         r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(
         r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
         r"\.write_(?:bytes|text)\s*\(",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
-    re.compile(r"\brsync\b.*--delete", re.I),
-    re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
-    re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
+    re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.IGNORECASE),
+    re.compile(r"\brsync\b.*--delete", re.IGNORECASE),
+    re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.IGNORECASE),
+    re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.IGNORECASE),
     re.compile(
-        r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
-        r"dmsetup\s+remove)\b",
-        re.I,
+        r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|" r"dmsetup\s+remove)\b",
+        re.IGNORECASE,
     ),
-    re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
-    re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
-    re.compile(r"\bxfs_repair\b.*-L\b", re.I),
-    re.compile(r"\bdebugfs\s+-w\b", re.I),
+    re.compile(r"\bmdadm\b.*--zero-superblock\b", re.IGNORECASE),
+    re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.IGNORECASE),
+    re.compile(r"\bxfs_repair\b.*-L\b", re.IGNORECASE),
+    re.compile(r"\bdebugfs\s+-w\b", re.IGNORECASE),
 ]
 
 
@@ -337,10 +351,94 @@ def _validate_cmd_list(cmd: list[str]) -> None:
             return
 
 
+# Secrets / posture that must never ride into child tool processes (SX-A03).
+_SCRUB_ENV_EXACT: frozenset[str] = frozenset(
+    {
+        "SIYARIX_SUDO_PASSWORD",
+        "SIYARIX_MASTER_PASSWORD",
+        "SIYARIX_MASTER_KEY",
+        "SIYARIX_VAULT_PASSWORD",
+        "SIYARIX_PREAUTHORIZED",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_ACCESS_KEY_ID",  # RH-31
+        "AWS_SESSION_TOKEN",
+        "AZURE_CLIENT_SECRET",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "PGPASSWORD",
+        "MYSQL_PWD",
+        "REDIS_PASSWORD",
+        # Connection DSNs / URLs often embed credentials (RH-13).
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MONGO_URL",
+        "MONGODB_URI",
+        "CONNECTION_STRING",
+        "DSN",
+        "AMQP_URL",
+        "BROKER_URL",
+        "CELERY_BROKER_URL",
+        # Provider short keys / framework secrets (RH-31).
+        "OPENAI_KEY",
+        "ANTHROPIC_KEY",
+        "XAI_KEY",
+        "GROQ_KEY",
+        "DJANGO_SECRET_KEY",
+        "FLASK_SECRET_KEY",
+        "SECRET_KEY",
+    }
+)
+_SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
+    "_API_KEY",
+    "_SECRET",
+    "_SECRET_KEY",
+    "_PASSWORD",
+    "_TOKEN",
+    "_PRIVATE_KEY",
+    "_ACCESS_KEY",
+    "_ACCESS_KEY_ID",
+    "_MASTER_PASSWORD",
+    "_MASTER_KEY",
+    "_PASSPHRASE",
+    "_BEARER",
+    "_CONNECTION_STRING",
+    "_DATABASE_URL",
+    "_DSN",
+)
+# Bare ``FOO_KEY`` provider shorthand (OPENAI_KEY, etc.).
+_SCRUB_BARE_KEY_RE = re.compile(r"^(?:[A-Z][A-Z0-9_]*)_KEY$")
+
+
+def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
+    """Drop credential / vault secrets from the child process environment."""
+    cleaned: dict[str, str] = {}
+    for key, val in exec_env.items():
+        upper = key.upper()
+        if upper in _SCRUB_ENV_EXACT or key in _SCRUB_ENV_EXACT:
+            continue
+        if any(upper.endswith(suf) for suf in _SCRUB_ENV_SUFFIXES):
+            continue
+        if upper.startswith("SIYARIX_") and upper.endswith("_KEY"):
+            continue
+        # Bare provider ``*_KEY`` (OPENAI_KEY) — RH-31.
+        if _SCRUB_BARE_KEY_RE.match(upper):
+            continue
+        # Any *URL / *URI that looks like a DSN with userinfo (RH-13).
+        if (upper.endswith("_URL") or upper.endswith("_URI")) and "://" in val:
+            try:
+                parsed = urllib.parse.urlparse(val)
+                if parsed.username is not None or parsed.password is not None:
+                    continue
+            except Exception:
+                continue
+        cleaned[key] = val
+    return cleaned
+
+
 def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:
-    exec_env = os.environ.copy()
+    exec_env = _scrub_secret_env(dict(os.environ))
     if env:
-        exec_env.update(env)
+        # Caller-supplied overrides are scrubbed too (no secret laundering).
+        exec_env.update(_scrub_secret_env(dict(env)))
     try:
         from siyarix.stealth import stealth_engine
 
@@ -520,7 +618,7 @@ async def safe_run_async(
                 ),
                 timeout=timeout + 5,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async (thread) executor timeout for cmd=%s", cmd)
             return ExecutionResult(
                 exit_code=-1,
@@ -638,13 +736,13 @@ async def safe_run_async(
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         exit_code = proc.returncode if proc.returncode is not None else -1
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("safe_run_async timeout (%ds) for cmd=%s -- killing process", timeout, cmd)
         timed_out = True
         await _kill_process(proc)
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async -- drain after kill timed out for cmd=%s", cmd)
             stdout_bytes, stderr_bytes = b"", b""
         exit_code = -1
@@ -762,7 +860,7 @@ async def safe_run_async_stream(
                 loop.run_in_executor(None, sync_proc.wait),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("safe_run_async_stream (thread) timeout for cmd=%s", cmd)
             try:
                 sync_proc.kill()
@@ -900,11 +998,11 @@ async def safe_run_async_stream(
 
         try:
             await asyncio.wait_for(asyncio.gather(stdout_task, stderr_task), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async_stream reader tasks timed out after process exit")
             stdout_task.cancel()
             stderr_task.cancel()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(
             "safe_run_async_stream timeout (%ds) for cmd=%s -- killing process", timeout, cmd
         )
@@ -913,7 +1011,7 @@ async def safe_run_async_stream(
 
         try:
             await asyncio.wait_for(asyncio.gather(stdout_task, stderr_task), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async_stream reader tasks timed out after process kill")
             stdout_task.cancel()
             stderr_task.cancel()

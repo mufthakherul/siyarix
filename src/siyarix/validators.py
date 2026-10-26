@@ -15,15 +15,21 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable
+from typing import Any
 
+from .events import Event, EventType, get_event_bus
 from .exceptions import ErrorContext, ErrorSeverity, ValidationError
 from .planner import PlanStep
-from .events import Event, EventType, get_event_bus
 
 __all__ = [
+    "RecoveryAction",
+    "RecoveryPlan",
+    "ValidationResult",
+    "ValidationSeverity",
+    "Validator",
     "validate_cidr",
     "validate_email",
     "validate_hostname",
@@ -33,11 +39,6 @@ __all__ = [
     "validate_port_range",
     "validate_target",
     "validate_url",
-    "ValidationSeverity",
-    "RecoveryAction",
-    "ValidationResult",
-    "RecoveryPlan",
-    "Validator",
 ]
 
 # ---------------------------------------------------------------------------

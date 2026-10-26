@@ -36,26 +36,48 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from siyarix._platform import (
+    detect_security_distro,
+    is_termux,
+)
 from siyarix.bootstrap import INITIALIZED_MARKER, BootstrapEngine
 from siyarix.config import SettingsStore, get_config_dir
-from siyarix._platform import (
-    is_termux,
-    detect_security_distro,
-)
 from siyarix.providers.manager import ProviderManager
 from siyarix.templates.wizard_text import (
-    SIYARIX_LOGO as _SIYARIX_LOGO,
-    WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
-    ETHICS_PLEDGE_TEXT as _ETHICS_PLEDGE_TEXT,
-    EXIT_GREETING_TEXT as _EXIT_GREETING_TEXT,
-    ONLINE_PROVIDERS as _ONLINE_PROVIDERS,
-    OFFLINE_PROVIDERS as _OFFLINE_PROVIDERS,
-    REQUIRED_TOOLS as _REQUIRED_TOOLS,
-    MINIMAL_CYBER_TOOLS as _MINIMAL_CYBER_TOOLS,
-    PERSONA_TOOLS as _PERSONA_TOOLS,
     ARCH_MAP as _ARCH_MAP,
-    PM_CHECKS as _PM_CHECKS,
+)
+from siyarix.templates.wizard_text import (
     DEFAULT_PREFERENCES as _DEFAULT_PREFERENCES,
+)
+from siyarix.templates.wizard_text import (
+    ETHICS_PLEDGE_TEXT as _ETHICS_PLEDGE_TEXT,
+)
+from siyarix.templates.wizard_text import (
+    EXIT_GREETING_TEXT as _EXIT_GREETING_TEXT,
+)
+from siyarix.templates.wizard_text import (
+    MINIMAL_CYBER_TOOLS as _MINIMAL_CYBER_TOOLS,
+)
+from siyarix.templates.wizard_text import (
+    OFFLINE_PROVIDERS as _OFFLINE_PROVIDERS,
+)
+from siyarix.templates.wizard_text import (
+    ONLINE_PROVIDERS as _ONLINE_PROVIDERS,
+)
+from siyarix.templates.wizard_text import (
+    PERSONA_TOOLS as _PERSONA_TOOLS,
+)
+from siyarix.templates.wizard_text import (
+    PM_CHECKS as _PM_CHECKS,
+)
+from siyarix.templates.wizard_text import (
+    REQUIRED_TOOLS as _REQUIRED_TOOLS,
+)
+from siyarix.templates.wizard_text import (
+    SIYARIX_LOGO as _SIYARIX_LOGO,
+)
+from siyarix.templates.wizard_text import (
+    WELCOME_PANEL_TEXT as _WELCOME_PANEL_TEXT,
 )
 from siyarix.tool_installer import ToolInstaller
 
@@ -216,12 +238,12 @@ SECURITY_MODEL_TIERS: list[dict[str, Any]] = [
 
 
 try:
+    from rich import box
     from rich.console import Console
     from rich.markup import escape as rich_escape
     from rich.panel import Panel
-    from rich.prompt import Prompt, Confirm
+    from rich.prompt import Confirm, Prompt
     from rich.table import Table
-    from rich import box
 except ImportError:
     logger.warning("Rich library not installed; TUI features will be degraded")
     Console = None  # type: ignore
@@ -2065,9 +2087,7 @@ class OnboardingWizard:
                         }
                         url = api_urls.get(provider_name, "")
                         if url:
-                            r = httpx.get(
-                                url, headers=headers, timeout=10, follow_redirects=False
-                            )
+                            r = httpx.get(url, headers=headers, timeout=10, follow_redirects=False)
                             ok = r.status_code < 500
                             detail = f"HTTP {r.status_code} ({r.elapsed.total_seconds():.1f}s)"
                         else:
@@ -2106,7 +2126,7 @@ class OnboardingWizard:
 
     # ── Step 11: Learning System Setup ─────────────────────────────────
 
-    def _step_learning_setup(self) -> None:  # noqa: PLR0912
+    def _step_learning_setup(self) -> None:
         """Initialise the Continuous Learning Store and optionally import/add skills."""
         from rich.table import Table as RichTable
 
@@ -2250,10 +2270,11 @@ class OnboardingWizard:
         The first semicolon-separated part is the intent pattern (anonymised).
         Subsequent parts are command steps.
         """
-        from .learning_system import LearnedSkill, LearnedStep
+        import re
         import time
         import uuid
-        import re
+
+        from .learning_system import LearnedSkill, LearnedStep
 
         entries = re.findall(r"(?:^|\n)\s*\d+[.):]\s*(.+?)(?=\n\s*\d+[.):]|$)", raw_text, re.DOTALL)
         if not entries:
@@ -2418,7 +2439,7 @@ class OnboardingWizard:
         # ── Write marker + settings ─────────────────────────────────────
         plat = self._choices.get("platform", {})
         marker_data = {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "python_version": sys.version,
             "platform": {
@@ -2994,9 +3015,10 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
     def _install_llamacpp(self) -> bool:
         """Download and install llama.cpp pre-built binary."""
         import platform as _platform
-        import httpx
-        import zipfile
         import tarfile
+        import zipfile
+
+        import httpx
 
         self._console.print("  Installing llama.cpp...\n")
 
@@ -3041,9 +3063,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             return False
 
         asset_name = f"llama-{tag}-bin-{suffix}"
-        download_url = (
-            f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
-        )
+        download_url = f"https://github.com/ggml-org/llama.cpp/releases/download/{tag}/{asset_name}"
         _assert_github_release_url(download_url)
 
         bin_dir = Path.home() / ".siyarix" / "bin"
@@ -3055,9 +3075,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
             # Follow redirects manually so each hop stays on allowlisted GitHub hosts.
             current_url = download_url
             for _hop in range(5):
-                with httpx.stream(
-                    "GET", current_url, timeout=300, follow_redirects=False
-                ) as r:
+                with httpx.stream("GET", current_url, timeout=300, follow_redirects=False) as r:
                     if r.status_code in {301, 302, 303, 307, 308}:
                         loc = (r.headers.get("location") or "").strip()
                         if not loc:
@@ -3068,8 +3086,7 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
                         continue
                     r.raise_for_status()
                     with open(archive_path, "wb") as fh:
-                        for chunk in r.iter_bytes(chunk_size=65536):
-                            fh.write(chunk)
+                        fh.writelines(r.iter_bytes(chunk_size=65536))
                     break
             else:
                 raise ValueError("Too many redirects while downloading llama.cpp")
@@ -3266,6 +3283,6 @@ sudo rm -rf /usr/local/lib/ollama /usr/lib/ollama /lib/ollama 2>/dev/null
 
 
 __all__ = [
-    "OnboardingWizard",
     "INITIALIZED_MARKER",
+    "OnboardingWizard",
 ]

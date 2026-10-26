@@ -15,7 +15,7 @@ import subprocess
 import sys as _sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 winreg: Any
 try:
@@ -366,7 +366,7 @@ _TOOL_RECIPES: dict[str, dict[str, str]] = {
 class ToolInstaller:
     """Manages system tool installation, uninstallation, updating, and inspection."""
 
-    def __init__(self, console: Optional[Any] = None) -> None:
+    def __init__(self, console: Any | None = None) -> None:
         self.console = console
         self._install_history: list[ToolInstallResult] = []
         self._uninstall_history: list[ToolUninstallResult] = []
@@ -1024,7 +1024,7 @@ class ToolInstaller:
 
 __all__ = [
     "ToolInstallResult",
-    "ToolUninstallResult",
     "ToolInstaller",
+    "ToolUninstallResult",
     "tty_confirm",
 ]

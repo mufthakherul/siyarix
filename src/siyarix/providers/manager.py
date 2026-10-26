@@ -19,20 +19,22 @@ from .types import (
 
 class ProviderManager:
     _instance: ProviderManager | None = None
-    _instance_lock: threading.Lock | None = None
+    _instance_lock: threading.Lock | None = threading.Lock()
+    _bootstrap_lock = threading.Lock()
 
     @classmethod
     def get_instance(cls) -> ProviderManager:
         """Return the shared singleton, creating it once on first access."""
-        if cls._instance is None:
-            if cls._instance_lock is None:
-                import threading
-
-                cls._instance_lock = threading.Lock()
-            with cls._instance_lock:
-                if cls._instance is None:
-                    cls._instance = cls()
-        return cls._instance
+        lock = cls._instance_lock
+        if lock is None:
+            with cls._bootstrap_lock:
+                if cls._instance_lock is None:
+                    cls._instance_lock = threading.Lock()
+                lock = cls._instance_lock
+        with lock:
+            if cls._instance is None:
+                cls._instance = cls()
+            return cls._instance
 
     def __init__(self) -> None:
         if ProviderManager._instance is not None:
@@ -340,7 +342,7 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
     """
     key: str | None = None
     try:
-        from siyarix.credential_store import get_creds  # noqa: PLC0415
+        from siyarix.credential_store import get_creds
 
         store = get_creds()
         key = store.retrieve(provider, "api_key")
@@ -364,6 +366,6 @@ def get_provider_env_var(provider: str) -> str:
 
 __all__ = [
     "ProviderManager",
-    "resolve_api_key",
     "get_provider_env_var",
+    "resolve_api_key",
 ]

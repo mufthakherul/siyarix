@@ -1,12 +1,14 @@
-!!! note
-    👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+!!! warning
+    **Not implemented in the current tree.** `CloudScanner` in `chat/stubs.py` returns
+    `status: not_implemented`. There is **no** `siyarix scan --cloud` CLI flag yet.
+    Treat this page as a design sketch until a real scanner lands.
 
 # ☁️ Cloud Security Scanning
 
-Securing your cloud environments doesn't have to be a headache. Siyarix comes packed with multi-cloud security scanning capabilities right out of the box, covering AWS, Azure, GCP, Kubernetes, and Docker.
+Planned multi-cloud posture scanning for AWS, Azure, GCP, Kubernetes, and Docker.
 
 !!! note
-    Siyarix is smart! It only queries a provider's SDK if it detects that the respective cloud credentials are available on your system.
+    When implemented, Siyarix will only query a provider SDK if credentials are present.
 
 ---
 

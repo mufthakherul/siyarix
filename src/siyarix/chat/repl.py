@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import atexit
 import json
@@ -10,49 +11,53 @@ from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from ..config import get_config_dir
 
 from .._platform import (
-    is_windows as _plat_is_windows,
     has_signal as _plat_has_signal,
+)
+from .._platform import (
     has_termios as _plat_has_termios,
 )
+from .._platform import (
+    is_windows as _plat_is_windows,
+)
+from ..config import get_config_dir
 
 if _plat_has_signal():
     import signal as _signal
 else:
     _signal = None  # type: ignore
 
+from prompt_toolkit import PromptSession
+from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+from prompt_toolkit.filters import Condition
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.key_binding import KeyBindings
+from rich.columns import Columns
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 from rich.text import Text
-from rich.columns import Columns
-from prompt_toolkit import PromptSession
-from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.formatted_text import HTML
-from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
-from prompt_toolkit.filters import Condition
-from prompt_toolkit.history import FileHistory
 
-from .session import ChatSession
-from .ui import SmartAutocomplete, SplitPane, render_welcome_banner
 from ..config import SettingsStore
-from .platform_utils import detect_shell, get_shell_platform, build_platform_context
 from .commands import command_history
-from .handlers import CommandHandlersMixin
-from .engine import LLMEngineMixin
 from .console import (
     console,
-    panel_response,
     mode_border,
+    panel_response,
     set_terminal_title,
 )
+from .engine import LLMEngineMixin
+from .handlers import CommandHandlersMixin
+from .platform_utils import build_platform_context, detect_shell, get_shell_platform
 from .prompts import (
-    make_prompt_top,
-    make_prompt_bottom,
     make_bottom_toolbar,
+    make_prompt_bottom,
+    make_prompt_top,
 )
+from .session import ChatSession
+from .ui import SmartAutocomplete, SplitPane, render_welcome_banner
 
 logger = logging.getLogger(__name__)
 
@@ -127,8 +132,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         self._subagent_mgr = SubagentManager()
         if hasattr(self._session, "__dict__"):
-            setattr(self._session, "subagent_manager", self._subagent_mgr)
-            setattr(self._session, "_subagent_mgr", self._subagent_mgr)
+            self._session.subagent_manager = self._subagent_mgr
+            self._session._subagent_mgr = self._subagent_mgr
         self._esc_press_count = 0
         self._esc_press_time = 0.0
         self._esc_window = 2.0
@@ -138,7 +143,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         self._provider_cooldown_secs = 30.0
         self._llm_calls = 0
         self._tool_cache: list[Any] | None = None
-        from ..providers import UsageTracker, ProviderStateManager
+        from ..providers import ProviderStateManager, UsageTracker
 
         state_dir = get_config_dir()
         self._provider_state = ProviderStateManager(path=str(state_dir / "provider_state.json"))
@@ -209,11 +214,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 _SAFE_SDKS = {
                     "openai",
                     "anthropic",
-                    "google-genai",
                     "mistralai",
                     "cohere",
                     "together",
                 }
+                # Gemini uses httpx REST — empty sdk_dependency; do not require google-genai.
                 if profile.sdk_dependency not in _SAFE_SDKS:
                     logger.warning(
                         "Unknown SDK dependency '%s' for provider '%s'",
@@ -1017,7 +1022,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
 
         # Instantiate SplitPane and display
-        pane = SplitPane(theme=self._settings.get("color_theme") or "dark-neon")
+        pane = SplitPane(theme=self._settings.get("color_theme") or "cyber-noir")
         layout = pane.generate_layout(
             left_renderable=left_content,
             right_type=self._split_pane_type,
@@ -1137,8 +1142,8 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         Performs live health checks for local providers instead of
         showing static availability. Map keys -> (icon, reason).
         """
-        from ..providers import ProviderManager
         from ..provider_utils import check_provider_health, list_provider_models
+        from ..providers import ProviderManager
 
         pm = ProviderManager.get_instance()
         status: dict[str, tuple[str, str]] = {}
@@ -1155,7 +1160,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     _SAFE_SDKS = {
                         "openai",
                         "anthropic",
-                        "google-genai",
                         "mistralai",
                         "cohere",
                         "together",
@@ -1372,7 +1376,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
 
         return final_text
 
-    def _print_plan(self, plan: "Any") -> None:  # ExecutionPlan
+    def _print_plan(self, plan: Any) -> None:  # ExecutionPlan
         rows = []
         for i, step in enumerate(plan.steps, 1):
             target = step.args.get("target", "") if isinstance(step.args, dict) else ""
@@ -1386,7 +1390,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
             )
         self._output.print_table(rows, title="Execution Plan")
 
-    def _print_results(self, result: "Any", elapsed: float) -> None:  # EngineResult
+    def _print_results(self, result: Any, elapsed: float) -> None:  # EngineResult
         from ..planner import StepStatus
 
         success_count = sum(1 for r in result.step_results if r.status == StepStatus.COMPLETED)
@@ -1494,8 +1498,9 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         console.print(Columns(summary_panels, equal=False, padding=(0, 1)))
 
     def _print_goodbye(self) -> None:
-        from ..branding import resolve_version
         from rich.panel import Panel
+
+        from ..branding import resolve_version
 
         try:
             from ..session_log import session_logger

@@ -27,10 +27,18 @@ nd = "nd"
 OT = "OT"
 vulnurability = "vulnurability"
 vulnarability = "vulnarability"
+vulnerabilit = "vulnerabilit"
 thm = "thm"
 gost = "gost"
 Accessable = "Accessable"
 cros = "cros"
+# Tool / filesystem names used in operator-safety regexes and probes.
+mke2fs = "mke2fs"
+mke = "mke"
+mosquitto = "mosquitto"
+mis = "mis"
+ba = "ba"
+jod = "jod"
 
 [default.extend-identifiers]
 # Code identifiers to allow

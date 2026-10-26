@@ -82,9 +82,9 @@ When the router successfully classifies an input, it spits out an `IntentRoute` 
 ```python
 @dataclass
 class IntentRoute:
-    mode: str                         # scan | recon | web | brute | exploit | general
-    risk_tier: RiskTier               # low | medium | high
-    requires_confirmation: bool       # True if human approval is needed
+    mode: str  # scan | recon | web | brute | exploit | general
+    risk_tier: RiskTier  # low | medium | high
+    requires_confirmation: bool  # True if human approval is needed
 ```
 
 ---
@@ -145,8 +145,8 @@ Here is a quick overview of how the engine identifies different types of entitie
 You can actually "teach" the parser about new tools and templates to make it even smarter. By feeding it descriptions, it improves its BM25 scoring accuracy:
 
 ```python
-nlp.train_tools(tool_metadata)       # Feed it tool names and descriptions
-nlp.train_templates(template_data)   # Feed it template names and descriptions
+nlp.train_tools(tool_metadata)  # Feed it tool names and descriptions
+nlp.train_templates(template_data)  # Feed it template names and descriptions
 ```
 
 ---
@@ -167,8 +167,8 @@ Here's an example of how a plan is requested:
 planner = Planner()
 plan = await planner.plan(
     goal="scan 10.0.0.1 for open ports",
-    mode="integrated",           # Options: autonomous, registry, offline, integrated
-    provider="openai",           # The AI provider (or "registry" to skip the LLM)
+    mode="integrated",  # Options: autonomous, registry, offline, integrated
+    provider="openai",  # The AI provider (or "registry" to skip the LLM)
     available_tools=["nmap", "nuclei", "gobuster"],
     llm_call=async_llm_function,
     tool_schemas=tool_schemas,

@@ -268,7 +268,7 @@ class OfflineStore:
         """Create a reproducible hash for a finding to track changes across scans."""
         import hashlib
 
-        core_data = f"{r['tool']}|{r['title']}|{r['port']}|{r['service']}".encode("utf-8")
+        core_data = f"{r['tool']}|{r['title']}|{r['port']}|{r['service']}".encode()
         return hashlib.sha256(core_data).hexdigest()
 
     async def diff_scans_async(self, scan_a_id: str, scan_b_id: str) -> dict[str, Any]:
@@ -434,10 +434,9 @@ class OfflineStore:
         return result
 
     def delete_scan(self, scan_id: str) -> bool:
-        with self._lock:
-            with self._conn() as conn:
-                conn.execute("DELETE FROM findings WHERE scan_id = ?", (scan_id,))
-                conn.execute("DELETE FROM scans WHERE scan_id = ?", (scan_id,))
+        with self._lock, self._conn() as conn:
+            conn.execute("DELETE FROM findings WHERE scan_id = ?", (scan_id,))
+            conn.execute("DELETE FROM scans WHERE scan_id = ?", (scan_id,))
         return True
 
     def export_scans(self, path: Path) -> int:
@@ -488,15 +487,14 @@ class OfflineStore:
                 )
 
     def cache_invalidate(self, tool: str | None = None, target: str | None = None) -> int:
-        with self._lock:
-            with self._conn() as conn:
-                if tool:
-                    cur = conn.execute("DELETE FROM command_cache WHERE tool = ?", (tool,))
-                elif target:
-                    cur = conn.execute("DELETE FROM command_cache WHERE target = ?", (target,))
-                else:
-                    cur = conn.execute("DELETE FROM command_cache")
-                return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
+        with self._lock, self._conn() as conn:
+            if tool:
+                cur = conn.execute("DELETE FROM command_cache WHERE tool = ?", (tool,))
+            elif target:
+                cur = conn.execute("DELETE FROM command_cache WHERE target = ?", (target,))
+            else:
+                cur = conn.execute("DELETE FROM command_cache")
+            return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 
     def cache_stats(self) -> dict[str, Any]:
         conn = self._conn()

@@ -8,15 +8,15 @@ Provides a type-safe settings store with get/set/reset/list/edit support.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import json
 import logging
 import os
-from pathlib import Path
 import re
 import shutil
 import threading
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from siyarix.subprocess_utils import safe_run_sync
@@ -95,7 +95,11 @@ def get_config_dir() -> Path:
         p = Path(p_str).expanduser().resolve()
     else:
         p = Path.home() / ".siyarix"
-    p.mkdir(parents=True, exist_ok=True)
+    p.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        p.chmod(0o700)
+    except OSError:
+        pass
     return p
 
 
@@ -1525,18 +1529,18 @@ class SettingsStore:
 
 
 __all__ = [
+    "CATEGORIES",
     "DEFAULTS",
     "DESCRIPTIONS",
-    "CATEGORIES",
     "PROFILE_PRESETS",
-    "ValidationIssue",
-    "ConfigDiffEntry",
     "BackupInfo",
+    "ConfigDiffEntry",
     "ProfileInfo",
+    "SettingsStore",
+    "ValidationIssue",
+    "canonicalize_key",
     "get_config_dir",
     "get_settings_file",
-    "canonicalize_key",
     "is_sensitive_key",
     "mask_value",
-    "SettingsStore",
 ]

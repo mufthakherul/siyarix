@@ -7,17 +7,15 @@ from __future__ import annotations
 import os
 from unittest.mock import MagicMock, patch
 
-
 from siyarix.security_hardening import (
     DangerAnalyzer,
     DangerReport,
     InputValidator,
     SecretRedactor,
-    validator,
-    redactor,
     danger_analyzer,
+    redactor,
+    validator,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # InputValidator
@@ -414,11 +412,7 @@ class TestSecretRedactorRedact:
         result = self.r.redact(text)
         assert "[REDACTED]" in result
         assert "MIIEowIBAAKCAQEA" not in result
-        ec = (
-            "-----BEGIN EC PRIVATE KEY-----\n"
-            "MHQCAQEEIOleakbody\n"
-            "-----END EC PRIVATE KEY-----"
-        )
+        ec = "-----BEGIN EC PRIVATE KEY-----\nMHQCAQEEIOleakbody\n-----END EC PRIVATE KEY-----"
         assert "MHQCAQEEIOleakbody" not in self.r.redact(ec)
         openssh = (
             "-----BEGIN OPENSSH PRIVATE KEY-----\n"

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Integration branch `dev` opened for ongoing post-1.2.0 work.
+
+## [1.2.0] - 2026-10-26
+
 ### Added
 
 - Persistent `/campaign` store (`~/.siyarix/campaigns/`) with create/list/status/run/delete and `@targets` scan handoff.
@@ -12,9 +18,19 @@ All notable changes to this project will be documented in this file.
 - Shared `make_tool_registry()` factory (PermissionGate on by default) for CLI/chat/core/plugins/deep-scan.
 - Compliance CLI exits `2` on FAIL probes and `3` when `NOT_EVALUATED` remain.
 - `production-check` surfaces `permission_gate` and `tool_registry` status.
+- Chat welcome banner follows active color theme tokens (no hard-coded neon hex).
+
+### Changed
+
+- Version bump to `1.2.0` across runtime metadata and docs index.
+- `production-check` treats overall health `degraded` (optional providers) as informational.
+- ARCH-01: CLI god-module further split (`scan_cmds`, `compliance_cmds`, `playbook_cmds`, …).
 
 ### Security
 
+- RH-56: hard-block leading-zero UID/GID 0 (`-u 00`/`-g 00`), `update-alternatives --set`, `busybox --install` onto `/bin`, `/etc/gshadow` writes; scope `rsh`/`rlogin` and fix Fabric `--hosts=`; dotenv skips `PARALLEL_SSHLOGIN`.
+- RH-55 (Wave17): hard-block `useradd`/`usermod -u 0`, `update-alternatives --install` on system bins, `btrfs device add`; scope-check ssh `HostName=`, GNU parallel `-S`/`--sshlogin`, `influxdb://`/`clickhouse://`/`qemu+*` URIs, ansible ad-hoc hosts, Fabric `-H`, `lxc exec`, `virsh -c`; dotenv skips `KRB5_CONFIG`/`SSSD_CONF`/`LDAPCONF`/`SSH_PROXYCOMMAND`/`SSH_HOSTNAME`/…
+- RH-01–RH-54 operator-safety residual hunter waves closed (destructive, scope, dotenv).
 - Hunt28: block `uncompress`/`pbzip2`/`pixz`/`brotli`/`snzip` auth decompress, clustered `-pi`/`-ri` inplace, `ginstall`/`age`/`rage` auth writes, glued `sqlcmd -S`/`smbmap -H`/`curl --proxy…`, and dotenv pivots (`PYTHONBREAKPOINT`, `LUA_INIT`, `PODMAN_HOST`, …).
 - Hunt27: block in-place `gunzip`/`gzip` auth decompress, `e2image`/`partimage`/`sg_write_same`, `lzip` auth `-o`, glued DB/WinRM/openssl hosts under scope, hydra/medusa/rdesktop host binding, and `ANSIBLE_CONFIG` dotenv pivots.
 - Shared `assert_command_not_destructive` used by executor, ToolRegistry, PermissionGate, and subprocess (closes registry/deep-scan bypass of `dd of=` / `fdisk`).

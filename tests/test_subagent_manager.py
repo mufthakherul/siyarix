@@ -4,21 +4,21 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch, AsyncMock
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from prompt_toolkit.document import Document
+
+from siyarix.chat.prompts import make_bottom_toolbar, make_prompt_top
+from siyarix.chat.repl import SiyarixChat
 from siyarix.chat.subagents import (
+    SubagentManager,
+    SubagentRecord,
     SubagentRole,
     SubagentStatus,
     SubagentTask,
-    SubagentRecord,
-    SubagentManager,
 )
-from siyarix.chat.ui import SplitPane, SmartAutocomplete
-from siyarix.chat.prompts import make_bottom_toolbar, make_prompt_top
-from siyarix.chat.repl import SiyarixChat
-from prompt_toolkit.document import Document
-
+from siyarix.chat.ui import SmartAutocomplete, SplitPane
 
 # ── Subagent Model Tests ───────────────────────────────────────────────
 

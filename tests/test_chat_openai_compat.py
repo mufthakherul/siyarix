@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from siyarix.chat.openai_compat import (
-    detect_compat,
-    make_openai_adapter,
-    resolve_model,
-)
-from unittest.mock import patch, MagicMock, AsyncMock
 import asyncio
-import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 
 from siyarix.chat.openai_compat import (
     _gemini_build_contents,
     _gemini_stream,
     _map_real_model,
+    detect_compat,
     make_client,
+    make_openai_adapter,
     openai_complete,
     openai_stream,
+    resolve_model,
 )
 
 
@@ -32,20 +30,24 @@ class TestOpenAICompatCore:
         assert compat.thinking_format == "openai"
 
     def test_resolve_model_settings_dict(self):
-        with patch("siyarix.chat.openai_compat.MODEL_KEYS", {"test": "test_model"}):
-            with patch(
+        with (
+            patch("siyarix.chat.openai_compat.MODEL_KEYS", {"test": "test_model"}),
+            patch(
                 "siyarix.chat.openai_compat.PROVIDER_CONFIG", {"test": ("", "default-model", "")}
-            ):
-                result = resolve_model("test", {"test_model": "custom"})
-                assert result == "custom"
+            ),
+        ):
+            result = resolve_model("test", {"test_model": "custom"})
+            assert result == "custom"
 
     def test_resolve_model_settings_dict_no_key(self):
-        with patch("siyarix.chat.openai_compat.MODEL_KEYS", {"test": "test_model"}):
-            with patch(
+        with (
+            patch("siyarix.chat.openai_compat.MODEL_KEYS", {"test": "test_model"}),
+            patch(
                 "siyarix.chat.openai_compat.PROVIDER_CONFIG", {"test": ("", "default-model", "")}
-            ):
-                result = resolve_model("test", {})
-                assert result == "default-model"
+            ),
+        ):
+            result = resolve_model("test", {})
+            assert result == "default-model"
 
     def test_resolve_model_no_settings_provider_manager(self):
         mgr = MagicMock()
@@ -65,22 +67,26 @@ class TestOpenAICompatCore:
             mock_oai.assert_called_once_with(api_key="key", base_url="https://custom.url/v1")
 
     def test_make_client_resolved_base_url_empty(self):
-        with patch("openai.AsyncOpenAI") as mock_oai:
-            with patch(
+        with (
+            patch("openai.AsyncOpenAI") as mock_oai,
+            patch(
                 "siyarix.chat.openai_compat.PROVIDER_CONFIG",
                 {"openai": ("https://openai.com", "gpt-5.5", "OPENAI_API_KEY")},
-            ):
-                result = make_client("openai", "key", base_url="")
-                mock_oai.assert_called_once_with(api_key="key", base_url="https://openai.com")
+            ),
+        ):
+            result = make_client("openai", "key", base_url="")
+            mock_oai.assert_called_once_with(api_key="key", base_url="https://openai.com")
 
     def test_make_client_no_base_url(self):
-        with patch("openai.AsyncOpenAI") as mock_oai:
-            with patch(
+        with (
+            patch("openai.AsyncOpenAI") as mock_oai,
+            patch(
                 "siyarix.chat.openai_compat.PROVIDER_CONFIG",
                 {"openai": ("", "gpt-5.5", "OPENAI_API_KEY")},
-            ):
-                result = make_client("openai", "key", base_url=None)
-                mock_oai.assert_called_once_with(api_key="key")
+            ),
+        ):
+            result = make_client("openai", "key", base_url=None)
+            mock_oai.assert_called_once_with(api_key="key")
 
     def test_make_client_api_key_none_uses_placeholder(self):
         with patch("openai.AsyncOpenAI") as mock_oai:

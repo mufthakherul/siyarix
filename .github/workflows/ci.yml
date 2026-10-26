@@ -40,7 +40,9 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -e ".[dev]"
-          uv pip install --system ruff mypy
+          # Pin ruff: 0.17+ enables nearly all rule families by default and
+          # breaks large PRs that previously linted clean under 0.15 defaults.
+          uv pip install --system "ruff==0.15.20" mypy
 
       - name: Determine changed Python files
         id: changes
@@ -117,7 +119,7 @@ jobs:
             -n auto \
             -v \
             --tb=short \
-            -m "not integration"
+            -m "not e2e and not stress and not chaos"
 
       - name: Upload coverage artifact
         if: always()
@@ -138,10 +140,9 @@ jobs:
           fail_ci_if_error: false
 
 
-  integration-test:
-    name: Integration Tests
+  production-check:
+    name: Production Check
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'safe-integration'))
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -155,20 +156,27 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_STABLE }}
 
-      - name: Install dependencies
-        run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system pytest pytest-timeout
+      - name: Install package
+        run: uv pip install --system -e .
 
-      - name: Run integration tests
-        continue-on-error: true
+      - name: Run siyarix production-check
+        env:
+          # CI has no vault password / providers — warn is expected; fail on hard fails.
+          SIYARIX_SAFE_MODE: "1"
         run: |
-          pytest -v -m integration --timeout=300 -x || code=$?
-          if [ "${code:-0}" -eq 5 ]; then
-            echo "No integration tests collected; treating as success."
-            exit 0
+          siyarix production-check
+          # Exit 0 with needs-attention is OK; --strict would fail on warns (file_key).
+          # Gate hard failures only: re-run and parse readiness grade.
+          out="$(siyarix production-check 2>&1 || true)"
+          echo "$out"
+          if echo "$out" | grep -q "not-ready"; then
+            echo "production-check reported not-ready"
+            exit 1
           fi
-          exit "${code:-0}"
+          if echo "$out" | grep -E "│.*│ fail │" >/dev/null; then
+            echo "production-check has failing rows"
+            exit 1
+          fi
 
   security-audit:
     name: Security Audit
@@ -275,7 +283,7 @@ jobs:
 
       - name: Install linters
         run: |
-          uv pip install --system ruff mypy -e ".[dev]"
+          uv pip install --system "ruff==0.15.20" mypy -e ".[dev]"
 
       - name: Full lint scan
         continue-on-error: true

@@ -8,7 +8,7 @@
     Cascade package managers: uv -> pipx -> pip -> winget -> chocolatey -> scoop.
 
 .PARAMETER Version
-    Specific Siyarix version to install (defaults to 1.1.0 or $env:SIYARIX_VERSION).
+    Specific Siyarix version to install (defaults to 1.2.0 or $env:SIYARIX_VERSION).
 
 .PARAMETER Method
     Forced installation method: auto, uv, pipx, pip, winget, choco, scoop.
@@ -36,7 +36,7 @@
 [CmdletBinding()]
 param (
     [Alias("v")]
-    [string]$Version = $(if ($env:SIYARIX_VERSION) { $env:SIYARIX_VERSION } else { "1.1.0" }),
+    [string]$Version = $(if ($env:SIYARIX_VERSION) { $env:SIYARIX_VERSION } else { "1.2.0" }),
 
     [Alias("m")]
     [ValidateSet("auto", "uv", "pipx", "pip", "winget", "choco", "scoop")]
@@ -55,6 +55,9 @@ param (
     [Alias("h")]
     [switch]$Help
 )
+
+# Canonical package version (kept in sync with pyproject.toml / packaging manifests).
+$__script_version = "1.2.0"
 
 $ErrorActionPreference = 'Stop'
 $Script:InstalledMethod = ""
@@ -89,7 +92,7 @@ USAGE:
   powershell -ExecutionPolicy Bypass -File install.ps1 [OPTIONS]
 
 OPTIONS:
-  -Version <string>     Specify version to install (default: 1.1.0)
+  -Version <string>     Specify version to install (default: 1.2.0)
   -Method <string>      Force installer method: auto, uv, pipx, pip, winget, choco, scoop
   -Silent               Silent mode, suppress non-error outputs
   -DryRun               Simulate installation actions without modifying system

@@ -10,7 +10,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="${SIYARIX_VERSION:-1.1.0}"
+SIYARIX_VERSION="${SIYARIX_VERSION:-1.2.0}"
 PYTHON_MIN_MAJOR=3
 PYTHON_MIN_MINOR=11
 INSTALL_METHOD="${SIYARIX_METHOD:-}"
@@ -35,7 +35,7 @@ banner() {
    ╚════██║██║ ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
    ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
-   AI Cybersecurity Orchestration Agent v1.1.0
+   AI Cybersecurity Orchestration Agent v1.2.0
 EOF
   echo -e "   Enterprise Installer — \033[36mhttps://siyarix.github.io\033[0m\n"
 }
@@ -467,14 +467,14 @@ Options:
   -h, --help               Display this help guide and exit
   -s, -y, --silent         Headless unattended mode for CI/CD & Docker
   --dry-run                Simulate execution without modifying the system
-  --version <ver>          Install a specific Siyarix release (e.g. 1.1.0)
+  --version <ver>          Install a specific Siyarix release (e.g. 1.2.0)
   --with-tools             Automatically install core security utilities (nmap, curl, whois, dig)
   --no-modify-path         Do not append binary directories to shell profiles
   --target-dir <dir>       Specify custom directory destination
   --method <name>          Force install method: uv, pipx, brew, or pip
 
 Environment Variables:
-  SIYARIX_VERSION          Pinned Siyarix version (default: 1.1.0)
+  SIYARIX_VERSION          Pinned Siyarix version (default: 1.2.0)
   SIYARIX_SILENT           Set to 1 for silent / unattended mode
   SIYARIX_DRY_RUN          Set to 1 to simulate actions
   SIYARIX_WITH_TOOLS       Set to 1 to auto-install security tools

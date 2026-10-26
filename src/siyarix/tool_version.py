@@ -51,6 +51,6 @@ def _resolve_alias(name: str) -> str:
 
 
 __all__ = [
-    "get_tool_metadata",
     "_load_db",
+    "get_tool_metadata",
 ]

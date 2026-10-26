@@ -197,7 +197,7 @@ class ExecutionEngine:
         return planner.smart_plan(instruction, tools)
 
     async def execute(self, goal: str, plan: Any = None, **kwargs: Any) -> EngineResult:
-        from .core import AgentCore, AgentMode, AgentGoal
+        from .core import AgentCore, AgentGoal, AgentMode
         from .models import StepResult
 
         progress_callback = kwargs.get("progress_callback")
@@ -298,13 +298,13 @@ class ExecutionEngine:
 
 
 __all__ = [
+    "EngineResult",
+    "ExecutionEngine",
     "ExecutionMode",
-    "SessionPersistenceLevel",
+    "IntentRoute",
+    "IntentRouter",
     "OperationCard",
     "SessionContext",
     "SessionKernel",
-    "EngineResult",
-    "ExecutionEngine",
-    "IntentRoute",
-    "IntentRouter",
+    "SessionPersistenceLevel",
 ]

@@ -9,10 +9,10 @@ import pytest
 
 from siyarix.planner import (
     ExecutionPlan,
-    PlanStep,
-    PlanStatus,
-    StepStatus,
     Planner,
+    PlanStatus,
+    PlanStep,
+    StepStatus,
 )
 
 
@@ -142,9 +142,7 @@ class TestPlanner:
 import json
 from unittest.mock import AsyncMock, MagicMock
 
-
 from siyarix.planner_autonomous import AutonomousPlanner
-
 
 # ── Planner router tests ─────────────────────────────────────────────
 

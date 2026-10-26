@@ -37,7 +37,7 @@ def test_make_tool_registry_respects_explicit_none(monkeypatch: pytest.MonkeyPat
 
 @pytest.mark.asyncio
 async def test_execute_targets_parallel_merges_findings() -> None:
-    from siyarix.cli import _execute_targets_parallel
+    from siyarix.cli.scan_cmds import _execute_targets_parallel
 
     results = {
         "10.0.0.1": EngineResult(
@@ -64,7 +64,7 @@ async def test_execute_targets_parallel_merges_findings() -> None:
                     return res
             return EngineResult(success=False, summary="missing")
 
-    with patch("siyarix.cli._get_engine", return_value=_FakeEngine()):
+    with patch("siyarix.cli.scan_cmds._get_engine", return_value=_FakeEngine()):
         merged = await _execute_targets_parallel(
             ["10.0.0.1", "10.0.0.2"],
             mode="registry",
@@ -85,7 +85,7 @@ async def test_execute_targets_parallel_merges_findings() -> None:
 
 @pytest.mark.asyncio
 async def test_execute_targets_parallel_bounds_concurrency() -> None:
-    from siyarix.cli import _execute_targets_parallel
+    from siyarix.cli.scan_cmds import _execute_targets_parallel
 
     in_flight = 0
     max_in_flight = 0
@@ -102,7 +102,7 @@ async def test_execute_targets_parallel_bounds_concurrency() -> None:
                 in_flight -= 1
             return EngineResult(success=True, summary=instruction, all_findings=[])
 
-    with patch("siyarix.cli._get_engine", return_value=_SlowEngine()):
+    with patch("siyarix.cli.scan_cmds._get_engine", return_value=_SlowEngine()):
         merged = await _execute_targets_parallel(
             ["10.0.0.1", "10.0.0.2", "10.0.0.3", "10.0.0.4"],
             mode="registry",
@@ -117,7 +117,7 @@ async def test_execute_targets_parallel_bounds_concurrency() -> None:
 @pytest.mark.asyncio
 async def test_execute_targets_parallel_sequential_still_per_host() -> None:
     """--parallel 1 must still run one execute per target (not one joined instruction)."""
-    from siyarix.cli import _execute_targets_parallel
+    from siyarix.cli.scan_cmds import _execute_targets_parallel
 
     seen: list[str] = []
 
@@ -130,7 +130,7 @@ async def test_execute_targets_parallel_sequential_still_per_host() -> None:
                 all_findings=[{"note": instruction}],
             )
 
-    with patch("siyarix.cli._get_engine", return_value=_Engine()):
+    with patch("siyarix.cli.scan_cmds._get_engine", return_value=_Engine()):
         merged = await _execute_targets_parallel(
             ["10.0.0.1", "10.0.0.2"],
             mode="registry",

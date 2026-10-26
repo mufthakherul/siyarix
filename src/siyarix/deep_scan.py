@@ -174,6 +174,7 @@ class DeepScanEngine:
         executor: BaseExecutor | None = None,
         store: OfflineStore | None = None,
         planner: RegistryPlanner | None = None,
+        max_parallel: int = 8,
     ) -> None:
         if registry is None:
             from .registry_factory import make_tool_registry
@@ -184,6 +185,7 @@ class DeepScanEngine:
         self._store = store or OfflineStore()
         self._planner = planner or RegistryPlanner()
         self._results: dict[str, list[dict[str, Any]]] = {}
+        self._max_parallel = max(1, min(int(max_parallel), 32))
 
     async def scan(
         self,
@@ -229,7 +231,16 @@ class DeepScanEngine:
                 tasks.append(self._execute_tool(step, profile.name))
 
             if profile.parallel and len(tasks) > 1:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+                sem = asyncio.Semaphore(min(self._max_parallel, len(tasks)))
+
+                async def _bounded(coro: Any) -> Any:
+                    async with sem:
+                        return await coro
+
+                results = await asyncio.gather(
+                    *[_bounded(t) for t in tasks],
+                    return_exceptions=True,
+                )
                 for res in results:
                     if isinstance(res, dict) and res.get("status") != "error":
                         pass_findings.extend(res.get("findings", []))

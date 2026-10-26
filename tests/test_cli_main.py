@@ -1,11 +1,14 @@
 from __future__ import annotations
-from siyarix.__main__ import app
-from unittest.mock import MagicMock, patch
+
 import os
-import pytest
-import siyarix.__main__
 import subprocess
 import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+import siyarix.__main__
+from siyarix.__main__ import app
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

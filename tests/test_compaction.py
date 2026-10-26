@@ -6,29 +6,27 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
 
-
 from siyarix.compaction import (
-    AssembleResult,
     BASE_CHUNK_RATIO,
-    CompactResult,
-    CompactionEngine,
-    ContextEngineRuntime,
-    estimate_messages_tokens,
-    estimate_tokens,
-    _filter_oversized_messages,
-    _format_messages_for_summary,
     MAX_COMPACTION_HISTORY,
     MIN_CHUNK_RATIO,
     MIN_PROMPT_BUDGET_RATIO,
     MIN_PROMPT_BUDGET_TOKENS,
     SAFETY_MARGIN,
+    SUMMARIZATION_OVERHEAD_TOKENS,
+    AssembleResult,
+    CompactionEngine,
+    CompactResult,
+    ContextEngineRuntime,
+    TranscriptRewriteRequest,
+    _filter_oversized_messages,
+    _format_messages_for_summary,
+    estimate_messages_tokens,
+    estimate_tokens,
     split_messages_by_token_share,
     summarize_chunks,
-    SUMMARIZATION_OVERHEAD_TOKENS,
     summarize_with_fallback,
-    TranscriptRewriteRequest,
 )
-
 
 # ── Constants ─────────────────────────────────────────────────────────────
 

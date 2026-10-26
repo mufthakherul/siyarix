@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 from siyarix.models import (
     ExecutionPlan,
     ExecutionStep,

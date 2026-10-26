@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any
+
 from ..registry import RiskLevel
 
 logger = logging.getLogger(__name__)
@@ -26,14 +27,15 @@ class IntentRouter:
     """Routes natural language queries to specialized contexts."""
 
     INTENTS = {
-        "scan": re.compile(r"\bscan\b", re.I),
-        "brute": re.compile(r"\b(brute|password|crack)\b", re.I),
-        "exploit": re.compile(r"\b(exploit|attack|bypass|inject|pwn|metasploit)\b", re.I),
+        "scan": re.compile(r"\bscan\b", re.IGNORECASE),
+        "brute": re.compile(r"\b(brute|password|crack)\b", re.IGNORECASE),
+        "exploit": re.compile(r"\b(exploit|attack|bypass|inject|pwn|metasploit)\b", re.IGNORECASE),
         "recon": re.compile(
-            r"\b(recon|discover|enumerate|find|search|nmap|theharvester|subfinder|whois)\b", re.I
+            r"\b(recon|discover|enumerate|find|search|nmap|theharvester|subfinder|whois)\b",
+            re.IGNORECASE,
         ),
-        "report": re.compile(r"\b(report|summarize|export|document|generate)\b", re.I),
-        "web": re.compile(r"\b(web|http|nikto|nuclei)\b", re.I),
+        "report": re.compile(r"\b(report|summarize|export|document|generate)\b", re.IGNORECASE),
+        "web": re.compile(r"\b(web|http|nikto|nuclei)\b", re.IGNORECASE),
     }
 
     @classmethod

@@ -390,4 +390,4 @@ class CVSSScorer:
         return Severity.NONE
 
 
-__all__ = ["CVSSScorer", "CVSSResult", "CVSSVector", "Severity", "roundup", "METRIC_GROUPS"]
+__all__ = ["METRIC_GROUPS", "CVSSResult", "CVSSScorer", "CVSSVector", "Severity", "roundup"]

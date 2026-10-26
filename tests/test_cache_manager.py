@@ -6,8 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-from siyarix.credential_store import CredentialStore
-
 from siyarix.cache_manager import (
     CACHE_DOMAINS,
     CacheEntry,
@@ -15,6 +13,7 @@ from siyarix.cache_manager import (
     cache_manager,
     cached,
 )
+from siyarix.credential_store import CredentialStore
 
 
 @pytest.fixture
@@ -238,18 +237,16 @@ class TestCacheManagerEviction:
             cm._save_index()
 
     def test_get_memory_only_returns_entry_data(self):
-        from siyarix.cache_manager import CacheManager, CacheEntry
+        from siyarix.cache_manager import CacheEntry, CacheManager
 
         cm = CacheManager()
-        cm._entries["k"] = CacheEntry(
-            key="k", data="mem_data", created_at=time.time(), ttl=9999
-        )
+        cm._entries["k"] = CacheEntry(key="k", data="mem_data", created_at=time.time(), ttl=9999)
         with patch("siyarix.opsec.opsec_manager") as m:
             m.status.memory_only = True
             assert cm.get("k") == "mem_data"
 
     def test_get_import_error_returns_file_data(self):
-        from siyarix.cache_manager import CacheManager, CacheEntry
+        from siyarix.cache_manager import CacheEntry, CacheManager
 
         cm = CacheManager()
         cm._entries["k"] = CacheEntry(key="k", data="x", created_at=time.time(), ttl=9999)
@@ -267,7 +264,7 @@ class TestCacheManagerEviction:
             assert "k" in cm._entries
 
     def test_set_memory_only_skips_disk_write(self):
-        from siyarix.cache_manager import CacheManager, CacheEntry
+        from siyarix.cache_manager import CacheEntry, CacheManager
 
         cm = CacheManager()
         entry = CacheEntry(key="k", data="d")
@@ -279,7 +276,7 @@ class TestCacheManagerEviction:
             mock_write.assert_not_called()
 
     def test_invalidate_exception_logged(self):
-        from siyarix.cache_manager import CacheManager, CacheEntry
+        from siyarix.cache_manager import CacheEntry, CacheManager
 
         cm = CacheManager()
         cm._entries["k"] = CacheEntry(key="k", domain="d")

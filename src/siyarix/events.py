@@ -192,7 +192,7 @@ def get_event_bus() -> EventBus:
     Uses double-checked locking to avoid acquiring the lock on the fast path
     once the singleton has been created.
     """
-    global _bus  # noqa: PLW0603
+    global _bus
     if _bus is None:
         with _bus_lock:
             if _bus is None:
@@ -202,6 +202,6 @@ def get_event_bus() -> EventBus:
 
 def reset_event_bus() -> None:
     """Replace the singleton with a fresh :class:`EventBus` — **testing only**."""
-    global _bus  # noqa: PLW0603
+    global _bus
     with _bus_lock:
         _bus = None

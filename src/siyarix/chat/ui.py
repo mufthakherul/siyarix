@@ -10,18 +10,20 @@ from __future__ import annotations
 
 import difflib
 import time
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
-from rich.panel import Panel
-from rich.text import Text
 from rich.align import Align
 from rich.columns import Columns
-from rich.console import Console as RichConsole, Group
+from rich.console import Console as RichConsole
+from rich.console import Group
+from rich.panel import Panel
+from rich.text import Text
 
+from ..branding import design_token, resolve_theme, resolve_version
 from ..output import output as _output_engine
-from ..branding import resolve_version
 from .commands import CommandRegistry
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -738,57 +740,64 @@ def render_welcome_banner(
     """Render a professional welcome banner using Rich Layout."""
 
     ver = resolve_version()
+    safe_theme = resolve_theme(theme)
+    accent = design_token(safe_theme, "accent") or "bright_cyan"
+    primary = design_token(safe_theme, "primary") or "cyan"
+    success = design_token(safe_theme, "success") or "bright_green"
+    border = design_token(safe_theme, "border") or accent
+    muted = design_token(safe_theme, "muted") or "bright_black"
 
-    # ── Header: brand + version + tagline ──
+    # Mode hint overrides accent only for ops modes (theme still owns panels).
     mode_color_map = {
         "redteam": "red",
         "blueteam": "blue",
         "stealth": "red",
         "offline": "yellow",
-        "autonomous": "magenta",
+        "autonomous": primary,
     }
-    accent = mode_color_map.get(mode, "cyan")
+    mode_accent = mode_color_map.get(mode, accent)
 
     header_text = Text.assemble(
-        (" █▓▒░ ", f"bold {accent}"),
-        ("SIYARIX ORCHESTRATOR ", "bold white"),
-        (f"v{ver} ", "bold green"),
-        ("░▒▓█ ", f"bold {accent}"),
+        (" █▓▒░ ", f"bold {mode_accent}"),
+        ("SIYARIX ", "bold white"),
+        ("ORCHESTRATOR ", f"bold {primary}"),
+        (f"v{ver} ", f"bold {success}"),
+        ("░▒▓█ ", f"bold {mode_accent}"),
         ("\n", ""),
-        ("CLI-Based AI-Native Cyber Operations Platform", "dim italic white"),
+        ("CLI-Based AI-Native Cyber Operations Platform", f"dim italic {muted}"),
     )
 
     header_panel = Align.center(
         Panel(
             Align.center(header_text, vertical="middle"),
-            border_style=accent,
+            border_style=border,
             padding=(0, 2),
             width=68,
         )
     )
 
-    # ── Middle: stats panels ──
+    # ── Middle: stats panels (theme tokens — no hard-coded neon hex) ──
 
     session_panel = Panel(
-        f"[bold #00ffcc]Platform:[/bold #00ffcc] [white]{shell_info}[/white]\n"
-        f"[bold #00ffcc]Mode:[/bold #00ffcc] [white]{mode}[/white]\n"
-        f"[bold #00ffcc]Provider:[/bold #00ffcc] [white]{provider}[/white]\n"
-        f"[bold #00ffcc]Persona:[/bold #00ffcc] [white]{persona}[/white]\n"
-        f"[bold #00ffcc]Theme:[/bold #00ffcc] [white]{theme}[/white]\n"
-        f"[bold #00ffcc]Session:[/bold #00ffcc] [white]{session_id[:8]}[/white]",
+        f"[bold {accent}]Platform:[/bold {accent}] [white]{shell_info}[/white]\n"
+        f"[bold {accent}]Mode:[/bold {accent}] [white]{mode}[/white]\n"
+        f"[bold {accent}]Provider:[/bold {accent}] [white]{provider}[/white]\n"
+        f"[bold {accent}]Persona:[/bold {accent}] [white]{persona}[/white]\n"
+        f"[bold {accent}]Theme:[/bold {accent}] [white]{safe_theme}[/white]\n"
+        f"[bold {accent}]Session:[/bold {accent}] [white]{session_id[:8]}[/white]",
         title="[bold]Session[/bold]",
-        border_style=accent,
+        border_style=border,
     )
 
     telemetry_panel = Panel(
-        f"[bold #ff00ff]Scans:[/bold #ff00ff] [white]{scans_count}[/white]\n"
-        f"[bold #ff00ff]Findings:[/bold #ff00ff] [white]{findings_count}[/white]\n"
-        f"[bold #ff00ff]Tools:[/bold #ff00ff] [white]{tool_count}[/white]\n"
-        f"[bold #ff00ff]Commands:[/bold #ff00ff] [white]{command_count}[/white]\n"
-        f"[bold #ff00ff]Messages:[/bold #ff00ff] [white]{msg_count}[/white]\n"
-        f"[bold #ff00ff]LLM Calls:[/bold #ff00ff] [white]{llm_calls}[/white]",
+        f"[bold {primary}]Scans:[/bold {primary}] [white]{scans_count}[/white]\n"
+        f"[bold {primary}]Findings:[/bold {primary}] [white]{findings_count}[/white]\n"
+        f"[bold {primary}]Tools:[/bold {primary}] [white]{tool_count}[/white]\n"
+        f"[bold {primary}]Commands:[/bold {primary}] [white]{command_count}[/white]\n"
+        f"[bold {primary}]Messages:[/bold {primary}] [white]{msg_count}[/white]\n"
+        f"[bold {primary}]LLM Calls:[/bold {primary}] [white]{llm_calls}[/white]",
         title="[bold]Telemetry[/bold]",
-        border_style="magenta",
+        border_style=primary,
     )
 
     top_cmds = CommandRegistry.top_commands(8)
@@ -809,7 +818,7 @@ def render_welcome_banner(
     quick_panel = Panel(
         quick_lines_text.strip(),
         title="[bold]Quick Actions[/bold]",
-        border_style="green",
+        border_style=success,
     )
 
     if provider_status:
@@ -830,33 +839,33 @@ def render_welcome_banner(
 
     stats_row = Columns([session_panel, telemetry_panel, quick_panel, llm_panel], expand=True)
 
-    # ── Footer: tips ──
+    # ── Footer: tips (plain text — Text.assemble does not parse markup) ──
     mode_tips = {
-        "redteam": "[red]Red Team mode — offensive operations. Tab for autocomplete | /help | /scan <target> | /stealth for evasion[/red]",
-        "blueteam": "[blue]Blue Team mode — defensive posture. Tab for autocomplete | /help | /audit for compliance | /review on for safety[/blue]",
-        "stealth": "[red]Stealth mode active — /stealth status to check | /opsec for operational security controls[/red]",
-        "offline": "[yellow]Offline mode — no LLM needed. /queue for queued commands | /scan <target> for local scans[/yellow]",
-        "autonomous": "[magenta]Autonomous mode — AI-driven operations. /model to configure LLM | /agent run <goal> for sub-agents[/magenta]",
+        "redteam": "Red Team mode — Tab for autocomplete | /help | /scan <target> | /stealth",
+        "blueteam": "Blue Team mode — Tab for autocomplete | /help | /audit | /review on",
+        "stealth": "Stealth mode active — /stealth status | /opsec for operational security",
+        "offline": "Offline mode — /queue for queued commands | /scan <target> for local scans",
+        "autonomous": "Autonomous mode — /model to configure LLM | /agent run <goal>",
     }
-    tip = mode_tips.get(mode, "[dim]Press Tab for autocomplete | ? or /help for all commands[/dim]")
+    tip = mode_tips.get(mode, "Press Tab for autocomplete | ? or /help for all commands")
 
     footer_content = Text.assemble(
-        ("Type natural language ", "bold cyan"),
+        ("Type natural language ", f"bold {accent}"),
         ("to plan work, or use slash commands.\n", "white"),
         ("  Examples: ", "dim"),
-        ("scan 10.0.0.5", "green"),
+        ("scan 10.0.0.5", success),
         ("  ", ""),
-        ("enumerate example.com", "green"),
+        ("enumerate example.com", success),
         ("  ", ""),
-        ("/theme cyber-noir", "green"),
+        ("/theme cyber-noir", success),
         ("\n", ""),
-        (tip, "white"),
+        (tip, muted),
     )
 
     footer_panel = Panel(
         footer_content,
-        title="[bold bright_black]Tip[/bold bright_black]",
-        border_style="bright_black",
+        title=f"[bold {muted}]Tip[/bold {muted}]",
+        border_style=muted,
     )
 
     return Group(header_panel, stats_row, footer_panel)
@@ -870,7 +879,7 @@ def render_welcome_banner(
 class SplitPane:
     """Terminal split-pane layout renderer for side-by-side views."""
 
-    def __init__(self, theme: str = "dark-neon") -> None:
+    def __init__(self, theme: str = "cyber-noir") -> None:
         self._theme = theme
 
     def generate_layout(
@@ -886,6 +895,7 @@ class SplitPane:
     ) -> str:
         from rich.panel import Panel as RichPanel
         from rich.text import Text as RichText
+
         from .console import get_terminal_size
 
         term_cols, _ = get_terminal_size(fallback=(120, 30))
@@ -1178,8 +1188,8 @@ class ConfigPanel:
 
 
 __all__ = [
-    "SmartAutocomplete",
-    "render_welcome_banner",
-    "SplitPane",
     "ConfigPanel",
+    "SmartAutocomplete",
+    "SplitPane",
+    "render_welcome_banner",
 ]

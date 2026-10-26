@@ -49,7 +49,7 @@ from siyarix.threat_intel import ThreatIntelManager
 
 manager = ThreatIntelManager()
 
-result = await manager.analyze_target("8.8.8.8")        # Routes to OTX
+result = await manager.analyze_target("8.8.8.8")  # Routes to OTX
 result = await manager.analyze_target("CVE-2024-0001")  # Routes to NVD
 ```
 

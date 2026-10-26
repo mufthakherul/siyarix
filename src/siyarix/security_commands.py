@@ -39,6 +39,7 @@ def _get_store() -> Any:
 def _get_security_db() -> Any:
     """Get or create the security-specific database connection."""
     import sqlite3
+
     from .config import get_config_dir
 
     db_path = get_config_dir() / "security.db"
@@ -103,6 +104,7 @@ def _seed_security_data(conn: Any | None = None) -> None:
     close_conn = conn is None
     if conn is None:
         import sqlite3
+
         from .config import get_config_dir
 
         db_path = get_config_dir() / "security.db"
@@ -710,50 +712,78 @@ def show_dashboard() -> None:
 
         from rich.columns import Columns
 
-        score_panel = Panel.fit(
-            "[bold bright_green]78.5[/bold bright_green]\n[dim]Security Score[/dim]",
-            title="Score",
-            border_style="green",
+        # Only show metrics derived from the local security DB — never fabricate
+        # MFA/EDR/MTTD percentages (trust failure in a security product).
+        open_weight = (
+            (critical_incidents * 3)
+            + (high_incidents * 2)
+            + max(total_open_incidents - critical_incidents - high_incidents, 0)
         )
+        vuln_weight = (
+            (critical_vulns * 3)
+            + (high_vulns * 2)
+            + max(total_vulns - critical_vulns - high_vulns, 0)
+        )
+        # Inverse pressure score from local open items only (0–100). Empty DB → N/A.
+        has_data = total_open_incidents > 0 or total_vulns > 0
+        if has_data:
+            pressure = min(100, open_weight * 5 + vuln_weight * 4)
+            score_val = max(0, 100 - pressure)
+            score_label = f"[bold]{score_val:.0f}[/bold]\n[dim]Local risk index[/dim]"
+            score_border = "green" if score_val >= 80 else "yellow" if score_val >= 50 else "red"
+        else:
+            score_label = "[dim]N/A[/dim]\n[dim]No local data[/dim]"
+            score_border = "dim"
+
+        score_panel = Panel.fit(score_label, title="Score", border_style=score_border)
         inc_panel = Panel.fit(
-            f"[bold red]{critical_incidents}[/bold red] Critical\n[bold orange1]{high_incidents}[/bold orange1] High\n[dim]{total_open_incidents} Total Open[/dim]",
+            f"[bold red]{critical_incidents}[/bold red] Critical\n"
+            f"[bold orange1]{high_incidents}[/bold orange1] High\n"
+            f"[dim]{total_open_incidents} Total Open[/dim]",
             title="Incidents",
             border_style="red",
         )
         vuln_panel = Panel.fit(
-            f"[bold red]{critical_vulns}[/bold red] Critical CVEs\n[bold orange1]{high_vulns}[/bold orange1] High\n[dim]{total_vulns} Total Open[/dim]",
+            f"[bold red]{critical_vulns}[/bold red] Critical CVEs\n"
+            f"[bold orange1]{high_vulns}[/bold orange1] High\n"
+            f"[dim]{total_vulns} Total Open[/dim]",
             title="Vulnerabilities",
             border_style="orange1",
         )
         comp_panel = Panel.fit(
-            "[bold green]89%[/bold green] MFA\n[bold yellow]76%[/bold yellow] Patches\n[bold cyan]95%[/bold cyan] EDR",
-            title="Compliance",
-            border_style="cyan",
+            "[dim]MFA / EDR / patch coverage\nare not measured by Siyarix.\n"
+            "Use your IdP / MDM / vuln scanner.[/dim]",
+            title="External controls",
+            border_style="dim",
         )
 
         console.print(Columns([score_panel, inc_panel, vuln_panel, comp_panel], equal=True))
 
-        table = Table(title="Security KPIs", show_header=True, header_style="bold cyan")
+        table = Table(
+            title="Local security DB summary",
+            show_header=True,
+            header_style="bold cyan",
+        )
         table.add_column("Metric", style="cyan")
         table.add_column("Current", style="white", justify="right")
-        table.add_column("Target", style="dim", justify="right")
-        table.add_column("Status", justify="center")
+        table.add_column("Notes", style="dim")
 
-        kpis = [
-            ("MTTD (Mean Time to Detect)", "2.5 hrs", "1 hr", "⚠"),
-            ("MTTC (Mean Time to Contain)", "4 hrs", "2 hrs", "⚠"),
-            ("MTTR (Mean Time to Recover)", "24 hrs", "24 hrs", "✓"),
-            ("Patch Rate", "76%", "90%", "✗"),
-            ("MFA Coverage", "89%", "100%", "⚠"),
-            ("EDR Coverage", "95%", "100%", "⚠"),
-        ]
-        status_colors = {"✓": "green", "⚠": "yellow", "✗": "red"}
-
-        for metric, current, target, status in kpis:
-            sc = status_colors.get(status, "white")
-            table.add_row(str(metric), str(current), str(target), f"[{sc}]{status}[/{sc}]")
+        table.add_row("Open incidents", str(total_open_incidents), "from local siyarix security DB")
+        table.add_row("Critical incidents", str(critical_incidents), "")
+        table.add_row("Open vulnerabilities", str(total_vulns), "unpatched rows only")
+        table.add_row("Critical vulnerabilities", str(critical_vulns), "")
+        table.add_row(
+            "MTTD / MTTC / MTTR",
+            "N/A",
+            "not computed — requires SIEM timestamps",
+        )
+        table.add_row("MFA / EDR / patch %", "N/A", "not measured by this CLI")
 
         console.print(table)
+        console.print(
+            "[dim]Dashboard shows only local DB counts. "
+            "Fabricated SOC KPIs were removed for production honesty.[/dim]"
+        )
     finally:
         conn.close()
 
@@ -796,14 +826,14 @@ def list_playbooks() -> None:
 
 
 __all__ = [
-    "list_incidents",
-    "get_incident",
     "create_incident",
-    "list_vulnerabilities",
+    "get_incident",
     "get_remediation_plan",
-    "run_hunt",
-    "list_queries",
-    "mitre_coverage",
-    "show_dashboard",
+    "list_incidents",
     "list_playbooks",
+    "list_queries",
+    "list_vulnerabilities",
+    "mitre_coverage",
+    "run_hunt",
+    "show_dashboard",
 ]

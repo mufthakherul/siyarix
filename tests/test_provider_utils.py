@@ -1,22 +1,24 @@
 from __future__ import annotations
 
-import respx
+from unittest.mock import MagicMock, patch
+
 import httpx
-from unittest.mock import patch, MagicMock
+import respx
+
 from siyarix.provider_utils import (
     _is_safe_url,
-    safe_http_get,
-    safe_http_post,
-    safe_http_get_raw,
-    resolve_provider_url,
-    is_reasoning_model,
     build_model_definition,
-    list_provider_models,
-    enrich_model,
-    discover_provider_models,
-    pull_model,
-    ensure_model_pulled,
     check_provider_health,
+    discover_provider_models,
+    enrich_model,
+    ensure_model_pulled,
+    is_reasoning_model,
+    list_provider_models,
+    pull_model,
+    resolve_provider_url,
+    safe_http_get,
+    safe_http_get_raw,
+    safe_http_post,
 )
 
 
@@ -60,9 +62,7 @@ def test_safe_http_get_does_not_follow_redirects_to_metadata() -> None:
     )
     assert safe_http_get(url) is None
     # Confirm the metadata host was never requested.
-    assert not any(
-        "169.254.169.254" in str(call.request.url) for call in respx.calls
-    )
+    assert not any("169.254.169.254" in str(call.request.url) for call in respx.calls)
 
 
 @respx.mock
@@ -245,16 +245,15 @@ from unittest.mock import patch
 import respx
 
 from siyarix.provider_utils import (
+    _enrich_lmstudio_model,
+    _enrich_ollama_model,
+    _enrich_ollama_models_batch,
+    _enrich_vllm_model,
     _list_ollama_models,
     _list_openai_compat_models,
-    _enrich_ollama_model,
-    _enrich_lmstudio_model,
-    _enrich_vllm_model,
-    enrich_all_models,
-    _enrich_ollama_models_batch,
     _parse_num_ctx,
+    enrich_all_models,
 )
-
 
 # ── _is_safe_url ──────────────────────────────────────────────────────────
 

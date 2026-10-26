@@ -62,12 +62,12 @@ You can find the core data models in the types module (`siyarix/providers/types.
 class ProviderProfile:
     name: str
     display_name: str
-    provider_type: str           # "cloud" | "local" | "heuristic"
+    provider_type: str  # "cloud" | "local" | "heuristic"
     base_url: str
-    api_key_env: str | None      # Which environment variable holds the key?
+    api_key_env: str | None  # Which environment variable holds the key?
     models: list[ModelInfo]
-    capabilities: set[str]       # e.g., "chat", "embed", "function_calling", "vision"
-    priority: int                # Position in the preference chain
+    capabilities: set[str]  # e.g., "chat", "embed", "function_calling", "vision"
+    priority: int  # Position in the preference chain
     rate_limit: int | None = None
     timeout: int = 60
 ```
@@ -79,7 +79,7 @@ class ModelInfo:
     display_name: str
     context_window: int
     max_output_tokens: int
-    capabilities: set[str]       # What can this model do?
+    capabilities: set[str]  # What can this model do?
 ```
 
 ### 🎯 Provider Selection
@@ -107,7 +107,7 @@ These providers require authentication but offer the most powerful, cutting-edge
 | Registry Name | SDK / API | Notable Models |
 |--------------|-----------|----------------|
 | `openai` | `openai` | GPT-4o, GPT-4-turbo, GPT-3.5-turbo |
-| `gemini` | `google-generativeai` | Gemini 2.0 Flash, 1.5 Pro |
+| `gemini` | native REST via `httpx` (no SDK) | Gemini 2.x / 3.x Flash & Pro |
 | `anthropic` | `anthropic` | Claude 3.5 Sonnet, Claude 3 Opus |
 | `groq` | `groq` | Llama 3 70B, Mixtral 8x7B |
 | `together` | `together` | Mixtral, DeepSeek, Llama variants |
@@ -249,7 +249,7 @@ Your system's memory isn't wiped when you restart. The `ProviderStateManager` sa
 @dataclass
 class ProviderState:
     provider_name: str
-    circuit_state: str                # CLOSED | OPEN | HALF_OPEN
+    circuit_state: str  # CLOSED | OPEN | HALF_OPEN
     failure_count: int
     last_failure: datetime | None
     cooldown_until: datetime | None
@@ -293,7 +293,7 @@ When an API blinks with a temporary error (like a 429 Rate Limit or 503 Server E
 
 ```python
 # Formula for our smart delays
-backoff = min(2 ** attempt + random.uniform(0, JITTER), MAX_DELAY)
+backoff = min(2**attempt + random.uniform(0, JITTER), MAX_DELAY)
 ```
 
 | Attempt | Delay Range | Max Delay |

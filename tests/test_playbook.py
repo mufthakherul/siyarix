@@ -106,7 +106,9 @@ def test_resolve_vars_blocks_secret_env(playbook_engine: PlaybookEngine) -> None
     ):
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_SUDO_PASSWORD }}", {}) == "[REDACTED]"
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_WEBHOOK_URL }}", {}) == "[REDACTED]"
-        assert playbook_engine._resolve_vars("{{ env.SIYARIX_MASTER_PASSWORD }}", {}) == "[REDACTED]"
+        assert (
+            playbook_engine._resolve_vars("{{ env.SIYARIX_MASTER_PASSWORD }}", {}) == "[REDACTED]"
+        )
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_AUTH_HEADER }}", {}) == "[REDACTED]"
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_BEARER_TOKEN }}", {}) == "[REDACTED]"
         assert playbook_engine._resolve_vars("{{ env.SIYARIX_COOKIE }}", {}) == "[REDACTED]"

@@ -50,7 +50,7 @@ class LearnedStep:
     description: str
     args: dict[str, Any] = field(default_factory=dict)
 
-    def instantiate(self, target: str) -> "LearnedStep":
+    def instantiate(self, target: str) -> LearnedStep:
         """Return a copy with {target} replaced by the real target."""
         return LearnedStep(
             tool=self.tool,
@@ -530,7 +530,6 @@ class ContinuousLearningSystem:
                 "some",
                 "just",
                 "now",
-                "on",
             }
         )
         text = text.lower()
@@ -1685,7 +1684,7 @@ _LS_LOCK = threading.Lock()
 
 def get_learning_system() -> ContinuousLearningSystem:
     """Return the process-wide :class:`ContinuousLearningSystem` singleton."""
-    global _LEARNING_SYSTEM  # noqa: PLW0603
+    global _LEARNING_SYSTEM
     if _LEARNING_SYSTEM is None:
         with _LS_LOCK:
             if _LEARNING_SYSTEM is None:

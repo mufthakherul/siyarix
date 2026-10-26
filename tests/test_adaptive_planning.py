@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from siyarix.planner import ExecutionPlan, PlanStep, Planner, StepStatus
+from siyarix.planner import ExecutionPlan, Planner, PlanStep, StepStatus
 
 
 def test_planner_adapt_plan_for_zero_findings() -> None:

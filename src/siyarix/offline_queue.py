@@ -7,10 +7,11 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generator, cast
+from typing import Any, cast
 
 from siyarix.config import get_config_dir
 
@@ -100,16 +101,12 @@ class OfflineCommandQueue:
                     dependencies TEXT DEFAULT '[]'
                 )
             """)
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_queue_status ON queued_commands(status)"
-            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_queue_status ON queued_commands(status)")
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_queue_created ON queued_commands(created_at)"
             )
             try:
-                conn.execute(
-                    "ALTER TABLE queued_commands ADD COLUMN claimed_at TEXT DEFAULT ''"
-                )
+                conn.execute("ALTER TABLE queued_commands ADD COLUMN claimed_at TEXT DEFAULT ''")
             except sqlite3.OperationalError:
                 pass  # column already present on upgraded DBs
 
@@ -122,23 +119,22 @@ class OfflineCommandQueue:
         dependencies: list[str] | None = None,
     ) -> str:
         cmd_id = uuid.uuid4().hex
-        with self._lock:
-            with self._transaction() as conn:
-                # Use SQLite datetime('now') so age filters (clear/reclaim) compare
-                # against the same timestamp format.
-                conn.execute(
-                    "INSERT INTO queued_commands "
-                    "(id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
-                    "VALUES (?, ?, ?, ?, 'pending', datetime('now'), ?, ?)",
-                    (
-                        cmd_id,
-                        instruction,
-                        target,
-                        mode,
-                        max_attempts,
-                        json.dumps(dependencies or []),
-                    ),
-                )
+        with self._lock, self._transaction() as conn:
+            # Use SQLite datetime('now') so age filters (clear/reclaim) compare
+            # against the same timestamp format.
+            conn.execute(
+                "INSERT INTO queued_commands "
+                "(id, instruction, target, mode, status, created_at, max_attempts, dependencies) "
+                "VALUES (?, ?, ?, ?, 'pending', datetime('now'), ?, ?)",
+                (
+                    cmd_id,
+                    instruction,
+                    target,
+                    mode,
+                    max_attempts,
+                    json.dumps(dependencies or []),
+                ),
+            )
         logger.info("Queued command %s: %s", cmd_id, instruction[:60])
         return cmd_id
 
@@ -161,61 +157,60 @@ class OfflineCommandQueue:
         cannot dequeue the same row twice. Rows with unsatisfied ``dependencies``
         stay pending until every dependency id is ``completed``.
         """
-        with self._lock:
-            with self._transaction() as conn:
-                # Over-fetch then filter by dependency readiness (fail-closed).
-                candidates = conn.execute(
-                    "SELECT * FROM queued_commands WHERE status = 'pending' "
-                    "ORDER BY created_at ASC LIMIT ?",
-                    (max(batch_size * 5, batch_size),),
-                ).fetchall()
-                ids: list[str] = []
-                for row in candidates:
-                    try:
-                        deps = json.loads(row["dependencies"] or "[]")
-                    except (TypeError, json.JSONDecodeError):
-                        deps = []
-                    if not isinstance(deps, list):
-                        deps = []
-                    deps_s = [str(d) for d in deps]
-                    if not self._deps_satisfied(conn, deps_s):
-                        continue
-                    ids.append(str(row["id"]))
-                    if len(ids) >= batch_size:
-                        break
-                if not ids:
-                    return []
-                placeholders = ",".join("?" * len(ids))
-                conn.execute(
-                    f"UPDATE queued_commands SET status = 'processing', "
-                    f"attempts = attempts + 1, claimed_at = datetime('now') "
-                    f"WHERE id IN ({placeholders}) "
-                    f"AND status = 'pending'",
-                    ids,
-                )
-                claimed = conn.execute(
-                    f"SELECT * FROM queued_commands WHERE id IN ({placeholders}) "
-                    f"AND status = 'processing'",
-                    ids,
-                ).fetchall()
-                result = []
-                for row in claimed:
-                    result.append(
-                        QueuedCommand(
-                            id=row["id"],
-                            instruction=row["instruction"],
-                            target=row["target"],
-                            mode=row["mode"],
-                            status=row["status"],
-                            created_at=row["created_at"],
-                            attempts=row["attempts"],
-                            max_attempts=row["max_attempts"],
-                            last_error=row["last_error"],
-                            result_summary=row["result_summary"],
-                            dependencies=json.loads(row["dependencies"]),
-                        )
+        with self._lock, self._transaction() as conn:
+            # Over-fetch then filter by dependency readiness (fail-closed).
+            candidates = conn.execute(
+                "SELECT * FROM queued_commands WHERE status = 'pending' "
+                "ORDER BY created_at ASC LIMIT ?",
+                (max(batch_size * 5, batch_size),),
+            ).fetchall()
+            ids: list[str] = []
+            for row in candidates:
+                try:
+                    deps = json.loads(row["dependencies"] or "[]")
+                except (TypeError, json.JSONDecodeError):
+                    deps = []
+                if not isinstance(deps, list):
+                    deps = []
+                deps_s = [str(d) for d in deps]
+                if not self._deps_satisfied(conn, deps_s):
+                    continue
+                ids.append(str(row["id"]))
+                if len(ids) >= batch_size:
+                    break
+            if not ids:
+                return []
+            placeholders = ",".join("?" * len(ids))
+            conn.execute(
+                f"UPDATE queued_commands SET status = 'processing', "
+                f"attempts = attempts + 1, claimed_at = datetime('now') "
+                f"WHERE id IN ({placeholders}) "
+                f"AND status = 'pending'",
+                ids,
+            )
+            claimed = conn.execute(
+                f"SELECT * FROM queued_commands WHERE id IN ({placeholders}) "
+                f"AND status = 'processing'",
+                ids,
+            ).fetchall()
+            result = []
+            for row in claimed:
+                result.append(
+                    QueuedCommand(
+                        id=row["id"],
+                        instruction=row["instruction"],
+                        target=row["target"],
+                        mode=row["mode"],
+                        status=row["status"],
+                        created_at=row["created_at"],
+                        attempts=row["attempts"],
+                        max_attempts=row["max_attempts"],
+                        last_error=row["last_error"],
+                        result_summary=row["result_summary"],
+                        dependencies=json.loads(row["dependencies"]),
                     )
-                return result
+                )
+            return result
 
     def mark_processing(self, cmd_id: str) -> None:
         """Ensure *cmd_id* is marked processing.
@@ -223,13 +218,12 @@ class OfflineCommandQueue:
         Safe to call after :meth:`dequeue` (already claimed) — does not
         double-increment attempts when status is already ``processing``.
         """
-        with self._lock:
-            with self._transaction() as conn:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'processing', "
-                    "attempts = attempts + 1 WHERE id = ? AND status = 'pending'",
-                    (cmd_id,),
-                )
+        with self._lock, self._transaction() as conn:
+            conn.execute(
+                "UPDATE queued_commands SET status = 'processing', "
+                "attempts = attempts + 1 WHERE id = ? AND status = 'pending'",
+                (cmd_id,),
+            )
 
     def reclaim_stale_processing(self, older_than_seconds: int = 3600) -> int:
         """Return stuck ``processing`` rows to ``pending`` after a crash/TTL.
@@ -237,46 +231,43 @@ class OfflineCommandQueue:
         Ages on ``claimed_at`` (set at dequeue). Rows without ``claimed_at``
         fall back to ``created_at`` for pre-migration databases.
         """
-        with self._lock:
-            with self._transaction() as conn:
-                cutoff = f"-{int(older_than_seconds)} seconds"
-                cur = conn.execute(
-                    "UPDATE queued_commands SET status = 'pending', claimed_at = '' "
-                    "WHERE status = 'processing' AND ("
-                    "  (claimed_at IS NOT NULL AND claimed_at != '' "
-                    "   AND claimed_at < datetime('now', ?))"
-                    "  OR ((claimed_at IS NULL OR claimed_at = '') "
-                    "   AND created_at < datetime('now', ?))"
-                    ")",
-                    (cutoff, cutoff),
-                )
-                return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
+        with self._lock, self._transaction() as conn:
+            cutoff = f"-{int(older_than_seconds)} seconds"
+            cur = conn.execute(
+                "UPDATE queued_commands SET status = 'pending', claimed_at = '' "
+                "WHERE status = 'processing' AND ("
+                "  (claimed_at IS NOT NULL AND claimed_at != '' "
+                "   AND claimed_at < datetime('now', ?))"
+                "  OR ((claimed_at IS NULL OR claimed_at = '') "
+                "   AND created_at < datetime('now', ?))"
+                ")",
+                (cutoff, cutoff),
+            )
+            return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 
     def mark_completed(self, cmd_id: str, summary: str = "") -> None:
-        with self._lock:
-            with self._transaction() as conn:
-                conn.execute(
-                    "UPDATE queued_commands SET status = 'completed', result_summary = ? WHERE id = ?",
-                    (summary, cmd_id),
-                )
+        with self._lock, self._transaction() as conn:
+            conn.execute(
+                "UPDATE queued_commands SET status = 'completed', result_summary = ? WHERE id = ?",
+                (summary, cmd_id),
+            )
 
     def mark_failed(self, cmd_id: str, error: str) -> None:
-        with self._lock:
-            with self._transaction() as conn:
-                row = conn.execute(
-                    "SELECT attempts, max_attempts FROM queued_commands WHERE id = ?",
-                    (cmd_id,),
-                ).fetchone()
-                if row and row["attempts"] >= row["max_attempts"]:
-                    conn.execute(
-                        "UPDATE queued_commands SET status = 'failed', last_error = ? WHERE id = ?",
-                        (error, cmd_id),
-                    )
-                else:
-                    conn.execute(
-                        "UPDATE queued_commands SET status = 'pending', last_error = ? WHERE id = ?",
-                        (error, cmd_id),
-                    )
+        with self._lock, self._transaction() as conn:
+            row = conn.execute(
+                "SELECT attempts, max_attempts FROM queued_commands WHERE id = ?",
+                (cmd_id,),
+            ).fetchone()
+            if row and row["attempts"] >= row["max_attempts"]:
+                conn.execute(
+                    "UPDATE queued_commands SET status = 'failed', last_error = ? WHERE id = ?",
+                    (error, cmd_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE queued_commands SET status = 'pending', last_error = ? WHERE id = ?",
+                    (error, cmd_id),
+                )
 
     def get_pending_count(self) -> int:
         conn = self._conn()
@@ -323,34 +314,32 @@ class OfflineCommandQueue:
         return result
 
     def retry_failed(self, max_items: int = 10) -> int:
-        with self._lock:
-            with self._transaction() as conn:
-                # SQLite UPDATE…LIMIT is not portable; select then update.
-                rows = conn.execute(
-                    "SELECT id FROM queued_commands WHERE status = 'failed' "
-                    "ORDER BY created_at ASC LIMIT ?",
-                    (max_items,),
-                ).fetchall()
-                ids = [row["id"] for row in rows]
-                if not ids:
-                    return 0
-                placeholders = ",".join("?" * len(ids))
-                conn.execute(
-                    f"UPDATE queued_commands SET status = 'pending', attempts = 0 "
-                    f"WHERE id IN ({placeholders})",
-                    ids,
-                )
-                return len(ids)
+        with self._lock, self._transaction() as conn:
+            # SQLite UPDATE…LIMIT is not portable; select then update.
+            rows = conn.execute(
+                "SELECT id FROM queued_commands WHERE status = 'failed' "
+                "ORDER BY created_at ASC LIMIT ?",
+                (max_items,),
+            ).fetchall()
+            ids = [row["id"] for row in rows]
+            if not ids:
+                return 0
+            placeholders = ",".join("?" * len(ids))
+            conn.execute(
+                f"UPDATE queued_commands SET status = 'pending', attempts = 0 "
+                f"WHERE id IN ({placeholders})",
+                ids,
+            )
+            return len(ids)
 
     def clear_completed(self, older_than_days: int = 7) -> int:
-        with self._lock:
-            with self._transaction() as conn:
-                cur = conn.execute(
-                    "DELETE FROM queued_commands WHERE status = 'completed' "
-                    "AND created_at < datetime('now', ?)",
-                    (f"-{older_than_days} days",),
-                )
-                return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
+        with self._lock, self._transaction() as conn:
+            cur = conn.execute(
+                "DELETE FROM queued_commands WHERE status = 'completed' "
+                "AND created_at < datetime('now', ?)",
+                (f"-{older_than_days} days",),
+            )
+            return cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
 
     def stats(self) -> dict[str, int]:
         self._conn()

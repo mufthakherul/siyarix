@@ -15,8 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
+from typing import Any
+
 import httpx
-from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +79,9 @@ PROVIDER_DEFAULTS: dict[str, dict[str, Any]] = {
 
 # SSRF blocklist for provider URLs
 _SSRF_BLOCKED_HOSTS: list[re.Pattern[str]] = [
-    re.compile(r"^169\.254\.", re.I),
+    re.compile(r"^169\.254\.", re.IGNORECASE),
     re.compile(r"^0\.0\.0\.0$"),
-    re.compile(r"^metadata\.", re.I),
+    re.compile(r"^metadata\.", re.IGNORECASE),
 ]
 
 
@@ -162,9 +164,7 @@ def safe_http_get(url: str, timeout: float = 10.0) -> Any:
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(
-            url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False
-        )
+        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False)
         resp.raise_for_status()
         return resp.json()
     except httpx.HTTPError as exc:
@@ -204,9 +204,7 @@ def safe_http_get_raw(url: str, timeout: float = 10.0) -> httpx.Response | None:
         logger.warning("Blocked unsafe GET: %s", url)
         return None
     try:
-        resp = httpx.get(
-            url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False
-        )
+        resp = httpx.get(url, timeout=timeout, verify=_verify_tls(url), follow_redirects=False)
         resp.raise_for_status()
         return resp
     except httpx.HTTPError as exc:
@@ -623,17 +621,17 @@ def check_provider_health(provider: str, base_url: str | None = None, timeout: f
 __all__ = [
     "DEFAULT_CONTEXT_WINDOW",
     "DEFAULT_MAX_TOKENS",
-    "safe_http_get",
-    "safe_http_post",
-    "safe_http_get_raw",
-    "resolve_provider_url",
-    "is_reasoning_model",
     "build_model_definition",
-    "list_provider_models",
-    "enrich_model",
-    "enrich_all_models",
-    "discover_provider_models",
-    "pull_model",
-    "ensure_model_pulled",
     "check_provider_health",
+    "discover_provider_models",
+    "enrich_all_models",
+    "enrich_model",
+    "ensure_model_pulled",
+    "is_reasoning_model",
+    "list_provider_models",
+    "pull_model",
+    "resolve_provider_url",
+    "safe_http_get",
+    "safe_http_get_raw",
+    "safe_http_post",
 ]

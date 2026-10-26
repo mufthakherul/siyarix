@@ -362,9 +362,9 @@ class CommandAnalyzer:
 
 
 __all__ = [
+    "CommandAnalysis",
     "CommandAnalyzer",
     "CommandIntent",
     "OpsecRisk",
     "TargetEntity",
-    "CommandAnalysis",
 ]

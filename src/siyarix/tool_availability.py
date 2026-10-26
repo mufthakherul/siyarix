@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import os
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 # ── Types ──────────────────────────────────────────────────────────────
 
@@ -221,7 +222,7 @@ __all__ = [
     "ToolAvailabilityContext",
     "ToolAvailabilityDiagnostic",
     "ToolAvailabilityResult",
-    "register_signal",
-    "evaluate_availability",
     "check_tool_available",
+    "evaluate_availability",
+    "register_signal",
 ]

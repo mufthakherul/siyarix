@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import json
-import pytest
 from pathlib import Path
 
+import pytest
+
+from siyarix.planner_autonomous import SemanticToolSelector
 from siyarix.plugins.manager import (
     PluginManager,
     _validate_git_clone_url,
@@ -19,7 +21,6 @@ from siyarix.plugins.models import (
 from siyarix.providers.manager import ProviderManager
 from siyarix.registry import ToolRegistry
 from siyarix.tool_models import RiskLevel, ToolCategory
-from siyarix.planner_autonomous import SemanticToolSelector
 
 
 @pytest.fixture

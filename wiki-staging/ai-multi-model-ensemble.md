@@ -191,13 +191,13 @@ Our `EnsembleResult` dataclass tracks all of this metadata for you:
 @dataclass
 class EnsembleResult:
     task: str
-    responses: list[dict]         # Every provider's raw answer
-    selected_plan: str            # The winning response
-    voting_strategy: str          # e.g., 'majority', 'weighted'
-    consensus_level: float        # Score from 0.0 to 1.0
-    hallucination_risk: float     # Score from 0.0 to 1.0 (Higher = bad)
-    total_cost: float             # Cumulative cost of all API calls
-    total_latency_ms: float       # Total wall-clock time
+    responses: list[dict]  # Every provider's raw answer
+    selected_plan: str  # The winning response
+    voting_strategy: str  # e.g., 'majority', 'weighted'
+    consensus_level: float  # Score from 0.0 to 1.0
+    hallucination_risk: float  # Score from 0.0 to 1.0 (Higher = bad)
+    total_cost: float  # Cumulative cost of all API calls
+    total_latency_ms: float  # Total wall-clock time
 ```
 
 ---

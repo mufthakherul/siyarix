@@ -136,8 +136,8 @@ def register_alias(provider: str, alias: str, target: str) -> None:
 
 
 __all__ = [
-    "normalize_model_id",
-    "resolve_alias",
     "list_aliases",
+    "normalize_model_id",
     "register_alias",
+    "resolve_alias",
 ]

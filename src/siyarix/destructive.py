@@ -122,34 +122,48 @@ _INTERPRETER_WIPE_RE = re.compile(
 )
 _INTERPRETER_DEV_WRITE_RE = re.compile(
     r"(?:"
-    r"open\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|File\.write\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|IO\.write\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|writeFile(?:Sync)?\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|file_put_contents\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|urlretrieve\s*\([^)]*" + _BLOCK_DEV_RE.pattern
-    + r"|Path\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    r"open\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|File\.write\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|IO\.write\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|writeFile(?:Sync)?\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|file_put_contents\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|urlretrieve\s*\([^)]*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|Path\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|pathlib\s*\.\s*Path\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     + r")",
     re.IGNORECASE,
 )
 _GPG_OPENSSL_OUT_BLOCK_RE = re.compile(
-    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
-    + _BLOCK_DEV_RE.pattern,
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 _MISC_WRITE_BLOCK_RE = re.compile(
     r"(?:"
     r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|pigz|bzip2|lzop|lzma|lzip|plzip|lrzip)\b"
-    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)" + _BLOCK_DEV_RE.pattern
+    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
+    + _BLOCK_DEV_RE.pattern
     + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|ddrescue|uudecode|objcopy)\b"
-    r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    r"[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
     + _BLOCK_DEV_RE.pattern
-    + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _BLOCK_DEV_RE.pattern
-    + r"|\bsocat\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    + r"|\bgs\b[\s\S]{0,160}-sOutputFile="
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bsocat\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    # ``mksquashfs src /dev/sda`` — last positional block dest (RH-27).
+    + r"|\bmksquashfs\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -159,7 +173,9 @@ _EXTRACT_DEST_RE = re.compile(
     r"(?:"
     r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}"
     r"(?:--directory|--chdir|--cd|-C)\b(?:=|\s*)(\S+)"
-    r"|\bunzip\b[\s\S]{0,100}(?:--directory|-d)\b(?:=|\s*)(\S+)"
+    # ``-d DIR``, ``-d/``, ``--directory=DIR``, and glued ``-od /`` (overwrite+directory).
+    # ``(?![a-zA-Z])`` after ``d`` prevents matching inside ``--directory``.
+    r"|\bunzip\b[\s\S]{0,100}(?:--directory(?:=|\s*)|-[a-zA-Z]*d(?![a-zA-Z])(?:=|\s*))(\S+)"
     r"|\b(?:7z|7za|7zr|7zz)\b[\s\S]{0,100}-o(\S*)"
     r"|\bcpio\b[\s\S]{0,100}(?:--directory|-D)\b(?:=|\s*)(\S+)"
     # zipfile/tarfile: ``-e archive dest`` — capture dest (last path), not archive.
@@ -170,14 +186,57 @@ _EXTRACT_DEST_RE = re.compile(
     r"|\b(?:dpkg-deb|dpkg)\b[\s\S]{0,120}(?:-x|--extract)\b[\s\S]{0,80}(\S+)\s+(\S+)"
     r"|\bunsquashfs\b[\s\S]{0,100}(?:--dest|-dest|-d)\b(?:=|\s*)(\S+)"
     r"|\b(?:unar|unrar|rar)\b[\s\S]{0,140}(?:-op|-o|-d)(?:=|\s*)(\S+)"
+    # ``ar x a.a --output /`` / ``ar -O /`` (RH-27). Avoid matching ``-O`` inside ``--output``.
+    r"|\bar\b[\s\S]{0,160}(?:--output(?:=|\s*)|(?<![-\w])-O(?:=|\s*))(\S+)"
+    # ``gem unpack/install/i … --target|--install-dir|-i /`` / ``aunpack -X /`` (RH-35/41).
+    # Long opts first; short ``-i`` must not match inside ``--install-dir``.
+    r"|\bgem\b[\s\S]{0,160}(?:unpack|install|\bi)\b[\s\S]{0,140}"
+    r"(?:(?:--target|--install-dir)(?:=|\s*)|(?<![-\w])-i(?:=|\s*))(\S+)"
+    r"|\b(?:aunpack|atool)\b[\s\S]{0,100}(?:-X|--extract-to)(?:=|\s*)(\S+)"
+    # ``patool extract --outdir /`` (RH-41). Avoid ``-O`` matching inside ``--outdir``.
+    r"|\bpatool\b[\s\S]{0,140}(?:extract|x)\b[\s\S]{0,120}"
+    r"(?:(?:--outdir|--out-dir)(?:=|\s*)|(?<![-\w])-O(?:=|\s*))(\S+)"
     r")",
     re.IGNORECASE,
 )
 _UNRAR_CMD_RE = re.compile(r"\b(?:unrar|unar|rar)\b", re.IGNORECASE)
 _PKG_ROOT_RE = re.compile(
     # Non-greedy span so ``-r`` inside ``--root`` is not preferred over ``--root=``.
-    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm)\b[\s\S]{0,160}?"
-    r"(?:--installroot|--offline-root|--root|--prefix|(?<![\w-])-r)(?:=|\s*)(\S+)",
+    # ``pip --target=/`` / ``cargo --root=/`` / ``dpkg --root=/`` (RH-38/41/42/43).
+    # yarn/bun ``--cwd /``, deno ``--root=/``, emerge/xbps (RH-46).
+    r"\b(?:rpm|apk|dnf|yum|zypper|pacman|opkg|pip|pip3|npm|yarn|pnpm|cargo|uv|"
+    r"composer|bundle|dpkg|dpkg-deb|apt|apt-get|emerge|xbps-install|bun|deno|pdm)\b"
+    r"[\s\S]{0,180}?"
+    r"(?:--installroot|--offline-root|--root|--prefix|--target|--global-dir|"
+    r"--working-dir|--path|--cwd|--dir|(?<![\w-])-r)"
+    r"(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# make/cmake/meson/stow install roots (RH-47).
+_MAKE_DESTDIR_RE = re.compile(
+    r"\bmake\b[\s\S]{0,200}\bDESTDIR=(\S+)",
+    re.IGNORECASE,
+)
+_CMAKE_PREFIX_RE = re.compile(
+    r"\bcmake\b[\s\S]{0,200}--(?:prefix|install-prefix)(?:=|\s+)(\S+)",
+    re.IGNORECASE,
+)
+_MESON_DESTDIR_RE = re.compile(
+    r"\bmeson\b[\s\S]{0,200}--destdir(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+_STOW_TARGET_RE = re.compile(
+    r"\bstow\b[\s\S]{0,160}(?:-t|--target)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# Nix/Guix profile root pivots (RH-44): ``nix-env -p /`` / ``guix package -p /``.
+_NIX_GUIX_PROFILE_RE = re.compile(
+    r"\b(?:nix-env|guix)\b[\s\S]{0,160}?(?:--profile|(?<![\w-])-p)(?:=|\s*)(\S+)",
+    re.IGNORECASE,
+)
+# Conda/mamba prefix roots (RH-46): ``conda install -p /`` / ``micromamba create -p /``.
+_CONDA_PREFIX_RE = re.compile(
+    r"\b(?:conda|mamba|micromamba)\b[\s\S]{0,160}?(?:--prefix|(?<![\w-])-p)(?:=|\s*)(\S+)",
     re.IGNORECASE,
 )
 # OpenWrt opkg also uses ``-o`` / ``--offline-root`` for the install root.
@@ -246,8 +305,7 @@ _DOWNLOAD_TO_BLOCK_RE = re.compile(
     re.IGNORECASE,
 )
 _CMAKE_COPY_BLOCK_RE = re.compile(
-    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}"
-    + _BLOCK_DEV_RE.pattern,
+    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 # curl/wget/aria2c writing under /dev via separate --dir / -o filename.
@@ -298,22 +356,79 @@ _WMIC_FORMAT_RE = re.compile(
 # Auth + persistence paths that must not be overwritten / linked over.
 _AUTH_FILE_RE = re.compile(
     r"(?:"
-    r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local)\b"
+    r"/etc/(?:passwd|shadow|gshadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local|"
+    r"hosts|resolv\.conf|ssh/sshd_config|ssh/ssh_config|sysctl\.conf|login\.defs|"
+    r"fstab|nftables\.conf|bash\.bashrc|sudo\.conf|"
+    # RH-52 — system shell init + firewall/boot/polkit.
+    r"zshrc|zprofile|zshenv|csh\.cshrc|csh\.login)\b"
+    r"|/etc/zsh(?:/\S*)?"
+    r"|/etc/iptables(?:/\S*)?"
+    r"|/etc/ufw(?:/\S*)?"
+    r"|/etc/polkit-1(?:/\S*)?"
+    r"|/boot/grub(?:/\S*)?"
+    r"|/boot/grub2(?:/\S*)?"
+    r"|/boot/efi/EFI(?:/\S*)?"
+    r"|/etc/default/grub\b"
+    r"|/etc/ssh/ssh_config\.d(?:/\S*)?"
+    r"|/etc/security/access\.conf\b"
+    r"|/etc/netplan(?:/\S*)?"
+    r"|/(?:root|home/[^/\s]+)/\.bashrc\b"
+    # RH-52 — sibling login/rc persistence (RH-50 covered .bashrc only).
+    r"|/(?:root|home/[^/\s]+)/\.(?:zshrc|zprofile|zshenv|zlogin|profile|bash_profile|bash_login|"
+    r"cshrc|tcshrc|login|kshrc|xonshrc)\b"
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?"
     r"|/etc/systemd/(?:system|user)(?:/\S*)?"
+    # Vendor unit dirs (RH-41) — persistence outside /etc/systemd.
+    r"|/(?:usr/)?lib/systemd/(?:system|user)(?:/\S*)?"
+    # Init / autostart / NM dispatcher persistence (RH-42).
+    r"|/etc/init\.d(?:/\S*)?"
+    r"|/etc/xdg/autostart(?:/\S*)?"
+    r"|/etc/NetworkManager/dispatcher\.d(?:/\S*)?"
+    # RH-53 — NM connection profiles (rogue Wi-Fi/VPN persistence).
+    r"|/etc/NetworkManager/system-connections(?:/\S*)?"
+    # PAM / linker conf / spool crontabs (RH-43).
+    r"|/etc/pam\.d(?:/\S*)?"
+    r"|/etc/ld\.so\.conf(?:\.d(?:/\S*)?)?"
+    r"|/var/spool/cron(?:/crontabs)?(?:/\S*)?"
+    # Login / sysctl / udev / runtime-unit persistence (RH-46).
+    r"|/etc/profile\.d(?:/\S*)?"
+    r"|/etc/sysctl\.d(?:/\S*)?"
+    r"|/etc/modules-load\.d(?:/\S*)?"
+    r"|/etc/udev/rules\.d(?:/\S*)?"
+    r"|/etc/tmpfiles\.d(?:/\S*)?"
+    r"|/etc/security/limits\.d(?:/\S*)?"
+    r"|/run/systemd/system(?:/\S*)?"
+    # Login / resolver / doas / modprobe persistence (RH-47).
+    r"|/etc/profile\b"
+    r"|/etc/environment\b"
+    r"|/etc/nsswitch\.conf\b"
+    r"|/etc/doas\.conf\b"
+    r"|/etc/modprobe\.d(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.ssh/authorized_keys\b"
+    # RH-53 — fish shell login persistence (sibling of .zshrc/.bashrc).
+    r"|/etc/fish(?:/\S*)?"
+    r"|/(?:root|home/[^/\s]+)/\.config/fish(?:/\S*)?"
+    # RH-54 — vendor shell drop-ins + operator identity / auth surfaces.
+    r"|/usr/share/fish(?:/\S*)?"
+    r"|/etc/bashrc\.d(?:/\S*)?"
+    r"|/etc/(?:shells|securetty|hostname|machine-id|krb5\.conf|exports|auto\.master)\b"
+    r"|/etc/sssd(?:/\S*)?"
+    r"|/etc/samba/smb\.conf\b"
+    r"|/etc/docker/daemon\.json\b"
+    r"|/etc/containers(?:/\S*)?"
+    r"|/etc/apparmor\.d(?:/\S*)?"
+    r"|/etc/selinux/config\b"
+    r"|/etc/audit(?:/\S*)?"
     r")",
     re.IGNORECASE,
 )
 _OPENSSL_OUT_AUTH_RE = re.compile(
-    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
-    + _AUTH_FILE_RE.pattern,
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 # Compressed auth paths: ``gunzip /etc/passwd.gz`` clobbers ``/etc/passwd``.
 _AUTH_COMPRESSED_RE = re.compile(
-    _AUTH_FILE_RE.pattern
-    + r"(?:\.(?:gz|bz2|xz|lzma|lz|lzo|zst|Z|zz|zip|br|sz))?\b",
+    _AUTH_FILE_RE.pattern + r"(?:\.(?:gz|bz2|xz|lzma|lz|lzo|zst|Z|zz|zip|br|sz))?\b",
     re.IGNORECASE,
 )
 _MISC_WRITE_AUTH_RE = re.compile(
@@ -321,19 +436,24 @@ _MISC_WRITE_AUTH_RE = re.compile(
     r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|pigz|bzip2|bunzip2|pbzip2|lbzip2|"
     r"lzop|lzma|unlzma|unxz|pixz|lzip|plzip|lrzip|zstd|pzstd|snzip|compress|uncompress|"
     r"age|rage)\b"
-    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern
+    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern
     # Positional decompress dest: ``lz4 -d x.lz4 /etc/passwd``, ``zstd -d x /etc/passwd``.
     + r"|\b(?:lz4|lzop|zstd|pzstd|unzstd|lzip|plzip|lrzip|brotli|snzip|pixz)\b[\s\S]{0,120}"
-    r"(?:-d|--decompress)\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
+    r"(?:-d|--decompress)\b[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern
     # In-place decompress of compressed auth files (``gunzip /etc/passwd.gz``).
     + r"|\b(?:gzip|gunzip|pigz|bzip2|bunzip2|pbzip2|lbzip2|xz|unxz|pixz|lzma|unlzma|"
     r"lzip|plzip|lrzip|lz4|lzop|zstd|pzstd|unzstd|brotli|snzip|compress|uncompress)\b"
-    r"[\s\S]{0,160}" + _AUTH_COMPRESSED_RE.pattern
+    r"[\s\S]{0,160}"
+    + _AUTH_COMPRESSED_RE.pattern
     + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|uudecode|objcopy)\b"
-    r"[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
+    r"[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
     + _AUTH_FILE_RE.pattern
-    + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _AUTH_FILE_RE.pattern
+    + r"|\bgs\b[\s\S]{0,160}-sOutputFile="
+    + _AUTH_FILE_RE.pattern
     + r"|\buudecode\b[\s\S]{0,100}(?:-o|--output-file)(?:=|\s*)"
     + _AUTH_FILE_RE.pattern
     + r")",
@@ -345,16 +465,24 @@ _RM_AUTH_RE = re.compile(
 )
 _INTERPRETER_AUTH_DELETE_RE = re.compile(
     r"(?:"
-    r"File\.delete\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|FileUtils\s*\.\s*rm(?:_r|_rf)?\s*\(?\s*" + _AUTH_FILE_RE.pattern
-    + r"|os\s*\)?\s*\.\s*(?:remove|unlink)\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    r"File\.delete\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|FileUtils\s*\.\s*rm(?:_r|_rf)?\s*\(?\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:remove|unlink)\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,40}\.unlink\s*\("
-    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|pathlib\s*\.\s*Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,40}\.unlink\s*\("
-    + r"|unlink(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|unlink\s+(?:q(?:w)?\()?\s*" + _AUTH_FILE_RE.pattern
-    + r"|rmSync\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|unlink(?:Sync)?\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|unlink\s+(?:q(?:w)?\()?\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|rmSync\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -363,6 +491,23 @@ _AUTH_DIR_RE = re.compile(
     r"/etc/sudoers\.d\b"
     r"|/etc/cron\.(?:d|daily|hourly|weekly|monthly)\b"
     r"|/etc/systemd/(?:system|user)\b"
+    r"|/(?:usr/)?lib/systemd/(?:system|user)\b"
+    r"|/etc/init\.d\b"
+    r"|/etc/xdg/autostart\b"
+    r"|/etc/NetworkManager/dispatcher\.d\b"
+    r"|/etc/pam\.d\b"
+    r"|/etc/ld\.so\.conf\.d\b"
+    r"|/var/spool/cron(?:/crontabs)?\b"
+    r"|/etc/profile\.d\b"
+    r"|/etc/sysctl\.d\b"
+    r"|/etc/modules-load\.d\b"
+    r"|/etc/udev/rules\.d\b"
+    r"|/etc/tmpfiles\.d\b"
+    r"|/etc/security/limits\.d\b"
+    r"|/run/systemd/system\b"
+    r"|/etc/modprobe\.d\b"
+    r"|/etc/ssh/ssh_config\.d\b"
+    r"|/etc/netplan\b"
     r")",
     re.IGNORECASE,
 )
@@ -372,10 +517,14 @@ _LN_NULL_AUTH_RE = re.compile(
 )
 _LN_TO_AUTH_RE = re.compile(
     r"(?:"
-    r"\bln\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
-    + r"|\blink\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
-    + r"|os\s*\)?\s*\.\s*(?:link|symlink)\s*\([^)]*" + _AUTH_FILE_RE.pattern
-    + r"|symlink(?:Sync)?\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    r"\bln\b[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\blink\b[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:link|symlink)\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
+    + r"|symlink(?:Sync)?\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -396,7 +545,8 @@ _MV_RSYNC_TO_AUTH_RE = re.compile(
 )
 _REDIRECT_TO_AUTH_RE = re.compile(
     r"(?:"
-    r"(?:>{1,2})\s*" + _AUTH_FILE_RE.pattern
+    r"(?:>{1,2})\s*"
+    + _AUTH_FILE_RE.pattern
     + r"|\btee\b(?:\s+-[^\s]+|\s+--[^\s=]+(?:=\S*)?)*\s+"
     + _AUTH_FILE_RE.pattern
     + r"|\b(?:truncate|shred|g?install)\b[\s\S]{0,80}"
@@ -416,12 +566,40 @@ _PROCFS_HIJACK_RE = re.compile(
 )
 _MOUNT_BIND_AUTH_RE = re.compile(
     # Match before and after comma→space scrub (``-o rw,bind`` / ``-o rw bind``).
+    # Also block bind onto ``/`` / ``/etc`` (RH-41) — hides/clobbers auth trees.
     r"\bmount\b[\s\S]{0,160}"
     r"(?:--bind\b|-B\b|-o(?:=|\s+)\S*bind\b|-o(?:=|\s+)\S*\s+bind\b)"
-    r"[\s\S]{0,160}"
-    + _AUTH_FILE_RE.pattern,
+    r"(?=[\s\S]{0,200}(?:" + _AUTH_FILE_RE.pattern + r"|/etc\b|(?:\s)/(?:\s*)$"
+    r"))",
     re.IGNORECASE,
 )
+# Overlay / FUSE bind onto auth trees (RH-43/44).
+_MOUNT_OVERLAY_AUTH_RE = re.compile(
+    r"(?:"
+    r"\bmount\b[\s\S]{0,200}(?:-t|--types?)(?:=|\s*)overlay\b[\s\S]{0,200}"
+    r"(?:lowerdir=/etc\b|/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bbindfs\b[\s\S]{0,160}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bfuse-overlayfs\b[\s\S]{0,200}"
+    r"(?:lowerdir=/etc\b|/etc\b|(?:\s)/(?:\s*)$)"
+    r")",
+    re.IGNORECASE,
+)
+# Network / FUSE / tmpfs mounts onto ``/`` or ``/etc`` (RH-46/47).
+_MOUNT_NETWORK_AUTH_RE = re.compile(
+    r"(?:"
+    r"\bmount\b[\s\S]{0,220}(?:-t|--types?)(?:=|\s*)(?:nfs4?|cifs|smb|smbfs|tmpfs|ramfs|devtmpfs)\b"
+    r"[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bmount\b[\s\S]{0,220}" + _BLOCK_DEV_RE.pattern + r"[\s\S]{0,80}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bsshfs\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\brclone\b[\s\S]{0,80}\bmount\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\b(?:mergerfs|unionfs-fuse|gocryptfs|squashfuse|encfs|cryfs)\b[\s\S]{0,220}"
+    r"(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bveracrypt\b[\s\S]{0,80}--mount\b[\s\S]{0,220}"
+    r"(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r")",
+    re.IGNORECASE,
+)
+
 _TAR_ABSOLUTE_NAMES_RE = re.compile(
     # ``-P``, clustered ``-xPf`` / ``-xPvf``, or ``--absolute-names``.
     r"\b(?:tar|gtar|bsdtar|star|pax)\b[\s\S]{0,160}"
@@ -475,8 +653,7 @@ _DOWNLOAD_DIR_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _CMAKE_COPY_AUTH_RE = re.compile(
-    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}"
-    + _AUTH_FILE_RE.pattern,
+    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _INPLACE_AUTH_RE = re.compile(
@@ -494,23 +671,54 @@ _INPLACE_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _CHMOD_AUTH_RE = re.compile(
-    r"\b(?:chmod|chown|chgrp)\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern,
+    r"\b(?:chmod|chown|chgrp|setfacl|getfacl|chattr|lsattr|setfattr|getfattr)\b"
+    r"[\s\S]{0,160}" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
+# System binary trees — setuid / ownership pivots (RH-51).
+_SYSTEM_BIN_PATH = r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
 _SETUID_SYSTEM_RE = re.compile(
-    r"(?:"
-    # Setuid (4) / setgid (2) / combined (6,7) / sticky+set* (3,5) — not sticky-only (1).
-    r"\bchmod\b[\s\S]{0,100}"
-    r"(?:[ug]*\+s|\+s|[0-7]*[2-7][0-7]{3})\b[\s\S]{0,100}"
-    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    # Glued ``-m4755`` / ``ginstall`` as well as spaced/``=`` forms.
-    r"|\bg?install\b[\s\S]{0,120}"
-    r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
-    r"[\s\S]{0,160}/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    # ``setcap cap_setuid+ep /bin/bash`` — capability equivalent of setuid.
-    r"|\bsetcap\b[\s\S]{0,120}cap_set(?:uid|gid)\b[\s\S]{0,80}"
-    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))/\S*"
-    r")",
+    (
+        r"(?:"
+        # Setuid (4) / setgid (2) / combined (6,7) / sticky+set* (3,5) — not sticky-only (1).
+        r"\bchmod\b[\s\S]{0,100}"
+        r"(?:[ug]*\+s|\+s|[0-7]*[2-7][0-7]{3})\b[\s\S]{0,100}"
+        + _SYSTEM_BIN_PATH
+        # Glued ``-m4755`` / ``ginstall`` as well as spaced/``=`` forms.
+        + r"|\bg?install\b[\s\S]{0,120}"
+        r"(?:-m|--mode)(?:=|\s*)(?:[0-7]*[2-7][0-7]{3}|[ug]*\+s|\+s)\b"
+        r"[\s\S]{0,160}"
+        + _SYSTEM_BIN_PATH
+        # ``setcap`` dangerous capabilities on system binaries (RH-27).
+        + r"|\bsetcap\b[\s\S]{0,120}"
+        r"cap_(?:set(?:uid|gid)|sys_admin|sys_rawio|sys_module|dac_override|dac_read_search)"
+        r"\b[\s\S]{0,80}" + _SYSTEM_BIN_PATH + r")"
+    ),
+    re.IGNORECASE,
+)
+_CHOWN_SYSTEM_BIN_RE = re.compile(
+    r"\b(?:chown|chgrp)\b[\s\S]{0,120}" + _SYSTEM_BIN_PATH,
+    re.IGNORECASE,
+)
+# RH-55/56: UID/GID 0 account pivots (leading zeros → still uid/gid 0).
+_UID0_ACCOUNT_RE = re.compile(
+    r"\b(?:useradd|adduser|usermod)\b[\s\S]{0,160}(?:-u|--uid)(?:=|\s*)0+\b",
+    re.IGNORECASE,
+)
+_GID0_GROUP_RE = re.compile(
+    r"\b(?:groupadd|addgroup|groupmod)\b[\s\S]{0,160}(?:-g|--gid)(?:=|\s*)0+\b",
+    re.IGNORECASE,
+)
+# RH-55/56: ``update-alternatives --install`` / ``--set`` hijacks system binaries.
+_UPDATE_ALTERNATIVES_RE = re.compile(
+    r"\bupdate-alternatives\b[\s\S]{0,120}"
+    r"(?:--install\b[\s\S]{0,160}" + _SYSTEM_BIN_PATH + r"|--set\b)",
+    re.IGNORECASE,
+)
+# RH-56: ``busybox --install`` overwrites the operator ``/bin`` tree.
+_BUSYBOX_INSTALL_RE = re.compile(
+    r"\bbusybox\b[\s\S]{0,100}--install\b[\s\S]{0,120}"
+    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))\b",
     re.IGNORECASE,
 )
 _DD_OF_AUTH_RE = re.compile(
@@ -523,24 +731,35 @@ _DD_RESCUE_AUTH_RE = re.compile(
 )
 _INTERPRETER_AUTH_WRITE_RE = re.compile(
     r"(?:"
-    r"open\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|File\.write\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|IO\.write\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|writeFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|file_put_contents\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|File\.open\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|urlretrieve\s*\([^)]*" + _AUTH_FILE_RE.pattern
-    + r"|Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    r"open\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|File\.write\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|IO\.write\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|writeFile(?:Sync)?\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|file_put_contents\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|File\.open\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|urlretrieve\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
+    + r"|Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|pathlib\s*\.\s*Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     # ``__import__('shutil').copy`` → ``shutil).copy`` after quote-strip.
     + r"|shutil\s*\)?\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
     + r"|os\s*\)?\s*\.\s*(?:rename|replace|link|symlink)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
-    + r"|appendFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|symlink(?:Sync)?\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|appendFile(?:Sync)?\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|symlink(?:Sync)?\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
     + r"|extractall\s*\(\s*/"
     + r"|ZipFile\s*\([^)]*\)[\s\S]{0,80}\.extract(?:all)?\s*\(\s*/"
     + r")",
@@ -555,13 +774,37 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\bpvremove\b"
     r"|\bdmsetup\s+remove(?:_all)?\b"
     r"|\bmdadm\b[\s\S]{0,80}--zero-superblock\b"
-    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive)\b"
+    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:add|delete|remove|replace)|replace\s+start|balance\s+start|check\b[^\n]*--repair|scrub\s+start)\b"
+    r"|\bzpool\s+labelclear\b"
+    r"|\bxfs_db\b[^\n]*\s-x\b"
     r"|\bxfs_repair\s+[^\n]*-L\b"
     r"|\bdebugfs\s+-w\b"
     # dump/restore family writing onto ``/`` (operator root clobber).
     r"|\b(?:restore|xfsrestore|star)\b[\s\S]{0,160}(?:-C|--directory)(?:=|\s*)/"
     r"|\b(?:restore|xfsrestore)\b[\s\S]{0,200}\s/\s*$"
     r")",
+    re.IGNORECASE,
+)
+# Create-on-device siblings of destroy (RH-41) — wipe existing data via new pool/RAID/LVM.
+_VOLUME_CREATE_RE = re.compile(
+    r"(?:"
+    r"\bzpool\s+create\b[\s\S]{0,220}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bmdadm\b[\s\S]{0,160}(?:--create\b|-[a-zA-Z]*C[a-zA-Z]*)\b[\s\S]{0,220}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bpvcreate\b[\s\S]{0,160}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bvgcreate\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    + r"|\blvcreate\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
+    # ``kpartx -a`` / ``-av`` / ``--add`` on live disks (RH-42).
+    + r"|\bkpartx\b[\s\S]{0,80}(?:--add\b|-[a-zA-Z]*a[a-zA-Z]*)\b[\s\S]{0,120}"
+    + _BLOCK_DEV_RE.pattern
+    # ``partx -a`` sibling (RH-47).
+    + r"|\bpartx\b[\s\S]{0,80}(?:--add\b|-[a-zA-Z]*a[a-zA-Z]*)\b[\s\S]{0,120}"
+    + _BLOCK_DEV_RE.pattern
+    + r")",
     re.IGNORECASE,
 )
 
@@ -683,6 +926,82 @@ def _normalize_path_token(tok: str) -> str:
     return t
 
 
+# Absolute paths (and of=/… assignments) so lexical evasion cannot bypass
+# auth/block regexes that match canonical ``/etc/passwd`` / ``/dev/sda``.
+_ABS_PATH_IN_CMD_RE = re.compile(
+    r"(?<![A-Za-z0-9_./-])(/(?:[^\s;|&<>'\"`()]+))",
+)
+_OF_ABS_PATH_RE = re.compile(r"(\bof=)(/(?:[^\s;|&<>'\"`()]+))", re.IGNORECASE)
+# Relative auth-like paths reconstructed under ``/`` via ``cp --parents`` /
+# ``rsync -R`` / ``--relative``.
+_REL_AUTH_PATH_RE = re.compile(
+    r"(?:^|[\s=])"
+    r"(?:etc/(?:passwd|shadow|gshadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|"
+    r"crontab|rc\.local)|"
+    r"etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?|"
+    r"etc/systemd/(?:system|user)(?:/\S*)?|"
+    r"(?:root|home/[^/\s]+)/\.ssh/authorized_keys)"
+    r"(?:\s|$)",
+    re.IGNORECASE,
+)
+_CP_PARENTS_FLAG_RE = re.compile(r"--parents\b", re.IGNORECASE)
+_RSYNC_RELATIVE_FLAG_RE = re.compile(
+    r"(?:--relative\b|(?<![-\w])-[^\s]*R[^\s]*)",
+    re.IGNORECASE,
+)
+
+
+def _normalize_abs_paths_in_command(cmd: str) -> str:
+    """Replace absolute path tokens with lexically normalized forms.
+
+    Closes ``/tmp/../etc/passwd``, ``/./dev/sda``, ``/etc/./shadow`` evasions
+    that otherwise miss ``_AUTH_FILE_RE`` / ``_BLOCK_DEV_RE`` literal matches.
+    """
+
+    def _of_repl(match: re.Match[str]) -> str:
+        return match.group(1) + _normalize_path_token(match.group(2))
+
+    def _path_repl(match: re.Match[str]) -> str:
+        return _normalize_path_token(match.group(1))
+
+    out = _OF_ABS_PATH_RE.sub(_of_repl, cmd)
+    return _ABS_PATH_IN_CMD_RE.sub(_path_repl, out)
+
+
+def _token_is_rel_auth_path(tok: str) -> bool:
+    """True when a (possibly ``./`` / ``etc/./``) relative token is an auth path."""
+    norm = _normalize_path_token(tok)
+    if not norm or norm.startswith("/"):
+        return False
+    # Probe with surrounding whitespace so ``_REL_AUTH_PATH_RE`` anchors match.
+    return bool(_REL_AUTH_PATH_RE.search(f" {norm} ") or _REL_AUTH_PATH_RE.search(f"={norm}"))
+
+
+def _parents_reconstructs_auth(cmd_clean: str) -> bool:
+    """True when ``cp --parents`` / ``rsync -R`` would materialize auth under ``/``."""
+    has_cp_parents = bool(
+        re.search(r"\bcp\b", cmd_clean, re.IGNORECASE) and _CP_PARENTS_FLAG_RE.search(cmd_clean)
+    )
+    has_rsync_rel = bool(
+        re.search(r"\brsync\b", cmd_clean, re.IGNORECASE)
+        and _RSYNC_RELATIVE_FLAG_RE.search(cmd_clean)
+    )
+    if not (has_cp_parents or has_rsync_rel):
+        return False
+    has_rel_auth = bool(_REL_AUTH_PATH_RE.search(cmd_clean))
+    has_root_dest = False
+    for raw in cmd_clean.split():
+        if raw.startswith("-"):
+            continue
+        tok = _normalize_path_token(raw)
+        if tok in {"/", "/*"} or tok in _ROOT_EQUIV:
+            has_root_dest = True
+            continue
+        if _token_is_rel_auth_path(raw):
+            has_rel_auth = True
+    return has_rel_auth and has_root_dest
+
+
 def _targets_system_path(cmd_clean: str) -> bool:
     """True when *cmd_clean* names ``/``, ``/*``, or a critical system root.
 
@@ -708,9 +1027,7 @@ def _rm_is_destructive(cmd_clean: str) -> bool:
     """True when ``rm`` has recursive+force flags in any option order."""
     if not _RM_WORD_RE.search(cmd_clean):
         return False
-    return bool(
-        _RM_RECURSIVE_FLAG_RE.search(cmd_clean) and _RM_FORCE_FLAG_RE.search(cmd_clean)
-    )
+    return bool(_RM_RECURSIVE_FLAG_RE.search(cmd_clean) and _RM_FORCE_FLAG_RE.search(cmd_clean))
 
 
 def _is_dangerous_extract_dest(tok: str, *, absolute_any: bool = False) -> bool:
@@ -767,11 +1084,12 @@ def assert_command_not_destructive(command: str) -> None:
     cmd_braced = _expand_brace_paths(cmd_esc)
     # Normalize list-argv commas (``['rm','-rf','/']`` → ``rm -rf /``).
     cmd_clean = re.sub(r"\s*,\s*", " ", cmd_braced)
+    # Lexical path normalize so ``/tmp/../etc/passwd`` / ``/./dev/sda`` hit
+    # the canonical auth/block regexes (RH-01 / RH-02).
+    cmd_clean = _normalize_abs_paths_in_command(cmd_clean)
 
     if _FORK_BOMB_RE.search(cmd_clean):
-        raise PermissionDeniedError(
-            "Destructive command detected: Fork bomb execution is blocked."
-        )
+        raise PermissionDeniedError("Destructive command detected: Fork bomb execution is blocked.")
 
     if _DD_WORD_RE.search(cmd_clean):
         of_matches = _DD_OF_RE.findall(cmd_clean)
@@ -851,9 +1169,7 @@ def assert_command_not_destructive(command: str) -> None:
         src = _normalize_path_token(mv_match.group(1))
         system_src = src in {"/", "/*"} or src in _ROOT_EQUIV or src in _SYSTEM_RM_ROOTS
         if not system_src:
-            system_src = any(
-                src == root or src.startswith(root + "/") for root in _SYSTEM_RM_ROOTS
-            )
+            system_src = any(src == root or src.startswith(root + "/") for root in _SYSTEM_RM_ROOTS)
         if system_src:
             raise PermissionDeniedError(
                 "Destructive command detected: Moving system directories is blocked."
@@ -879,10 +1195,14 @@ def assert_command_not_destructive(command: str) -> None:
         or _CHMOD_AUTH_RE.search(cmd_clean)
         or _MOUNT_BIND_AUTH_RE.search(cmd_esc)
         or _MOUNT_BIND_AUTH_RE.search(cmd_clean)
+        or _MOUNT_OVERLAY_AUTH_RE.search(cmd_esc)
+        or _MOUNT_OVERLAY_AUTH_RE.search(cmd_clean)
+        or _MOUNT_NETWORK_AUTH_RE.search(cmd_clean)
         or _SHUF_OUT_AUTH_RE.search(cmd_clean)
         or _DD_RESCUE_AUTH_RE.search(cmd_clean)
         or _PROCFS_HIJACK_RE.search(cmd_clean)
         or _SOCAT_AUTH_RE.search(cmd_clean)
+        or _parents_reconstructs_auth(cmd_clean)
     ):
         raise PermissionDeniedError(
             "Destructive command detected: Overwriting auth files is blocked."
@@ -899,6 +1219,12 @@ def assert_command_not_destructive(command: str) -> None:
         *_PKG_ROOT_RE.finditer(cmd_clean),
         *_APK_ROOT_RE.finditer(cmd_clean),
         *_OPKG_ROOT_RE.finditer(cmd_clean),
+        *_NIX_GUIX_PROFILE_RE.finditer(cmd_clean),
+        *_CONDA_PREFIX_RE.finditer(cmd_clean),
+        *_MAKE_DESTDIR_RE.finditer(cmd_clean),
+        *_CMAKE_PREFIX_RE.finditer(cmd_clean),
+        *_MESON_DESTDIR_RE.finditer(cmd_clean),
+        *_STOW_TARGET_RE.finditer(cmd_clean),
     ):
         if _is_dangerous_extract_dest(pkg_root.group(1)):
             raise PermissionDeniedError(
@@ -917,13 +1243,36 @@ def assert_command_not_destructive(command: str) -> None:
         )
 
     if _GIT_ROOT_WRITE_RE.search(cmd_clean):
-        raise PermissionDeniedError(
-            "Destructive command detected: Git write onto / is blocked."
-        )
+        raise PermissionDeniedError("Destructive command detected: Git write onto / is blocked.")
 
     if _SETUID_SYSTEM_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Setuid on system binaries is blocked."
+        )
+
+    if _CHOWN_SYSTEM_BIN_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: chown/chgrp on system binaries is blocked."
+        )
+
+    if _UID0_ACCOUNT_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Creating/modifying UID 0 accounts is blocked."
+        )
+
+    if _GID0_GROUP_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Creating/modifying GID 0 groups is blocked."
+        )
+
+    if _UPDATE_ALTERNATIVES_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: update-alternatives on system binaries is blocked."
+        )
+
+    if _BUSYBOX_INSTALL_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: busybox --install onto system bins is blocked."
         )
 
     if _CHMOD_CHOWN_CMD_RE.search(cmd_clean) and _RECURSE_FLAG_RE.search(cmd_clean):
@@ -939,6 +1288,11 @@ def assert_command_not_destructive(command: str) -> None:
     if _VOLUME_DESTROY_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: Volume/array destroy is blocked."
+        )
+
+    if _VOLUME_CREATE_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Volume/array create on block devices is blocked."
         )
 
     if _PARTITION_RE.search(cmd_clean):

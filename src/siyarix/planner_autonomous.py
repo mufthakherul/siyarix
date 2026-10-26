@@ -95,8 +95,7 @@ class PlanValidator:
         # 2. Platform sanitization
         if is_windows:
             # Strip unix-only sudo
-            if cmd.startswith("sudo "):
-                cmd = cmd[5:]
+            cmd = cmd.removeprefix("sudo ")
             # Rewrite nmap -sS to -sT -Pn on Windows
             if "nmap" in cmd and "-sS" in cmd:
                 cmd = cmd.replace("-sS", "-sT -Pn")

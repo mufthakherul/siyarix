@@ -488,7 +488,7 @@ class OfflineReasoningEngine:
 
 
 __all__ = [
+    "OFFLINE_SECURITY_KNOWLEDGE",
     "OfflineReasoningEngine",
     "RemediationAdvisory",
-    "OFFLINE_SECURITY_KNOWLEDGE",
 ]

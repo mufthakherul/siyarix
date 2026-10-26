@@ -1,7 +1,9 @@
+from __future__ import annotations
+
+import pytest
+
 from siyarix.core.pipeline import CommandPipeline, PipelineStep
 from siyarix.core.swarm import SwarmRouter
-from unittest.mock import AsyncMock, patch
-import pytest
 
 
 def test_pipeline_parse():
@@ -60,15 +62,25 @@ async def test_pipeline_execute_exception():
 
 
 @pytest.mark.asyncio
-async def test_swarm_router():
+async def test_swarm_router_disabled_by_default(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("SIYARIX_EXPERIMENTAL_SWARM", raising=False)
     router = SwarmRouter()
+    res = await router.run_campaign("127.0.0.1")
+    assert res["status"] == "not_implemented"
+    assert res["recon_result"] is None
 
-    with patch("asyncio.sleep", new_callable=AsyncMock):
-        res = await router.run_campaign("127.0.0.1")
-        assert res["recon_result"] is not None
-        assert res["exploit_result"] is not None
-        assert res["report_result"] is not None
-        assert "ReconAgent" in res["recon_result"]["findings"]
+
+@pytest.mark.asyncio
+async def test_swarm_router_experimental_stub(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv("SIYARIX_EXPERIMENTAL_SWARM", "1")
+    router = SwarmRouter()
+    res = await router.run_campaign("127.0.0.1")
+    assert res["status"] == "not_implemented"
+    assert res["recon_result"] is not None
+    assert res["recon_result"]["status"] == "not_implemented"
+    assert res["recon_result"]["implemented"] is False
+    assert res["exploit_result"]["findings"] == []
+    assert res["report_result"]["agent"] == "ReportAgent"
 
 
 # ═══════════════════════════════════════════════════════════════════

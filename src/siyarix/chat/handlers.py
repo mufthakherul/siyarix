@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import asyncio
 import json
 import logging
@@ -17,28 +18,25 @@ from rich.table import Table
 
 from ..branding import available_themes, print_theme_preview
 from ..config import get_config_dir
+from ..exceptions import LLMProviderError
 from .commands import (
+    SLASH_HELP,
     CommandCategory,
     CommandProfile,
     CommandProfileStore,
     CommandRegistry,
-    SLASH_HELP,
+)
+from .console import console
+from .platform_utils import (
+    CROSS_PLATFORM_COMMANDS,
+    get_security_commands,
+    get_shell_platform,
+    list_supported_shells,
+    normalize_shell,
+    provider_env_var,
 )
 from .session import ChatSession
 from .ui import ConfigPanel
-from ..subprocess_utils import safe_run_sync
-from .platform_utils import (
-    pip_install_args,
-    provider_env_var,
-    CROSS_PLATFORM_COMMANDS,
-    normalize_shell,
-    list_supported_shells,
-    get_security_commands,
-    get_shell_platform,
-)
-from .console import console
-
-from ..exceptions import LLMProviderError
 
 if TYPE_CHECKING:
     from ..config import SettingsStore
@@ -190,8 +188,9 @@ class CommandHandlersMixin:
 
     def _cmd_help(self, args: str) -> None:
         """Show categorized help system with detailed lookup support."""
-        from rich.table import Table as RichTable
         from rich.panel import Panel as RichPanel
+        from rich.table import Table as RichTable
+
         from ..branding import resolve_version
 
         query = args.strip().lower() if args else ""
@@ -338,7 +337,7 @@ class CommandHandlersMixin:
             return
 
         try:
-            from ..report import ReportEngine, ReportConfig, ReportFormat
+            from ..report import ReportConfig, ReportEngine, ReportFormat
         except ModuleNotFoundError:
             console.print("[yellow]Report generation is not available in this version[/yellow]")
             return
@@ -573,36 +572,12 @@ class CommandHandlersMixin:
                 "[dim]Tip: Key will only last for this session. Install cryptography for persistent storage: pip install cryptography[/dim]"
             )
 
-        # If user set Gemini key and the client package is missing, offer to install it
+        # Gemini uses native REST via httpx — no provider SDK required.
         if provider == "gemini":
-            pkg_name = "google-genai"
-            try:
-                import google.genai as _test_genai  # type: ignore[import-untyped]  # noqa: F401
-
-                gemini_pkg_installed = True
-            except Exception:
-                gemini_pkg_installed = False
-
-            if not gemini_pkg_installed:
-                ans = Prompt.ask(
-                    f"{pkg_name} not installed — install now? (y/N)",
-                    default="N",
-                )
-                if ans.lower().startswith("y"):
-                    console.print(f"[dim]Installing {pkg_name} — this may take a moment...[/dim]")
-                    try:
-                        res = safe_run_sync(
-                            pip_install_args(pkg_name),
-                            timeout=600,
-                        )
-                        if not res.exit_code:
-                            console.print(
-                                f"[green]✓ {pkg_name} installed — Gemini should be available now.[/green]"
-                            )
-                        else:
-                            console.print(f"[red]Failed to install package: {res.stderr}[/red]")
-                    except Exception as exc:
-                        logger.exception("Failed to run pip install for %s: %s", pkg_name, exc)
+            console.print(
+                "[dim]Gemini uses built-in HTTP (httpx); no google-generativeai / "
+                "google-genai SDK install is required.[/dim]"
+            )
 
     def _cmd_theme(self, args: str) -> None:
         tokens = args.split() if args else []
@@ -815,7 +790,7 @@ class CommandHandlersMixin:
             from ..registry_factory import make_tool_registry
             from ..tool_config import ToolConfigManager
             from ..tool_installer import ToolInstaller
-            from ..tool_models import ToolCategory, ToolCapability
+            from ..tool_models import ToolCapability, ToolCategory
 
             reg = make_tool_registry()
             cfg_mgr = ToolConfigManager.get_instance()
@@ -1310,7 +1285,7 @@ class CommandHandlersMixin:
                                     console.print(
                                         f"[yellow]  ⚠ {selected} responded but unexpected: {content[:50]}[/yellow]"
                                     )
-                            except asyncio.TimeoutError:
+                            except TimeoutError:
                                 console.print(f"[red]  ✗ {selected} timed out after 15s[/red]")
                             except Exception as exc:
                                 console.print(f"[red]  ✗ {selected} validation failed: {exc}[/red]")
@@ -1754,7 +1729,7 @@ class CommandHandlersMixin:
             from .subagents import SubagentManager
 
             mgr = SubagentManager()
-            setattr(self, "_subagent_mgr", mgr)
+            self._subagent_mgr = mgr
         return mgr
 
     async def _cmd_agent(self, args: str) -> None:
@@ -2009,8 +1984,9 @@ class CommandHandlersMixin:
 
     def _cmd_persona(self, args: str) -> None:
         """Switch mindset/persona: /persona list, /persona <name>, /persona."""
-        from ..personas import get_persona, list_personas
         from rich.table import Table
+
+        from ..personas import get_persona, list_personas
 
         current = self._settings.get("persona") or "auto"
         action = args.strip().lower() if args else ""
@@ -2281,8 +2257,8 @@ class CommandHandlersMixin:
 
     def _print_skill_detail(self, s: Any, sl_no: int) -> None:
         """Print full detail for a single skill."""
-        from rich.table import Table
         from rich import box
+        from rich.table import Table
 
         console.print()
         console.print(
@@ -2312,11 +2288,13 @@ class CommandHandlersMixin:
 
     async def _cmd_skills(self, args: str) -> None:
         """Handle /skills command to manage the Continuous Learning System."""
-        from ..learning_system import get_learning_system
         import json
         from pathlib import Path
-        from rich.table import Table
+
         from rich import box
+        from rich.table import Table
+
+        from ..learning_system import get_learning_system
 
         cls = get_learning_system()
         tokens = args.split(maxsplit=1)
@@ -2504,7 +2482,7 @@ class CommandHandlersMixin:
             console.print(
                 f"[bold cyan]⚡ Executing skill:[/bold cyan] {skill.intent_pattern} on [green]{skill_target}[/green]"
             )
-            from ..models import ExecutionPlan, PlanType, PlanStep, PlanStatus
+            from ..models import ExecutionPlan, PlanStatus, PlanStep, PlanType
             from ..planner_autonomous import PlanValidator
 
             plan_steps = [
@@ -2608,9 +2586,9 @@ class CommandHandlersMixin:
         subcmd = tokens[0].lower() if tokens else "stats"
         subargs = tokens[1] if len(tokens) > 1 else ""
 
-        from rich.table import Table
         from rich import box
         from rich.panel import Panel
+        from rich.table import Table
 
         if subcmd in ("stats", "status"):
             stats = self._session.memory.stats()
@@ -2760,8 +2738,8 @@ class CommandHandlersMixin:
             )
 
         elif subcmd == "clear":
-            from ..tool_installer import tty_confirm
             from ..memory import MemoryLayer
+            from ..tool_installer import tty_confirm
 
             layer_filter = None
             if subargs:
@@ -2791,7 +2769,6 @@ class CommandHandlersMixin:
         console.print(
             "[yellow]SIEM integration has been migrated to a separate plugin. Check https://github.com/siyarix/siyarix-plugins.git[/yellow]"
         )
-        return
 
     async def _cmd_intel(self, args: str) -> None:
         """Handle /intel command for Threat Intelligence integration."""
@@ -2891,12 +2868,11 @@ class CommandHandlersMixin:
             camps = store.list_campaigns()
             if not camps:
                 console.print(
-                    "[dim]No campaigns yet. "
-                    "Use /campaign create <name> --targets <file>[/dim]"
+                    "[dim]No campaigns yet. Use /campaign create <name> --targets <file>[/dim]"
                 )
                 return
-            from rich.table import Table
             from rich import box
+            from rich.table import Table
 
             table = Table(title="Campaigns", box=box.SIMPLE)
             table.add_column("Name", style="cyan")
@@ -2984,9 +2960,7 @@ class CommandHandlersMixin:
                 preview += "…"
             console.print(f"[bold]Campaign:[/bold] {status_camp.name}")
             console.print(f"[bold]Status:[/bold] {status_camp.status}")
-            console.print(
-                f"[bold]Targets:[/bold] {len(status_camp.targets)} — {preview or '—'}"
-            )
+            console.print(f"[bold]Targets:[/bold] {len(status_camp.targets)} — {preview or '—'}")
             console.print(f"[bold]Runs:[/bold] {status_camp.run_count}")
             console.print(f"[bold]Created:[/bold] {status_camp.created_at or '—'}")
             console.print(f"[bold]Updated:[/bold] {status_camp.updated_at or '—'}")
@@ -3015,8 +2989,7 @@ class CommandHandlersMixin:
                 f"([cyan]{len(run_camp.targets)}[/cyan] targets)"
             )
             console.print(
-                "[bold]Execute with:[/bold] "
-                f"[cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]"
+                f"[bold]Execute with:[/bold] [cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]"
             )
             console.print(
                 "[dim]Or full/deep: [/dim]"
@@ -3285,10 +3258,11 @@ class CommandHandlersMixin:
 
     def _cmd_plugins(self, args: str) -> None:
         """List and manage Siyarix plugins."""
+        from rich.panel import Panel
+        from rich.table import Table
+
         from siyarix.plugins.manager import PluginManager
         from siyarix.plugins.models import PluginStatus
-        from rich.table import Table
-        from rich.panel import Panel
 
         try:
             tokens = args.split() if args else []
@@ -3399,12 +3373,12 @@ class CommandHandlersMixin:
                 name = tokens[1]
                 info = mgr.info(name)
                 tools = ", ".join(info["registered_tools"]) if info["registered_tools"] else "None"
-                body = f"""[bold white]Name:[/bold white] {info['name']} (v{info['version']})
-[bold white]Status:[/bold white] {info['status'].upper()}
-[bold white]Category:[/bold white] {info['category']}
+                body = f"""[bold white]Name:[/bold white] {info["name"]} (v{info["version"]})
+[bold white]Status:[/bold white] {info["status"].upper()}
+[bold white]Category:[/bold white] {info["category"]}
 [bold white]Registered Tools:[/bold white] [green]{tools}[/green]
-[bold white]Description:[/bold white] {info['description']}
-[bold white]Path:[/bold white] [dim]{info['path']}[/dim]"""
+[bold white]Description:[/bold white] {info["description"]}
+[bold white]Path:[/bold white] [dim]{info["path"]}[/dim]"""
                 console.print(Panel(body, title=f"Plugin: {info['name']}", border_style="cyan"))
 
             elif action == "enable":
@@ -3886,8 +3860,8 @@ class CommandHandlersMixin:
         profile = pm.get_profile(provider)
         bench_model = model or (profile.default_model if profile else "")
 
-        from time import perf_counter
         import asyncio
+        from time import perf_counter
 
         results: list[dict[str, Any]] = []
         for size, prompt in [
@@ -4216,7 +4190,7 @@ class CommandHandlersMixin:
 
         elif sub in ("plan", "commands"):
             if hasattr(self, "_active_plan") and getattr(self, "_active_plan", None):
-                plan = getattr(self, "_active_plan")
+                plan = self._active_plan
                 lines = [f"# Plan: {plan.goal}"]
                 for s in plan.steps:
                     cmd_str = f": {s.command}" if s.command else ""

@@ -681,6 +681,17 @@ _CHOWN_SYSTEM_BIN_RE = re.compile(
     r"\b(?:chown|chgrp)\b[\s\S]{0,120}" + _SYSTEM_BIN_PATH,
     re.IGNORECASE,
 )
+# RH-55: UID-0 account create/rename (auth/persistence on the operator host).
+_UID0_ACCOUNT_RE = re.compile(
+    r"\b(?:useradd|adduser|usermod)\b[\s\S]{0,160}(?:-u|--uid)(?:=|\s*)0\b",
+    re.IGNORECASE,
+)
+# RH-55: ``update-alternatives --install`` hijacks system binaries.
+_UPDATE_ALTERNATIVES_RE = re.compile(
+    r"\bupdate-alternatives\b[\s\S]{0,120}--install\b[\s\S]{0,160}"
+    + _SYSTEM_BIN_PATH,
+    re.IGNORECASE,
+)
 _DD_OF_AUTH_RE = re.compile(
     r"\b(?:dd|dc3dd|ddrescue)\b[\s\S]{0,120}\bof=" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
@@ -723,7 +734,7 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\bpvremove\b"
     r"|\bdmsetup\s+remove(?:_all)?\b"
     r"|\bmdadm\b[\s\S]{0,80}--zero-superblock\b"
-    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:delete|remove|replace)|replace\s+start|balance\s+start|check\b[^\n]*--repair|scrub\s+start)\b"
+    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:add|delete|remove|replace)|replace\s+start|balance\s+start|check\b[^\n]*--repair|scrub\s+start)\b"
     r"|\bzpool\s+labelclear\b"
     r"|\bxfs_db\b[^\n]*\s-x\b"
     r"|\bxfs_repair\s+[^\n]*-L\b"
@@ -1211,6 +1222,16 @@ def assert_command_not_destructive(command: str) -> None:
     if _CHOWN_SYSTEM_BIN_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: chown/chgrp on system binaries is blocked."
+        )
+
+    if _UID0_ACCOUNT_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Creating/modifying UID 0 accounts is blocked."
+        )
+
+    if _UPDATE_ALTERNATIVES_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: update-alternatives on system binaries is blocked."
         )
 
     if _CHMOD_CHOWN_CMD_RE.search(cmd_clean) and _RECURSE_FLAG_RE.search(cmd_clean):

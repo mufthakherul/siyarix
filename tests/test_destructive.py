@@ -555,6 +555,12 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "btrfs check --repair /dev/sda1",
         "btrfs scrub start /",
         "xfs_db -x -c 'write' /dev/sda1",
+        # RH-55 — UID-0 accounts, alternatives hijack, btrfs device add
+        "useradd -o -u 0 backdoor",
+        "useradd -u0 evil",
+        "usermod -u 0 existing",
+        "update-alternatives --install /usr/bin/ssh ssh /tmp/evil 100",
+        "btrfs device add /dev/sdb /",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

@@ -703,3 +703,19 @@ def test_should_skip_rh54_dotenv_keys() -> None:
         "OTLP_ENDPOINT",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh55_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "KRB5_CONFIG",
+        "KRB5_KDC_PROFILE",
+        "SSSD_CONF",
+        "LDAPCONF",
+        "LDAPRC",
+        "MEMCACHED_SERVER",
+        "SSH_PROXYCOMMAND",
+        "SSH_HOSTNAME",
+    ):
+        assert should_skip_dotenv_key(key), key

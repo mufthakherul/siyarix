@@ -874,6 +874,42 @@ class TestAssertCommandInScope:
             "kubectl --server=https://10.0.0.1:6443 get pods",
             scope_env=scope,
         )
+        # RH-55 — HostName=, parallel -S, influx/clickhouse URI, ansible/fab/lxc/virsh
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "ssh -oHostName=evilhost user@10.0.0.1", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "ssh -o HostName=evilhost user@10.0.0.1", scope_env=scope
+            )
+        assert_command_in_scope(
+            "ssh -oHostName=10.0.0.9 user@10.0.0.1", scope_env=scope
+        )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope(
+                "parallel -S evilhost echo hi", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="URL scheme|influx"):
+            assert_command_in_scope(
+                "curl influxdb://evilhost:8086/query", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="URL scheme|clickhouse"):
+            assert_command_in_scope(
+                "curl clickhouse://evilhost:9000/", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("ansible evilhost -m ping", scope_env=scope)
+        assert_command_in_scope("ansible all -m ping", scope_env=scope)
+        assert_command_in_scope("ansible 10.0.0.5 -m ping", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("fab -H evilhost cmd", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("lxc exec evilhost -- id", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost|URL scheme|qemu"):
+            assert_command_in_scope(
+                "virsh -c qemu+tcp://evilhost/system list", scope_env=scope
+            )
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"

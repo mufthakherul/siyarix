@@ -91,7 +91,9 @@ _NON_HTTP_URL_RE = re.compile(
     # RH-52 — SQL URI schemes curl/clients use without -h.
     r"postgres(?:ql)?|mysql|mariadb|sqlserver|mssql|cockroach(?:db)?|cassandra|"
     # RH-54 — search / cache / document URI schemes.
-    r"couch(?:db)?|elasticsearch|opensearch|memcache(?:d)?|solr):[^\s\"']*",
+    r"couch(?:db)?|elasticsearch|opensearch|memcache(?:d)?|solr|"
+    # RH-55 — time-series / columnar / libvirt URI schemes.
+    r"influx(?:db)?|clickhouse|qemu(?:\+(?:tcp|ssh|tls|libssh2?))?):[^\s\"']*",
     re.IGNORECASE,
 )
 # Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
@@ -296,7 +298,11 @@ _HOST_TOOL_NAMES = frozenset(
         "lima",
         "colima",
         "lxd",
+        "lxc",
         "incus",
+        "fab",
+        "fabric",
+        "virsh",
         "singularity",
         "apptainer",
         "privoxy",
@@ -631,9 +637,12 @@ _SOCAT_SOCKS_RE = re.compile(
 # ``-oTunnel=ethernet`` (RH-19).
 _GLUED_SSH_O_RE = re.compile(
     r"(?i)^(?:-o|--option)['\"]?"
-    r"(?P<key>proxyjump|proxycommand|dynamicforward|localforward|remoteforward|tunnel)"
+    r"(?P<key>proxyjump|proxycommand|dynamicforward|localforward|remoteforward|"
+    r"tunnel|hostname)"
     r"=(?P<val>.+?)['\"]?$"
 )
+# Ansible inventory keywords / wildcards that are not remote peer hosts.
+_ANSIBLE_NON_HOST_PATTERNS = frozenset({"all", "*"})
 # Leading ``ALL_PROXY=… curl …`` style env assignments (SOCKS/HTTP pivots).
 _SCOPE_PROXY_ENV_NAMES: frozenset[str] = frozenset(
     {
@@ -1362,6 +1371,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         if payload.strip():
             assert_command_in_scope(payload.strip(), scope_env=scope_env)
     # RH-48/49: GNU parallel ``cmd ::: hosts`` / ``:::+`` / ``::::`` hide operands.
+    # RH-55: remote login ``-S`` / ``--sshlogin`` / ``--sshloginfile``.
     if re.search(r"(?:^|\s)parallel(?:\s|$)", decoded_early, re.IGNORECASE):
         _par_parts = re.split(r"\s:::[+:]*\s+", decoded_early, maxsplit=1)
         if len(_par_parts) == 2:
@@ -1374,6 +1384,23 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 assert_command_in_scope(
                     f"{_par_left} {_op}".strip(), scope_env=scope_env
                 )
+        for _ssh_m in re.finditer(
+            r"(?:(?:^|\s)(?:-S|--sshlogin)(?:=|\s+)|(?:^|\s)--sshloginfile(?:=|\s+))"
+            r"([^\s\"']+)",
+            decoded_early,
+            re.IGNORECASE,
+        ):
+            _sshlogin = _ssh_m.group(1).strip().strip("'\"")
+            # ``--sshloginfile`` points at a file of logins — fail closed under scope.
+            if "--sshloginfile" in _ssh_m.group(0).lower() or _sshlogin.startswith("/"):
+                raise PermissionDeniedError(
+                    f"parallel sshloginfile is not allowed under authorized scope "
+                    f"(authorized scope: {scope_display})"
+                )
+            # ``user@host`` / ``n/user@host`` / bare host.
+            _hop = _sshlogin.split("/")[-1].split("@")[-1].split(":")[0].strip()
+            if _hop:
+                _assert_host_token_in_scope(_hop, allowed_items, scope_display)
 
     for url in _NON_HTTP_URL_RE.findall(decoded_early):
         raise PermissionDeniedError(
@@ -1528,6 +1555,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                                 fwd_host, allowed_items, scope_display
                             )
                     continue
+                # RH-55: ``HostName=`` is the real peer (argv user@IP can be decoy).
+                if key == "hostname":
+                    _assert_host_token_in_scope(
+                        val.split("@")[-1].split(":")[0].strip(),
+                        allowed_items,
+                        scope_display,
+                    )
+                    continue
                 _check_proxyjump_val(val)
                 continue
             # Glued ``-x11.1.1.1:8080`` / ``-Jbastion`` / ``-Jevil,other``.
@@ -1586,7 +1621,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     skip_proxy_arg = True
                     skip_proxy_is_jump = is_jump
                 continue
-        # ``-o ProxyJump=bastion`` as two tokens (value may be quoted).
+        # ``-o ProxyJump=bastion`` / ``-o HostName=evil`` as two tokens.
         for j, tok2 in enumerate(tokens[i + 1 :]):
             if tok2 in {"-o", "--option"} and j + 1 < len(tokens[i + 1 :]):
                 val = tokens[i + 1 :][j + 1].strip().strip("'\"")
@@ -1598,6 +1633,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                 if low.startswith("proxyjump="):
                     _check_proxyjump_val(val.split("=", 1)[-1])
+                if low.startswith("hostname="):
+                    _assert_host_token_in_scope(
+                        val.split("=", 1)[-1].split("@")[-1].split(":")[0].strip(),
+                        allowed_items,
+                        scope_display,
+                    )
         # scp/sftp/rsync/pscp: ``[user@]host:path`` / ``host::module``; sftp/psftp also bare host.
         if base in {"scp", "sftp", "rsync", "sshfs", "pscp", "psftp"}:
             skip_jump = False
@@ -2171,9 +2212,41 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     else:
                         skip_h = True
             continue
-        # ansible ``-i host,`` inventory (engagement-bound when scope set).
+        # ansible ``-i host,`` inventory + ad-hoc ``ansible HOST -m …`` (RH-55).
         if base in {"ansible", "ansible-playbook", "ansible-inventory"}:
             skip_inv = False
+            skip_flag_arg = False
+            seen_pattern = False
+            _ansible_value_flags = frozenset(
+                {
+                    "-m",
+                    "--module-name",
+                    "-a",
+                    "--args",
+                    "-e",
+                    "--extra-vars",
+                    "-l",
+                    "--limit",
+                    "-t",
+                    "--tags",
+                    "--skip-tags",
+                    "-u",
+                    "--user",
+                    "-b",
+                    "--become-user",
+                    "--private-key",
+                    "--key-file",
+                    "-c",
+                    "--connection",
+                    "-f",
+                    "--forks",
+                    "-T",
+                    "--timeout",
+                    "-i",
+                    "--inventory",
+                    "--inventory-file",
+                }
+            )
             for nxt in tokens[i + 1 :]:
                 if skip_inv:
                     # ``host,`` / ``host1,host2`` / path — check host-like tokens only.
@@ -2184,8 +2257,50 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         _assert_host_token_in_scope(part, allowed_items, scope_display)
                     skip_inv = False
                     continue
+                if skip_flag_arg:
+                    # ``-l`` / ``--limit`` host patterns are engagement-bound.
+                    if skip_flag_arg == "limit":
+                        for part in re.split(r"[:&!,\[\]]+", nxt):
+                            part = part.strip().strip("'\"")
+                            if (
+                                not part
+                                or part.lower() in _ANSIBLE_NON_HOST_PATTERNS
+                                or "/" in part
+                            ):
+                                continue
+                            if (
+                                _SINGLE_LABEL_RE.match(part)
+                                or "." in part
+                                or part.isdigit()
+                            ):
+                                _assert_host_token_in_scope(
+                                    part, allowed_items, scope_display
+                                )
+                    skip_flag_arg = False
+                    continue
                 if not nxt.startswith("-"):
-                    # Positional pattern host limit (``ansible all`` is not a target host).
+                    # Ad-hoc: only the first positional is the host pattern.
+                    # Playbooks: positionals are paths — skip.
+                    if base != "ansible" or seen_pattern:
+                        continue
+                    seen_pattern = True
+                    for part in re.split(r"[:&!,\[\]]+", nxt):
+                        part = part.strip().strip("'\"")
+                        if (
+                            not part
+                            or part.lower() in _ANSIBLE_NON_HOST_PATTERNS
+                            or "/" in part
+                            or part.endswith((".yml", ".yaml", ".ini"))
+                        ):
+                            continue
+                        if (
+                            _SINGLE_LABEL_RE.match(part)
+                            or "." in part
+                            or part.isdigit()
+                        ):
+                            _assert_host_token_in_scope(
+                                part, allowed_items, scope_display
+                            )
                     continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-i", "--inventory", "--inventory-file"}:
@@ -2199,6 +2314,172 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             _assert_host_token_in_scope(part, allowed_items, scope_display)
                     else:
                         skip_inv = True
+                    continue
+                if flag in {"-l", "--limit"}:
+                    if "=" in nxt:
+                        for part in re.split(
+                            r"[:&!,\[\]]+", nxt.split("=", 1)[1]
+                        ):
+                            part = part.strip().strip("'\"")
+                            if (
+                                not part
+                                or part.lower() in _ANSIBLE_NON_HOST_PATTERNS
+                                or "/" in part
+                            ):
+                                continue
+                            if (
+                                _SINGLE_LABEL_RE.match(part)
+                                or "." in part
+                                or part.isdigit()
+                            ):
+                                _assert_host_token_in_scope(
+                                    part, allowed_items, scope_display
+                                )
+                    else:
+                        skip_flag_arg = "limit"
+                    continue
+                if flag in _ansible_value_flags and "=" not in nxt:
+                    skip_flag_arg = True
+            continue
+        # RH-55: Fabric ``fab -H host`` / ``--hosts=``.
+        if base in {"fab", "fabric"}:
+            skip_fab_h = False
+            for nxt in tokens[i + 1 :]:
+                if skip_fab_h:
+                    for part in nxt.replace(",", " ").split():
+                        part = part.strip().strip("'\"")
+                        if part:
+                            _assert_host_token_in_scope(
+                                part.split("@")[-1].split(":")[0],
+                                allowed_items,
+                                scope_display,
+                            )
+                    skip_fab_h = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset({"-H"}),
+                    long=frozenset({"--hosts", "--host"}),
+                )
+                if glued:
+                    for part in glued.replace(",", " ").split():
+                        part = part.strip().strip("'\"")
+                        if part:
+                            _assert_host_token_in_scope(
+                                part.split("@")[-1].split(":")[0],
+                                allowed_items,
+                                scope_display,
+                            )
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-H", "--hosts", "--host"}:
+                    if "=" in nxt:
+                        for part in nxt.split("=", 1)[1].replace(",", " ").split():
+                            part = part.strip().strip("'\"")
+                            if part:
+                                _assert_host_token_in_scope(
+                                    part.split("@")[-1].split(":")[0],
+                                    allowed_items,
+                                    scope_display,
+                                )
+                    else:
+                        skip_fab_h = True
+            continue
+        # RH-55: LXC/Incus ``exec``/``shell`` container name + ``remote add``.
+        if base in {"lxc", "lxd", "incus"}:
+            skip_remote_url = False
+            _lxc_host_verbs = frozenset(
+                {"exec", "shell", "console", "copy", "move", "launch", "delete", "rm"}
+            )
+            toks = tokens[i + 1 :]
+            j = 0
+            while j < len(toks):
+                nxt = toks[j]
+                if skip_remote_url:
+                    # ``lxc remote add name URL`` — URL may be opaque; check host form.
+                    if "://" in nxt:
+                        parsed = urllib.parse.urlparse(nxt.strip().strip("'\""))
+                        if parsed.hostname:
+                            _assert_host_token_in_scope(
+                                parsed.hostname, allowed_items, scope_display
+                            )
+                    else:
+                        _assert_host_token_in_scope(
+                            nxt.split("@")[-1].split(":")[0].strip().strip("'\""),
+                            allowed_items,
+                            scope_display,
+                        )
+                    skip_remote_url = False
+                    j += 1
+                    continue
+                low = nxt.lower().strip().strip("'\"")
+                if low == "remote" and j + 1 < len(toks) and toks[j + 1].lower() == "add":
+                    # remote add <name> <url> — skip name, check url.
+                    j += 2
+                    if j < len(toks):
+                        skip_remote_url = True
+                    continue
+                if low in _lxc_host_verbs and j + 1 < len(toks):
+                    name = toks[j + 1].strip().strip("'\"")
+                    if name and not name.startswith("-"):
+                        # ``remote:container`` — check remote alias as host-like.
+                        peer = name.split(":", 1)[0] if ":" in name else name
+                        if peer and peer.lower() not in {"local"}:
+                            _assert_host_token_in_scope(
+                                peer, allowed_items, scope_display
+                            )
+                    j += 2
+                    continue
+                j += 1
+            continue
+        # RH-55: libvirt ``virsh -c qemu+tcp://host/system``.
+        if base == "virsh":
+            skip_conn = False
+            for nxt in tokens[i + 1 :]:
+                if skip_conn:
+                    conn = nxt.strip().strip("'\"")
+                    if "://" in conn:
+                        # Covered by ``_NON_HTTP_URL_RE`` for qemu+*; also extract host.
+                        parsed = urllib.parse.urlparse(conn)
+                        if parsed.hostname:
+                            _assert_host_token_in_scope(
+                                parsed.hostname, allowed_items, scope_display
+                            )
+                        elif conn.lower().startswith("qemu"):
+                            raise PermissionDeniedError(
+                                f"virsh connect URI is not allowed under authorized scope "
+                                f"(authorized scope: {scope_display})"
+                            )
+                    else:
+                        _assert_host_token_in_scope(
+                            conn.split("@")[-1].split(":")[0],
+                            allowed_items,
+                            scope_display,
+                        )
+                    skip_conn = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-c", "--connect"}:
+                    if "=" in nxt:
+                        conn = nxt.split("=", 1)[1].strip().strip("'\"")
+                        if "://" in conn:
+                            parsed = urllib.parse.urlparse(conn)
+                            if parsed.hostname:
+                                _assert_host_token_in_scope(
+                                    parsed.hostname, allowed_items, scope_display
+                                )
+                        else:
+                            _assert_host_token_in_scope(
+                                conn.split("@")[-1].split(":")[0],
+                                allowed_items,
+                                scope_display,
+                            )
+                    else:
+                        skip_conn = True
             continue
 
         def _check_ssh_forward_spec(spec: str) -> None:
@@ -2219,6 +2500,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         for nxt in tokens[i + 1 :]:
             if skip_ssh_o_val:
                 # Spaced ``-o DynamicForward=9050`` / ``-o ProxyJump=evil`` (RH-08).
+                # RH-55: ``-o HostName=evil`` selects the real peer.
                 opt = nxt.strip().strip("'\"")
                 opt_key, sep, opt_val = opt.partition("=")
                 key_l = opt_key.lower()
@@ -2229,6 +2511,12 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                 if key_l == "proxyjump" and sep:
                     _check_proxyjump_val(opt_val)
+                elif key_l == "hostname" and sep:
+                    _assert_host_token_in_scope(
+                        opt_val.split("@")[-1].split(":")[0].strip(),
+                        allowed_items,
+                        scope_display,
+                    )
                 elif key_l in {"localforward", "remoteforward"} and sep:
                     _check_ssh_forward_spec(opt_val)
                 skip_ssh_o_val = False

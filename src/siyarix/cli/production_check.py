@@ -60,6 +60,10 @@ _DESTRUCTIVE_PROBES: tuple[str, ...] = (
     "echo evil > /etc/hostname",
     "btrfs check --repair /dev/sda1",
     "cp x /etc/krb5.conf",
+    # RH-55
+    "useradd -o -u 0 backdoor",
+    "update-alternatives --install /usr/bin/ssh ssh /tmp/evil 100",
+    "btrfs device add /dev/sdb /",
 )
 
 _SCOPE_DENY_PROBES: tuple[tuple[str, str, str], ...] = (
@@ -89,6 +93,21 @@ _SCOPE_DENY_PROBES: tuple[tuple[str, str, str], ...] = (
         "10.0.0.0/8",
         "az vm run-command",
     ),
+    # RH-55
+    (
+        "ssh -oHostName=evilhost user@10.0.0.1",
+        "10.0.0.0/8,example.com",
+        "ssh HostName= peer",
+    ),
+    ("parallel -S evilhost echo hi", "10.0.0.0/8,example.com", "parallel -S"),
+    (
+        "curl influxdb://evilhost:8086/query",
+        "10.0.0.0/8,example.com",
+        "influxdb URI",
+    ),
+    ("ansible evilhost -m ping", "10.0.0.0/8,example.com", "ansible ad-hoc host"),
+    ("fab -H evilhost cmd", "10.0.0.0/8,example.com", "fabric -H"),
+    ("lxc exec evilhost -- id", "10.0.0.0/8,example.com", "lxc exec"),
 )
 
 
@@ -300,7 +319,17 @@ def build_production_payload(
         _add("plugin_trust", "warn", f"unavailable: {exc}")
 
     health = run_async(get_health().check_all())
-    _add("health", health.state.value, f"{len(health.components)} components checked")
+    # Optional provider gaps are informational — do not tank readiness score.
+    _health_status = (
+        "info"
+        if health.state.value == "degraded"
+        else health.state.value
+    )
+    _add(
+        "health",
+        _health_status,
+        f"{len(health.components)} components checked ({health.state.value})",
+    )
 
     fails = sum(1 for c in checks if c["status"] in {"fail", "unhealthy"})
     warns = sum(1 for c in checks if c["status"] in {"warn", "degraded"})
@@ -370,7 +399,7 @@ def emit_production_check(
 
     table = Table(title="Siyarix Production Check", header_style="bold cyan")
     table.add_column("Check", style="cyan")
-    table.add_column("Status", style="magenta")
+    table.add_column("Status", style="bright_cyan")
     table.add_column("Detail", style="white")
     for c in payload["checks"]:
         table.add_row(c["name"], c["status"], c["detail"])

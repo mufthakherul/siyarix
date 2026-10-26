@@ -61,6 +61,25 @@ _DANGEROUS_CALL_NAMES = frozenset(
     }
 )
 
+# ``os.system`` / ``subprocess.run`` style attribute calls (SX-A01+).
+_DANGEROUS_ATTR_CALLS = frozenset(
+    {
+        ("os", "system"),
+        ("os", "popen"),
+        ("os", "execv"),
+        ("os", "execve"),
+        ("os", "execl"),
+        ("os", "spawn"),
+        ("os", "spawnl"),
+        ("os", "spawnv"),
+        ("subprocess", "run"),
+        ("subprocess", "call"),
+        ("subprocess", "Popen"),
+        ("subprocess", "check_output"),
+        ("subprocess", "check_call"),
+    }
+)
+
 _PREFLIGHT_SCRIPT = r"""
 import ast
 import sys
@@ -141,6 +160,15 @@ def _call_basename(node: ast.AST) -> str | None:
     return None
 
 
+def _attr_call_pair(node: ast.AST) -> tuple[str, str] | None:
+    """Return ``(module_or_name, attr)`` for ``os.system`` / ``subprocess.run`` calls."""
+    if not isinstance(node, ast.Attribute):
+        return None
+    if isinstance(node.value, ast.Name):
+        return (node.value.id, node.attr)
+    return None
+
+
 def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
     hits: set[str] = set()
     for node in ast.walk(tree):
@@ -149,6 +177,9 @@ def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
         name = _call_basename(node.func)
         if name and name in _DANGEROUS_CALL_NAMES:
             hits.add(name)
+        pair = _attr_call_pair(node.func)
+        if pair and pair in _DANGEROUS_ATTR_CALLS:
+            hits.add(f"{pair[0]}.{pair[1]}")
     if not hits:
         return
     msg = (

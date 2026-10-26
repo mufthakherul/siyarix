@@ -56,6 +56,10 @@ _DESTRUCTIVE_PROBES: tuple[str, ...] = (
     # RH-35
     "gem unpack foo.gem --target /",
     "aunpack -X / evil.tar.gz",
+    # RH-54
+    "echo evil > /etc/hostname",
+    "btrfs check --repair /dev/sda1",
+    "cp x /etc/krb5.conf",
 )
 
 _SCOPE_DENY_PROBES: tuple[tuple[str, str, str], ...] = (
@@ -77,6 +81,14 @@ _SCOPE_DENY_PROBES: tuple[tuple[str, str, str], ...] = (
     ("sshuttle -r user@10.0.0.1 0/0", "10.0.0.0/8", "sshuttle full-tunnel 0/0"),
     # RH-34
     ("docker context use prod", "10.0.0.0/8", "docker context use"),
+    # RH-54
+    ("ion -c 'nmap evilhost'", "10.0.0.0/8,example.com", "ion -c unwrap"),
+    ("podman-remote run alpine", "10.0.0.0/8", "podman-remote"),
+    (
+        "az vm run-command invoke -g g -n n --command-id RunShellScript",
+        "10.0.0.0/8",
+        "az vm run-command",
+    ),
 )
 
 

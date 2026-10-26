@@ -68,7 +68,7 @@ against the current tree on `fix/production-hardening-sx-remediation`.
 | RH-40 | Closed | kubectl/oc/helm/kustomize: stop treating verbs as hosts; block `--context` / `use-context`; validate `--server` |
 | RH-41 | Closed | Wave7 hunter: zpool/mdadm/pvcreate create-on-disk; gem `--install-dir`; patool `--outdir`; bind `/etc`; `/lib/systemd` units; cargo `--root /`; podman `system connection use`; chisel `server --socks5`; dotenv CONSUL/NOMAD/ETCD/registry/SSH_PROXY |
 | RH-42 | Closed | Persistence `/etc/init.d`/`autostart`/`NM dispatcher`; pnpm/composer/bundle install roots; `kpartx -a` on disks; kubectl `proxy`/`port-forward`; skopeo/buildah `docker://`; minikube/kind/istioctl wrappers; dotenv CONTAINERD/PIP/COMPOSE/DOCKER_CONTEXT |
-| ARCH-01 | Partial | Extracted `cli/production_check.py` + `cli/audit_cmds.py` + `cli/tools_cmds.py` + `cli/config_cmds.py` + `cli/compliance_cmds.py` + `cli/playbook_cmds.py` from CLI god-module |
+| ARCH-01 | Partial | Extracted `cli/production_check.py` + `cli/audit_cmds.py` + `cli/tools_cmds.py` + `cli/config_cmds.py` + `cli/compliance_cmds.py` + `cli/playbook_cmds.py` + `cli/scan_cmds.py` from CLI god-module (`__init__.py` ~1638 lines) |
 | FEAT-02 | Honest | `siyarix[api]` reserved but **not** pulled by `[all]` (no in-tree HTTP server) |
 | MOD-P0 | Closed | Dropped dead `google-generativeai` extras; Gemini REST via httpx; OPSEC isolate fail-closed without `memory_only`; stub/compaction honesty defaults |
 | RH-43 | Closed | `mdadm -C`; PAM/`ld.so.conf.d`/spool cron; overlay/`bindfs` on `/etc`; `dpkg --root=/`; brook/mitmproxy SOCKS wrappers; dotenv `PGHOST`/MySQL/Redis transport |

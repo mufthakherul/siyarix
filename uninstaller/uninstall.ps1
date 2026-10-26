@@ -62,7 +62,7 @@ param (
 )
 
 $ErrorActionPreference = 'Stop'
-$SIYARIX_VERSION = "1.1.0"
+$SIYARIX_VERSION = "1.2.0"
 try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 function Write-Banner {

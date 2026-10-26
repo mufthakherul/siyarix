@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/winget-cli/master/schemas/Manifests/v1.6.0/manifest.installer.json",
   "PackageIdentifier": "Mufthakherul.Siyarix",
-  "PackageVersion": "1.1.0",
+  "PackageVersion": "1.2.0",
   "InstallModes": [
     "silent",
     "interactive"
@@ -10,7 +10,7 @@
     {
       "Architecture": "x64",
       "InstallerType": "portable",
-      "InstallerUrl": "https://github.com/mufthakherul/siyarix/releases/download/v1.1.0/siyarix-install.ps1",
+      "InstallerUrl": "https://github.com/mufthakherul/siyarix/releases/download/v1.2.0/siyarix-install.ps1",
       "InstallerSha256": "9ad8381df981a8fdddb8592cddf458a5d28465c288883732e90fd23f7ec88e3d",
       "InstallLocationRequired": false,
       "RequireExplicitUpgrade": false

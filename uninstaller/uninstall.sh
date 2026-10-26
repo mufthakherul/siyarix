@@ -10,7 +10,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="1.1.0"
+SIYARIX_VERSION="1.2.0"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
 SILENT="${SIYARIX_SILENT:-0}"
 UNINSTALL_MODE=""
@@ -39,7 +39,7 @@ banner() {
    ╚════██║██║ ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
    ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
-   AI Cybersecurity Orchestration Agent Enterprise Uninstaller v1.1.0
+   AI Cybersecurity Orchestration Agent Enterprise Uninstaller v1.2.0
 EOF
   echo -e "   Enterprise Uninstaller — \033[36mhttps://siyarix.github.io\033[0m\n"
 }

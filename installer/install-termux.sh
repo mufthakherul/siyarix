@@ -10,7 +10,7 @@
 # =============================================================================
 set -euo pipefail
 
-SIYARIX_VERSION="${SIYARIX_VERSION:-1.1.0}"
+SIYARIX_VERSION="${SIYARIX_VERSION:-1.2.0}"
 TERMUX_HOME="${HOME:-/data/data/com.termux/files/home}"
 TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
@@ -54,7 +54,7 @@ banner() {
    ╚════██║██║ ╚██╔╝  ██╔══██║██╔══██╗██║ ██╔██╗
    ███████║██║  ██║   ██║  ██║██║  ██║██║██╔╝ ██╗
    ╚══════╝╚═╝  ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
-   AI Cybersecurity Orchestration Agent v1.1.0
+   AI Cybersecurity Orchestration Agent v1.2.0
 EOF
   echo -e "   Android/Termux Enterprise Installer — \033[36mhttps://siyarix.github.io\033[0m\n"
 }

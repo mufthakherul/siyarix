@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Integration branch `dev` opened for ongoing post-1.2.0 work.
+
 ## [1.2.0] - 2026-10-26
 
 ### Added

@@ -228,7 +228,6 @@ def _bwrap_prefix(entry_path: Path) -> list[str] | None:
             "continuing with scrubbed-subprocess preflight only"
         )
         return None
-    resolved = str(entry_path.resolve())
     parent = str(entry_path.resolve().parent)
     # Minimal sandbox: RO root, private /tmp, no network, die with parent.
     # Bind the plugin directory RO so the entrypoint remains readable.

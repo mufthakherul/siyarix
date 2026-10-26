@@ -132,7 +132,7 @@ Your secrets are safe with Siyarix. The DLP engine (`siyarix/dlp.py`) actively s
 
 With **24+ built-in signatures**, the DLP engine catches things like:
 - **API Keys & Tokens:** `sk-...`, `Bearer ...`, AWS keys
-- **Passwords & SSH Keys:** `password=...`, `-----BEGIN RSA PRIVATE KEY-----`
+- **Passwords & SSH Keys:** `password=...`, PEM-encoded private-key headers (example pattern only)
 - **PII:** Emails, SSNs, credit cards
 - **Internal Infrastructure:** RFC1918 internal IP addresses
 

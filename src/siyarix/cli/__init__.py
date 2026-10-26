@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import shutil
-from typing import Any, Optional
+from typing import Any
 
 # Windows event loop policy for subprocess compatibility
 if os.name == "nt" and hasattr(asyncio, "WindowsSelectorEventLoopPolicy"):
@@ -36,29 +36,19 @@ if sys.stdout and getattr(sys.stdout, "encoding", "").lower() != "utf-8":
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     except Exception:
         logging.warning("Failed to set stdout encoding to UTF-8")
-from datetime import datetime, timezone
 from pathlib import Path
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import (
-    BarColumn,
-    Progress,
-    SpinnerColumn,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
-from rich.prompt import Confirm, Prompt
+from rich.prompt import Prompt
 from rich.table import Table
 
 from .. import __version__
 from ..async_utils import run_async
-from ..audit_log import AuditEventType, AuditSeverity, audit
 from ..branding import available_themes, print_banner, resolve_theme
 from ..chat import CROSS_PLATFORM_COMMANDS, CommandProfile, CommandProfileStore, start_chat
-from ..compat import EngineResult, ExecutionEngine, ExecutionMode, SessionKernel
+from ..compat import ExecutionEngine, ExecutionMode, SessionKernel
 from ..config import SettingsStore, get_config_dir
 from ..core.router import IntentRouter
 from ..exceptions import ValidationError
@@ -750,11 +740,11 @@ def profile_rm_cmd(name: str = typer.Argument(..., help="Profile name to remove"
         console.print(f"[red]Profile not found: {name}[/red]")
 
 
-from .audit_cmds import audit_app
+from .audit_cmds import audit_app  # noqa: E402
 
 app.add_typer(audit_app, name="audit")
 
-from .config_cmds import config_app
+from .config_cmds import config_app  # noqa: E402
 
 app.add_typer(config_app, name="config")
 
@@ -882,7 +872,7 @@ def cache_clear() -> None:
     console.print(f"[green]Cache cleared: {count} entries[/green]")
 
 
-from .tools_cmds import tools_app
+from .tools_cmds import tools_app  # noqa: E402
 
 app.add_typer(tools_app, name="tools")
 app.add_typer(tools_app, name="tool")
@@ -925,7 +915,7 @@ _active_theme: str = config.get("color_theme") or "default"
 # Premium: Main entry with enhanced output
 # ---------------------------------------------------------------------------
 # Scan commands live in ``siyarix.cli.scan_cmds`` (ARCH-01).
-from .scan_cmds import register_scan_commands
+from .scan_cmds import register_scan_commands  # noqa: E402
 
 register_scan_commands(
     app,
@@ -1591,8 +1581,8 @@ def generate_report(
 
 
 # Compliance + playbook commands live in dedicated modules (ARCH-01).
-from .compliance_cmds import compliance_app
-from .playbook_cmds import playbook_app
+from .compliance_cmds import compliance_app  # noqa: E402
+from .playbook_cmds import playbook_app  # noqa: E402
 
 app.add_typer(compliance_app, name="compliance")
 app.add_typer(playbook_app, name="playbook")

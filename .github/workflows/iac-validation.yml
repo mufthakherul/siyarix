@@ -33,6 +33,9 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Validate docker-compose.yml syntax
+        env:
+          # Required by redis profile interpolation even when the profile is off.
+          REDIS_PASSWORD: ci-validation-placeholder
         run: |
           docker compose -f docker-compose.yml config --quiet
           echo "docker-compose.yml: VALID"

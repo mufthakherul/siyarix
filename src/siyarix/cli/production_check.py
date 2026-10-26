@@ -337,7 +337,7 @@ def build_production_payload(
     warns = sum(1 for c in checks if c["status"] in {"warn", "degraded"})
     _n = max(len(checks), 1)
     _penalties = fails * 25 + warns * 8
-    score = max(0, min(100, int(round(100 - (_penalties * 100 / (_n * 25))))))
+    score = max(0, min(100, round(100 - (_penalties * 100 / (_n * 25)))))
     if fails == 0 and warns == 0:
         score = 100
     grade = (

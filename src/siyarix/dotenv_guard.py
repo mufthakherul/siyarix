@@ -506,14 +506,13 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "UV_INDEX",
         "UV_EXTRA_INDEX_URL",
         "UV_DEFAULT_INDEX",
-        "NPM_CONFIG_REGISTRY",
         # Container / pip config pivots (RH-42).
+        # NPM_CONFIG_REGISTRY / DOCKER_CONTEXT already listed above in this set.
         "CONTAINERD_ADDRESS",
         "CONTAINERD_NAMESPACE",
         "PIP_CONFIG_FILE",
         "PIP_CACHE_DIR",
         "COMPOSE_FILE",
-        "DOCKER_CONTEXT",
         # DB transport hosts (RH-43) — same set blocked on argv under scope.
         "PGHOST",
         "PGHOSTADDR",
@@ -639,7 +638,7 @@ def should_skip_dotenv_key(key: str) -> bool:
     # Any SIYARIX_* security/posture toggle from planted .env (RH-11).
     if key_upper.startswith("SIYARIX_"):
         return True
-    if key_upper.startswith("CORECLR_") or key_upper.startswith("DOTNET_"):
+    if key_upper.startswith(("CORECLR_", "DOTNET_")):
         return True
     if key_upper.startswith("ANSIBLE_") and (
         "PLUGIN" in key_upper or key_upper.endswith("_LIBRARY") or "MODULE" in key_upper
@@ -651,9 +650,9 @@ def should_skip_dotenv_key(key: str) -> bool:
         "_PATH" in key_upper or key_upper.endswith(("_DIR", "_HOME", "_DIRS", "_PATHS"))
     ):
         return True
-    if key_upper.endswith("_MODULES") or key_upper.endswith("_MODULE_PATH"):
+    if key_upper.endswith(("_MODULES", "_MODULE_PATH")):
         return True
-    if key_upper.endswith("_RUSTC_WRAPPER") or key_upper.endswith("RUSTC_WRAPPER"):
+    if key_upper.endswith(("_RUSTC_WRAPPER", "RUSTC_WRAPPER")):
         return True
     if key_upper.endswith("_EXTERNAL_DIFF"):
         return True
@@ -661,9 +660,9 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper in {"CC", "CXX", "CPP", "LD", "AS", "FC"}:
         return True
-    if key_upper.endswith("LIBPATH") or key_upper.endswith("_LIBRARY"):
+    if key_upper.endswith(("LIBPATH", "_LIBRARY")):
         return True
-    if key_upper.endswith("_LOAD_PATH") or key_upper.endswith("_FIND_LINKS"):
+    if key_upper.endswith(("_LOAD_PATH", "_FIND_LINKS")):
         return True
     if key_upper.endswith("_PIXBUF_MODULEDIR") or key_upper.startswith("NSS_WRAPPER_"):
         return True

@@ -158,7 +158,7 @@ def playbook_show(
     try:
         data = yaml.safe_load(p.read_text(encoding="utf-8"))
         if not isinstance(data, dict):
-            raise ValueError("Playbook must be a YAML dictionary")
+            raise TypeError("Playbook must be a YAML dictionary")
     except Exception as exc:
         console.print(f"[red]Failed to load playbook: {exc}[/red]")
         raise typer.Exit(1)

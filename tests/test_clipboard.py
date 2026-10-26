@@ -32,11 +32,14 @@ def test_get_from_clipboard_pyperclip():
 
 
 def test_copy_to_clipboard_subprocess_mock():
-    with patch("subprocess.run") as mock_run:
+    with (
+        patch("subprocess.run") as mock_run,
+        patch("shutil.which", side_effect=lambda name: name in {"xclip", "wl-copy", "xsel"}),
+        patch.dict(sys.modules, {"pyperclip": None}),
+    ):
         mock_run.return_value.returncode = 0
-        with patch.dict(sys.modules, {"pyperclip": None}):
-            assert copy_to_clipboard("data") is True
-            assert mock_run.called
+        assert copy_to_clipboard("data") is True
+        assert mock_run.called
 
 
 def test_command_registry_has_copy():

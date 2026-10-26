@@ -40,7 +40,9 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install --system -e ".[dev]"
-          uv pip install --system ruff mypy
+          # Pin ruff: 0.17+ enables nearly all rule families by default and
+          # breaks large PRs that previously linted clean under 0.15 defaults.
+          uv pip install --system "ruff==0.15.20" mypy
 
       - name: Determine changed Python files
         id: changes
@@ -281,7 +283,7 @@ jobs:
 
       - name: Install linters
         run: |
-          uv pip install --system ruff mypy -e ".[dev]"
+          uv pip install --system "ruff==0.15.20" mypy -e ".[dev]"
 
       - name: Full lint scan
         continue-on-error: true

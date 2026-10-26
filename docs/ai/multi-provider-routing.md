@@ -103,7 +103,7 @@ pm.register(
         name="openai",
         display_name="OpenAI",
         default_model="gpt-5.5",
-        api_key_env="OPENAI_API_KEY",
+        api_key_env="OPENAI_API_KEY",  # pragma: allowlist secret
         base_url="",
         supports_streaming=True,
         supports_tools=True,

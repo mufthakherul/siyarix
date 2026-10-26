@@ -74,7 +74,7 @@ _AES_ITERATIONS = 600000  # OWASP recommended PBKDF2 iterations
 
 _ENVELOPE_V1 = "v1:fernet:"
 _ENVELOPE_V2 = "v2:aesgcm:"
-_VAULT_MODE_PASSWORD = "password"
+_VAULT_MODE_PASSWORD = "password"  # pragma: allowlist secret
 _VAULT_MODE_FILE_KEY = "file_key"
 _AES_AAD = b"siyarix-credential"
 

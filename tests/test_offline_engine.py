@@ -3,13 +3,14 @@
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
+
+from siyarix.models import ExecutionPlan
 from siyarix.offline_engine import (
     OfflineReasoningEngine,
 )
-from siyarix.models import ExecutionPlan
 
 
 @pytest.fixture

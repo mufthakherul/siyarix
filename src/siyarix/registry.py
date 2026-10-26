@@ -12,7 +12,7 @@ import os
 import threading
 import time
 from pathlib import Path
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .parsers import ParserRegistry
@@ -23,47 +23,45 @@ from .exceptions import (
     ToolExecutionError,
     ToolNotFoundError,
 )
-
-# Expose models, graph, handlers, and metadata via the registry module
-from .tool_models import (
-    ToolHandler,
-    ToolCategory,
-    RiskLevel,
-    ToolCapability,
-    _cached_which,
-)
-from .tool_graph import ToolCapabilityGraph
-from .tool_metadata import (
-    categorize_tool,
-    risk_for_tool,
-    describe_tool,
-    tags_for_tool,
-)
-from .tool_version import get_tool_metadata
-
-from .tool_handlers import (
-    make_nmap_handler,
-    make_web_handler,
-    make_portscan_handler,
-    make_recon_handler,
-    make_brute_handler,
-    make_network_handler,
-    make_crypto_handler,
-    make_curl_handler,
-    make_dns_handler,
-    make_whois_handler,
-    make_forensics_handler,
-    make_sast_handler,
-    make_cloud_handler,
-    make_container_handler,
-    make_re_handler,
-    make_generic_handler,
-)
-
 from .internal_tools import (
     make_graph_analyzer_handler,
     make_threat_intel_handler,
 )
+from .tool_graph import ToolCapabilityGraph
+from .tool_handlers import (
+    make_brute_handler,
+    make_cloud_handler,
+    make_container_handler,
+    make_crypto_handler,
+    make_curl_handler,
+    make_dns_handler,
+    make_forensics_handler,
+    make_generic_handler,
+    make_network_handler,
+    make_nmap_handler,
+    make_portscan_handler,
+    make_re_handler,
+    make_recon_handler,
+    make_sast_handler,
+    make_web_handler,
+    make_whois_handler,
+)
+from .tool_metadata import (
+    categorize_tool,
+    describe_tool,
+    risk_for_tool,
+    tags_for_tool,
+)
+
+# Expose models, graph, handlers, and metadata via the registry module
+from .tool_models import (
+    RiskLevel,
+    ToolCapability,
+    ToolCategory,
+    ToolHandler,
+    _cached_which,
+)
+from .tool_version import get_tool_metadata
 
 logger = logging.getLogger(__name__)
 

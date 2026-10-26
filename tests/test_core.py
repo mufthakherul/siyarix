@@ -442,7 +442,9 @@ class TestCoreExecution:
         mock_child = MagicMock()
         mock_child.start = AsyncMock()
         mock_child.shutdown = AsyncMock()
-        mock_child.execute_goal = AsyncMock(return_value=AgentResult(goal="test goal", success=True))
+        mock_child.execute_goal = AsyncMock(
+            return_value=AgentResult(goal="test goal", success=True)
+        )
 
         with patch.object(core, "create_subagent", return_value=mock_child) as mock_create:
             result = asyncio.run(core.execute_subagent("analyst", "test goal"))
@@ -467,15 +469,14 @@ class TestCoreErrorHandling:
         siyarix_config = str(tmp_path / "siyarix")
         with patch.dict(
             os.environ, {"SIYARIX_STEALTH": "1", "SIYARIX_CONFIG_DIR": siyarix_config}, clear=True
-        ):
-            with patch("siyarix.core.StealthEngine") as MockStealth:
-                mock_stealth = MagicMock()
-                MockStealth.return_value = mock_stealth
-                core = AgentCore()
-                with patch.object(core._knowledge_graph, "load_json"):
-                    with patch.object(core, "initialize") as mock_init:
-                        await core.start()
-                        mock_stealth.enable.assert_called_once()
+        ), patch("siyarix.core.StealthEngine") as MockStealth:
+            mock_stealth = MagicMock()
+            MockStealth.return_value = mock_stealth
+            core = AgentCore()
+            with patch.object(core._knowledge_graph, "load_json"):
+                with patch.object(core, "initialize") as mock_init:
+                    await core.start()
+                    mock_stealth.enable.assert_called_once()
 
     async def test_start_stealth_import_error(self, tmp_path):
         from siyarix.core import AgentCore
@@ -483,18 +484,17 @@ class TestCoreErrorHandling:
         siyarix_config = str(tmp_path / "siyarix")
         with patch.dict(
             os.environ, {"SIYARIX_STEALTH": "1", "SIYARIX_CONFIG_DIR": siyarix_config}, clear=True
-        ):
-            with patch("siyarix.core.StealthEngine") as MockStealth:
-                mock_stealth = MagicMock()
-                MockStealth.return_value = mock_stealth
-                core = AgentCore()
-                # Make start()'s call to StealthEngine raise ImportError
-                MockStealth.side_effect = ImportError("no stealth")
-                with patch.object(core._knowledge_graph, "load_json"):
-                    with patch.object(core, "initialize") as mock_init:
-                        with patch("siyarix.core.logger") as mock_log:
-                            await core.start()
-                            mock_log.warning.assert_called()
+        ), patch("siyarix.core.StealthEngine") as MockStealth:
+            mock_stealth = MagicMock()
+            MockStealth.return_value = mock_stealth
+            core = AgentCore()
+            # Make start()'s call to StealthEngine raise ImportError
+            MockStealth.side_effect = ImportError("no stealth")
+            with patch.object(core._knowledge_graph, "load_json"):
+                with patch.object(core, "initialize") as mock_init:
+                    with patch("siyarix.core.logger") as mock_log:
+                        await core.start()
+                        mock_log.warning.assert_called()
 
     async def test_start_subagent_handler_success(self):
         from siyarix.core import AgentCore
@@ -536,7 +536,7 @@ class TestCoreErrorHandling:
         assert core._planner.plan_next_wave.called
 
     async def test_execute_autonomous_mode(self):
-        from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode
+        from siyarix.core import AgentCore, AgentGoal, AgentMode, AgentResult
 
         core = AgentCore()
         core._mode = AgentMode.AUTONOMOUS
@@ -550,7 +550,7 @@ class TestCoreErrorHandling:
                         assert result.success is True
 
     async def test_execute_autonomous_recovery_retry(self):
-        from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode
+        from siyarix.core import AgentCore, AgentGoal, AgentMode, AgentResult
         from siyarix.planner import PlanStatus
 
         core = AgentCore()
@@ -592,7 +592,7 @@ class TestCoreErrorHandling:
                                         assert result.success
 
     async def test_execute_autonomous_exception(self):
-        from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode
+        from siyarix.core import AgentCore, AgentGoal, AgentMode, AgentResult
 
         core = AgentCore()
         core._mode = AgentMode.AUTONOMOUS
@@ -606,7 +606,7 @@ class TestCoreErrorHandling:
                 assert "Autonomous agent failed" in result.summary
 
     async def test_execute_hybrid_fallback(self):
-        from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode
+        from siyarix.core import AgentCore, AgentGoal, AgentMode, AgentResult
 
         core = AgentCore()
         core._mode = AgentMode.HYBRID

@@ -6,9 +6,10 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 WorkflowStepFn = Callable[[dict[str, Any]], Coroutine[Any, Any, dict[str, Any]]]
 
@@ -246,9 +247,7 @@ class WorkflowEngine:
             node.retry_count = attempt
             try:
                 async with self._semaphore:
-                    result = await asyncio.wait_for(
-                        step_fn(merged_args), timeout=node.timeout
-                    )
+                    result = await asyncio.wait_for(step_fn(merged_args), timeout=node.timeout)
                     node.result = result if isinstance(result, dict) else {"output": result}
                     soft_status = str(node.result.get("status", "")).lower()
                     if soft_status in {"error", "failed", "failure"}:
@@ -260,7 +259,7 @@ class WorkflowEngine:
                     node.status = WorkflowStepStatus.COMPLETED
                     workflow.context[f"result_{node.id}"] = node.result
                     return
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = {"error": f"Timeout after {node.timeout}s"}
                 if attempt + 1 < attempts:
                     continue
@@ -290,8 +289,7 @@ class WorkflowEngine:
                     continue
                 if any(
                     (src := workflow.get_node(e.source)) is not None
-                    and src.status
-                    in (WorkflowStepStatus.FAILED, WorkflowStepStatus.SKIPPED)
+                    and src.status in (WorkflowStepStatus.FAILED, WorkflowStepStatus.SKIPPED)
                     for e in incoming
                 ):
                     node.status = WorkflowStepStatus.SKIPPED
@@ -345,11 +343,11 @@ class WorkflowEngine:
 
 
 __all__ = [
+    "Workflow",
+    "WorkflowEdge",
+    "WorkflowEngine",
+    "WorkflowNode",
     "WorkflowStatus",
     "WorkflowStepStatus",
-    "WorkflowEdge",
-    "WorkflowNode",
-    "Workflow",
-    "WorkflowEngine",
     "condition_passes",
 ]

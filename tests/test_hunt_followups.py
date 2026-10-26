@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -194,7 +194,9 @@ def test_https_post_json_pinned_connects_to_resolved_ip(monkeypatch: pytest.Monk
     assert created["headers"]["Host"] == "example.com"
 
 
-def test_cache_data_path_hashes_and_uses_wall_clock(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cache_data_path_hashes_and_uses_wall_clock(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from siyarix import cache_manager as cm
 
     monkeypatch.setattr(cm, "CACHE_DIR", tmp_path)

@@ -59,8 +59,7 @@ class SpecializedAgent:
     provider: str
     max_iterations: int = 3
 
-    async def run(self, goal: str, context: dict) -> SwarmTask:
-        ...
+    async def run(self, goal: str, context: dict) -> SwarmTask: ...
 ```
 
 ### 📋 `SwarmTask`
@@ -72,7 +71,7 @@ A `SwarmTask` represents a specific unit of work assigned to an agent. It tracks
 class SwarmTask:
     agent: str
     goal: str
-    status: str          # pending | running | completed | failed
+    status: str  # pending | running | completed | failed
     result: str
     findings: list
     error: str | None

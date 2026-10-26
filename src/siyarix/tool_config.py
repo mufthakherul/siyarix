@@ -13,7 +13,7 @@ import logging
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from siyarix.config import get_config_dir
 
@@ -89,7 +89,7 @@ class CustomToolDefinition:
 class ToolConfigManager:
     """Thread-safe manager for user tool modifications and custom tools."""
 
-    _instance: Optional[ToolConfigManager] = None
+    _instance: ToolConfigManager | None = None
     _instance_lock = threading.Lock()
 
     def __init__(self, config_file: Path | None = None) -> None:
@@ -247,7 +247,7 @@ class ToolConfigManager:
 
 
 __all__ = [
-    "ToolOverride",
     "CustomToolDefinition",
     "ToolConfigManager",
+    "ToolOverride",
 ]

@@ -1,7 +1,8 @@
 """Debug trace for decompose_goal on specific commands."""
 
-from siyarix import RegistryPlanner
 import re
+
+from siyarix import RegistryPlanner
 
 p = RegistryPlanner()
 tools = [

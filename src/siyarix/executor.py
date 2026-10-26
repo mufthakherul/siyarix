@@ -12,18 +12,18 @@ from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from typing import Any
 
+from .audit_log import AuditEventType, AuditSeverity, log_event
 from .events import get_event_bus
-from .audit_log import log_event, AuditEventType, AuditSeverity
 from .exceptions import PermissionDeniedError
-from .permission_gate import PermissionGate
 from .models import ExecutionPlan, PlanStep
+from .permission_gate import PermissionGate
 from .worker_pool import AsyncWorkerPool
 
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "ExecutionBudget",
     "BaseExecutor",
+    "ExecutionBudget",
     "GuardrailConfig",
     "StepCallback",
     "StepExecutor",
@@ -338,9 +338,7 @@ class BaseExecutor:
         tool = str(step.tool or "").strip()
         tool_base = tool.lstrip("\\").rsplit("/", 1)[-1].lower() if tool else ""
         cmd_base = (
-            command.split(None, 1)[0].lstrip("\\").rsplit("/", 1)[-1].lower()
-            if command
-            else ""
+            command.split(None, 1)[0].lstrip("\\").rsplit("/", 1)[-1].lower() if command else ""
         )
         if tool and cmd_base != tool_base:
             parts.append(tool)

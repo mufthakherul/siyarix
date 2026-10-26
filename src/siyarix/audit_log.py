@@ -448,9 +448,7 @@ class AuditLogger:
             self._unflushed_events.append(event)
             self._dirty = True
 
-            self._count_by_type[event.event_type] = (
-                self._count_by_type.get(event.event_type, 0) + 1
-            )
+            self._count_by_type[event.event_type] = self._count_by_type.get(event.event_type, 0) + 1
             self._count_by_severity[event.severity] = (
                 self._count_by_severity.get(event.severity, 0) + 1
             )
@@ -696,10 +694,10 @@ def log_event(
 
 
 __all__ = [
-    "AuditEventType",
-    "AuditSeverity",
     "AuditEvent",
-    "AuditSession",
+    "AuditEventType",
     "AuditLogger",
+    "AuditSession",
+    "AuditSeverity",
     "log_event",
 ]

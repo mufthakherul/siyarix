@@ -11,10 +11,9 @@ import pytest
 from siyarix.performance import (
     PerformanceConfig,
     PerformanceOptimizer,
-    performance_optimizer,
     SystemResources,
+    performance_optimizer,
 )
-
 
 # ── SystemResources ──────────────────────────────────────────────────────
 

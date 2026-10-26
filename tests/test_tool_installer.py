@@ -1,7 +1,10 @@
 from __future__ import annotations
-from siyarix.tool_installer import ToolInstaller, ToolInstallResult, tty_confirm
+
 from unittest.mock import MagicMock, patch
+
 import pytest
+
+from siyarix.tool_installer import ToolInstaller, ToolInstallResult, tty_confirm
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -68,14 +71,13 @@ class TestToolInstaller:
         assert result.success is True
 
     def test_auto_install_missing(self, installer):
-        with patch.object(installer, "is_installed", return_value=False):
-            with patch.object(
-                installer,
-                "install",
-                return_value=ToolInstallResult(tool="nmap", success=False),
-            ):
-                results = installer.auto_install_missing(["nmap"])
-                assert len(results) == 1
+        with patch.object(installer, "is_installed", return_value=False), patch.object(
+            installer,
+            "install",
+            return_value=ToolInstallResult(tool="nmap", success=False),
+        ):
+            results = installer.auto_install_missing(["nmap"])
+            assert len(results) == 1
 
 
 class TestToolInstallerCore:
@@ -99,14 +101,13 @@ class TestToolInstallerCore:
             side_effect=lambda x: (
                 "/usr/bin/choco" if x == "choco" else "/usr/bin/nmap" if x == "nmap" else None
             ),
-        ):
-            with patch("subprocess.run") as mock_run:
-                import subprocess
+        ), patch("subprocess.run") as mock_run:
+            import subprocess
 
-                mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
-                with patch.object(installer, "_refresh_windows_path"):
-                    result = installer._install_win("nmap", "nmap")
-                    assert result is True
+            mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")
+            with patch.object(installer, "_refresh_windows_path"):
+                result = installer._install_win("nmap", "nmap")
+                assert result is True
 
     def test_install_nix_success_via_pm(self):
         installer = ToolInstaller()

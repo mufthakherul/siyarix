@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+
 import typer
 from rich.console import Console
 from rich.table import Table

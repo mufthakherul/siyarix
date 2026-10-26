@@ -122,36 +122,48 @@ _INTERPRETER_WIPE_RE = re.compile(
 )
 _INTERPRETER_DEV_WRITE_RE = re.compile(
     r"(?:"
-    r"open\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|File\.write\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|IO\.write\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|writeFile(?:Sync)?\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|file_put_contents\s*\(\s*" + _BLOCK_DEV_RE.pattern
-    + r"|urlretrieve\s*\([^)]*" + _BLOCK_DEV_RE.pattern
-    + r"|Path\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    r"open\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|File\.write\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|IO\.write\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|writeFile(?:Sync)?\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|file_put_contents\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|urlretrieve\s*\([^)]*"
+    + _BLOCK_DEV_RE.pattern
+    + r"|Path\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _BLOCK_DEV_RE.pattern
+    + r"|pathlib\s*\.\s*Path\s*\(\s*"
+    + _BLOCK_DEV_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     + r")",
     re.IGNORECASE,
 )
 _GPG_OPENSSL_OUT_BLOCK_RE = re.compile(
-    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
-    + _BLOCK_DEV_RE.pattern,
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 _MISC_WRITE_BLOCK_RE = re.compile(
     r"(?:"
     r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|pigz|bzip2|lzop|lzma|lzip|plzip|lrzip)\b"
-    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)" + _BLOCK_DEV_RE.pattern
+    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
+    + _BLOCK_DEV_RE.pattern
     + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|ddrescue|uudecode|objcopy)\b"
-    r"[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    r"[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
     + _BLOCK_DEV_RE.pattern
-    + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _BLOCK_DEV_RE.pattern
-    + r"|\bsocat\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    + r"|\bgs\b[\s\S]{0,160}-sOutputFile="
+    + _BLOCK_DEV_RE.pattern
+    + r"|\bsocat\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     # ``mksquashfs src /dev/sda`` — last positional block dest (RH-27).
-    + r"|\bmksquashfs\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern
+    + r"|\bmksquashfs\b[\s\S]{0,200}"
+    + _BLOCK_DEV_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -293,8 +305,7 @@ _DOWNLOAD_TO_BLOCK_RE = re.compile(
     re.IGNORECASE,
 )
 _CMAKE_COPY_BLOCK_RE = re.compile(
-    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}"
-    + _BLOCK_DEV_RE.pattern,
+    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}" + _BLOCK_DEV_RE.pattern,
     re.IGNORECASE,
 )
 # curl/wget/aria2c writing under /dev via separate --dir / -o filename.
@@ -412,14 +423,12 @@ _AUTH_FILE_RE = re.compile(
     re.IGNORECASE,
 )
 _OPENSSL_OUT_AUTH_RE = re.compile(
-    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)"
-    + _AUTH_FILE_RE.pattern,
+    r"\b(?:gpg|openssl)\b[\s\S]{0,160}(?:--output|-out|-o)(?:=|\s*)" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 # Compressed auth paths: ``gunzip /etc/passwd.gz`` clobbers ``/etc/passwd``.
 _AUTH_COMPRESSED_RE = re.compile(
-    _AUTH_FILE_RE.pattern
-    + r"(?:\.(?:gz|bz2|xz|lzma|lz|lzo|zst|Z|zz|zip|br|sz))?\b",
+    _AUTH_FILE_RE.pattern + r"(?:\.(?:gz|bz2|xz|lzma|lz|lzo|zst|Z|zz|zip|br|sz))?\b",
     re.IGNORECASE,
 )
 _MISC_WRITE_AUTH_RE = re.compile(
@@ -427,19 +436,24 @@ _MISC_WRITE_AUTH_RE = re.compile(
     r"\b(?:base64|brotli|unzstd|lz4|xz|gzip|gunzip|pigz|bzip2|bunzip2|pbzip2|lbzip2|"
     r"lzop|lzma|unlzma|unxz|pixz|lzip|plzip|lrzip|zstd|pzstd|snzip|compress|uncompress|"
     r"age|rage)\b"
-    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)" + _AUTH_FILE_RE.pattern
+    r"[\s\S]{0,120}(?:-o|--output)(?:=|\s*)"
+    + _AUTH_FILE_RE.pattern
     # Positional decompress dest: ``lz4 -d x.lz4 /etc/passwd``, ``zstd -d x /etc/passwd``.
     + r"|\b(?:lz4|lzop|zstd|pzstd|unzstd|lzip|plzip|lrzip|brotli|snzip|pixz)\b[\s\S]{0,120}"
-    r"(?:-d|--decompress)\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
+    r"(?:-d|--decompress)\b[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern
     # In-place decompress of compressed auth files (``gunzip /etc/passwd.gz``).
     + r"|\b(?:gzip|gunzip|pigz|bzip2|bunzip2|pbzip2|lbzip2|xz|unxz|pixz|lzma|unlzma|"
     r"lzip|plzip|lrzip|lz4|lzop|zstd|pzstd|unzstd|brotli|snzip|compress|uncompress)\b"
-    r"[\s\S]{0,160}" + _AUTH_COMPRESSED_RE.pattern
+    r"[\s\S]{0,160}"
+    + _AUTH_COMPRESSED_RE.pattern
     + r"|\b(?:xxd|fallocate|flash_erase|nandwrite|uudecode|objcopy)\b"
-    r"[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
+    r"[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
     + r"|\b(?:iconv|ffmpeg|convert|magick)\b[\s\S]{0,220}"
     + _AUTH_FILE_RE.pattern
-    + r"|\bgs\b[\s\S]{0,160}-sOutputFile=" + _AUTH_FILE_RE.pattern
+    + r"|\bgs\b[\s\S]{0,160}-sOutputFile="
+    + _AUTH_FILE_RE.pattern
     + r"|\buudecode\b[\s\S]{0,100}(?:-o|--output-file)(?:=|\s*)"
     + _AUTH_FILE_RE.pattern
     + r")",
@@ -451,16 +465,24 @@ _RM_AUTH_RE = re.compile(
 )
 _INTERPRETER_AUTH_DELETE_RE = re.compile(
     r"(?:"
-    r"File\.delete\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|FileUtils\s*\.\s*rm(?:_r|_rf)?\s*\(?\s*" + _AUTH_FILE_RE.pattern
-    + r"|os\s*\)?\s*\.\s*(?:remove|unlink)\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    r"File\.delete\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|FileUtils\s*\.\s*rm(?:_r|_rf)?\s*\(?\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:remove|unlink)\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,40}\.unlink\s*\("
-    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|pathlib\s*\.\s*Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,40}\.unlink\s*\("
-    + r"|unlink(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|unlink\s+(?:q(?:w)?\()?\s*" + _AUTH_FILE_RE.pattern
-    + r"|rmSync\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|unlink(?:Sync)?\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|unlink\s+(?:q(?:w)?\()?\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|rmSync\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -495,10 +517,14 @@ _LN_NULL_AUTH_RE = re.compile(
 )
 _LN_TO_AUTH_RE = re.compile(
     r"(?:"
-    r"\bln\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern
-    + r"|\blink\b[\s\S]{0,160}" + _AUTH_FILE_RE.pattern
-    + r"|os\s*\)?\s*\.\s*(?:link|symlink)\s*\([^)]*" + _AUTH_FILE_RE.pattern
-    + r"|symlink(?:Sync)?\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    r"\bln\b[\s\S]{0,200}"
+    + _AUTH_FILE_RE.pattern
+    + r"|\blink\b[\s\S]{0,160}"
+    + _AUTH_FILE_RE.pattern
+    + r"|os\s*\)?\s*\.\s*(?:link|symlink)\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
+    + r"|symlink(?:Sync)?\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
     + r")",
     re.IGNORECASE,
 )
@@ -519,7 +545,8 @@ _MV_RSYNC_TO_AUTH_RE = re.compile(
 )
 _REDIRECT_TO_AUTH_RE = re.compile(
     r"(?:"
-    r"(?:>{1,2})\s*" + _AUTH_FILE_RE.pattern
+    r"(?:>{1,2})\s*"
+    + _AUTH_FILE_RE.pattern
     + r"|\btee\b(?:\s+-[^\s]+|\s+--[^\s=]+(?:=\S*)?)*\s+"
     + _AUTH_FILE_RE.pattern
     + r"|\b(?:truncate|shred|g?install)\b[\s\S]{0,80}"
@@ -542,9 +569,7 @@ _MOUNT_BIND_AUTH_RE = re.compile(
     # Also block bind onto ``/`` / ``/etc`` (RH-41) — hides/clobbers auth trees.
     r"\bmount\b[\s\S]{0,160}"
     r"(?:--bind\b|-B\b|-o(?:=|\s+)\S*bind\b|-o(?:=|\s+)\S*\s+bind\b)"
-    r"(?=[\s\S]{0,200}(?:"
-    + _AUTH_FILE_RE.pattern
-    + r"|/etc\b|(?:\s)/(?:\s*)$"
+    r"(?=[\s\S]{0,200}(?:" + _AUTH_FILE_RE.pattern + r"|/etc\b|(?:\s)/(?:\s*)$"
     r"))",
     re.IGNORECASE,
 )
@@ -564,9 +589,7 @@ _MOUNT_NETWORK_AUTH_RE = re.compile(
     r"(?:"
     r"\bmount\b[\s\S]{0,220}(?:-t|--types?)(?:=|\s*)(?:nfs4?|cifs|smb|smbfs|tmpfs|ramfs|devtmpfs)\b"
     r"[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
-    r"|\bmount\b[\s\S]{0,220}"
-    + _BLOCK_DEV_RE.pattern
-    + r"[\s\S]{0,80}(?:/etc\b|(?:\s)/(?:\s*)$)"
+    r"|\bmount\b[\s\S]{0,220}" + _BLOCK_DEV_RE.pattern + r"[\s\S]{0,80}(?:/etc\b|(?:\s)/(?:\s*)$)"
     r"|\bsshfs\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
     r"|\brclone\b[\s\S]{0,80}\bmount\b[\s\S]{0,220}(?:/etc\b|(?:\s)/(?:\s*)$)"
     r"|\b(?:mergerfs|unionfs-fuse|gocryptfs|squashfuse|encfs|cryfs)\b[\s\S]{0,220}"
@@ -630,8 +653,7 @@ _DOWNLOAD_DIR_AUTH_RE = re.compile(
     re.IGNORECASE,
 )
 _CMAKE_COPY_AUTH_RE = re.compile(
-    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}"
-    + _AUTH_FILE_RE.pattern,
+    r"\bcmake\b[\s\S]{0,80}-E\s+copy(?:_if_different)?\b[\s\S]{0,200}" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 _INPLACE_AUTH_RE = re.compile(
@@ -650,8 +672,7 @@ _INPLACE_AUTH_RE = re.compile(
 )
 _CHMOD_AUTH_RE = re.compile(
     r"\b(?:chmod|chown|chgrp|setfacl|getfacl|chattr|lsattr|setfattr|getfattr)\b"
-    r"[\s\S]{0,160}"
-    + _AUTH_FILE_RE.pattern,
+    r"[\s\S]{0,160}" + _AUTH_FILE_RE.pattern,
     re.IGNORECASE,
 )
 # System binary trees — setuid / ownership pivots (RH-51).
@@ -671,9 +692,7 @@ _SETUID_SYSTEM_RE = re.compile(
         # ``setcap`` dangerous capabilities on system binaries (RH-27).
         + r"|\bsetcap\b[\s\S]{0,120}"
         r"cap_(?:set(?:uid|gid)|sys_admin|sys_rawio|sys_module|dac_override|dac_read_search)"
-        r"\b[\s\S]{0,80}"
-        + _SYSTEM_BIN_PATH
-        + r")"
+        r"\b[\s\S]{0,80}" + _SYSTEM_BIN_PATH + r")"
     ),
     re.IGNORECASE,
 )
@@ -693,9 +712,7 @@ _GID0_GROUP_RE = re.compile(
 # RH-55/56: ``update-alternatives --install`` / ``--set`` hijacks system binaries.
 _UPDATE_ALTERNATIVES_RE = re.compile(
     r"\bupdate-alternatives\b[\s\S]{0,120}"
-    r"(?:--install\b[\s\S]{0,160}"
-    + _SYSTEM_BIN_PATH
-    + r"|--set\b)",
+    r"(?:--install\b[\s\S]{0,160}" + _SYSTEM_BIN_PATH + r"|--set\b)",
     re.IGNORECASE,
 )
 # RH-56: ``busybox --install`` overwrites the operator ``/bin`` tree.
@@ -714,24 +731,35 @@ _DD_RESCUE_AUTH_RE = re.compile(
 )
 _INTERPRETER_AUTH_WRITE_RE = re.compile(
     r"(?:"
-    r"open\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|File\.write\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|IO\.write\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|writeFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|file_put_contents\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|File\.open\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|urlretrieve\s*\([^)]*" + _AUTH_FILE_RE.pattern
-    + r"|Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    r"open\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|File\.write\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|IO\.write\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|writeFile(?:Sync)?\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|file_put_contents\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|File\.open\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|urlretrieve\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
+    + r"|Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
-    + r"|pathlib\s*\.\s*Path\s*\(\s*" + _AUTH_FILE_RE.pattern
+    + r"|pathlib\s*\.\s*Path\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
     + r"[\s\S]{0,80}\.write_(?:bytes|text)\s*\("
     # ``__import__('shutil').copy`` → ``shutil).copy`` after quote-strip.
     + r"|shutil\s*\)?\s*\.\s*(?:copy|copy2|copyfile|move)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
     + r"|os\s*\)?\s*\.\s*(?:rename|replace|link|symlink)\s*\([^)]*"
     + _AUTH_FILE_RE.pattern
-    + r"|appendFile(?:Sync)?\s*\(\s*" + _AUTH_FILE_RE.pattern
-    + r"|symlink(?:Sync)?\s*\([^)]*" + _AUTH_FILE_RE.pattern
+    + r"|appendFile(?:Sync)?\s*\(\s*"
+    + _AUTH_FILE_RE.pattern
+    + r"|symlink(?:Sync)?\s*\([^)]*"
+    + _AUTH_FILE_RE.pattern
     + r"|extractall\s*\(\s*/"
     + r"|ZipFile\s*\([^)]*\)[\s\S]{0,80}\.extract(?:all)?\s*\(\s*/"
     + r")",
@@ -952,8 +980,7 @@ def _token_is_rel_auth_path(tok: str) -> bool:
 def _parents_reconstructs_auth(cmd_clean: str) -> bool:
     """True when ``cp --parents`` / ``rsync -R`` would materialize auth under ``/``."""
     has_cp_parents = bool(
-        re.search(r"\bcp\b", cmd_clean, re.IGNORECASE)
-        and _CP_PARENTS_FLAG_RE.search(cmd_clean)
+        re.search(r"\bcp\b", cmd_clean, re.IGNORECASE) and _CP_PARENTS_FLAG_RE.search(cmd_clean)
     )
     has_rsync_rel = bool(
         re.search(r"\brsync\b", cmd_clean, re.IGNORECASE)
@@ -1000,9 +1027,7 @@ def _rm_is_destructive(cmd_clean: str) -> bool:
     """True when ``rm`` has recursive+force flags in any option order."""
     if not _RM_WORD_RE.search(cmd_clean):
         return False
-    return bool(
-        _RM_RECURSIVE_FLAG_RE.search(cmd_clean) and _RM_FORCE_FLAG_RE.search(cmd_clean)
-    )
+    return bool(_RM_RECURSIVE_FLAG_RE.search(cmd_clean) and _RM_FORCE_FLAG_RE.search(cmd_clean))
 
 
 def _is_dangerous_extract_dest(tok: str, *, absolute_any: bool = False) -> bool:
@@ -1064,9 +1089,7 @@ def assert_command_not_destructive(command: str) -> None:
     cmd_clean = _normalize_abs_paths_in_command(cmd_clean)
 
     if _FORK_BOMB_RE.search(cmd_clean):
-        raise PermissionDeniedError(
-            "Destructive command detected: Fork bomb execution is blocked."
-        )
+        raise PermissionDeniedError("Destructive command detected: Fork bomb execution is blocked.")
 
     if _DD_WORD_RE.search(cmd_clean):
         of_matches = _DD_OF_RE.findall(cmd_clean)
@@ -1146,9 +1169,7 @@ def assert_command_not_destructive(command: str) -> None:
         src = _normalize_path_token(mv_match.group(1))
         system_src = src in {"/", "/*"} or src in _ROOT_EQUIV or src in _SYSTEM_RM_ROOTS
         if not system_src:
-            system_src = any(
-                src == root or src.startswith(root + "/") for root in _SYSTEM_RM_ROOTS
-            )
+            system_src = any(src == root or src.startswith(root + "/") for root in _SYSTEM_RM_ROOTS)
         if system_src:
             raise PermissionDeniedError(
                 "Destructive command detected: Moving system directories is blocked."
@@ -1222,9 +1243,7 @@ def assert_command_not_destructive(command: str) -> None:
         )
 
     if _GIT_ROOT_WRITE_RE.search(cmd_clean):
-        raise PermissionDeniedError(
-            "Destructive command detected: Git write onto / is blocked."
-        )
+        raise PermissionDeniedError("Destructive command detected: Git write onto / is blocked.")
 
     if _SETUID_SYSTEM_RE.search(cmd_clean):
         raise PermissionDeniedError(

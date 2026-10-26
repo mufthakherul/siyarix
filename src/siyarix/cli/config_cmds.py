@@ -4,17 +4,14 @@
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
-from typing import Any, Optional
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 from rich.table import Table
 
-from siyarix.config import SettingsStore, get_config_dir
+from siyarix.config import SettingsStore
 
 console = Console()
 config = SettingsStore()
@@ -22,6 +19,7 @@ config = SettingsStore()
 config_app = typer.Typer(help="⚙️ CLI configuration")
 config_profile_app = typer.Typer(help="Manage environment configuration profiles")
 config_app.add_typer(config_profile_app, name="profile")
+
 
 @config_app.command("list")
 def config_list(

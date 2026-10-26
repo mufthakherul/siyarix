@@ -39,6 +39,7 @@ def _get_store() -> Any:
 def _get_security_db() -> Any:
     """Get or create the security-specific database connection."""
     import sqlite3
+
     from .config import get_config_dir
 
     db_path = get_config_dir() / "security.db"
@@ -103,6 +104,7 @@ def _seed_security_data(conn: Any | None = None) -> None:
     close_conn = conn is None
     if conn is None:
         import sqlite3
+
         from .config import get_config_dir
 
         db_path = get_config_dir() / "security.db"
@@ -712,11 +714,15 @@ def show_dashboard() -> None:
 
         # Only show metrics derived from the local security DB — never fabricate
         # MFA/EDR/MTTD percentages (trust failure in a security product).
-        open_weight = (critical_incidents * 3) + (high_incidents * 2) + max(
-            total_open_incidents - critical_incidents - high_incidents, 0
+        open_weight = (
+            (critical_incidents * 3)
+            + (high_incidents * 2)
+            + max(total_open_incidents - critical_incidents - high_incidents, 0)
         )
-        vuln_weight = (critical_vulns * 3) + (high_vulns * 2) + max(
-            total_vulns - critical_vulns - high_vulns, 0
+        vuln_weight = (
+            (critical_vulns * 3)
+            + (high_vulns * 2)
+            + max(total_vulns - critical_vulns - high_vulns, 0)
         )
         # Inverse pressure score from local open items only (0–100). Empty DB → N/A.
         has_data = total_open_incidents > 0 or total_vulns > 0
@@ -820,14 +826,14 @@ def list_playbooks() -> None:
 
 
 __all__ = [
-    "list_incidents",
-    "get_incident",
     "create_incident",
-    "list_vulnerabilities",
+    "get_incident",
     "get_remediation_plan",
-    "run_hunt",
-    "list_queries",
-    "mitre_coverage",
-    "show_dashboard",
+    "list_incidents",
     "list_playbooks",
+    "list_queries",
+    "list_vulnerabilities",
+    "mitre_coverage",
+    "run_hunt",
+    "show_dashboard",
 ]

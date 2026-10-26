@@ -130,7 +130,7 @@ class AsyncWorkerPool:
                 asyncio.gather(*snapshot, return_exceptions=True),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("Worker pool shutdown timed out; some tasks did not finish")
         except Exception:
             logger.exception("Unexpected error during worker pool shutdown")

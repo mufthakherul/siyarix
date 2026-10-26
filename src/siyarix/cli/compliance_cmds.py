@@ -80,7 +80,7 @@ def compliance_run(
 @compliance_app.command("frameworks")
 def compliance_list() -> None:
     """List supported compliance frameworks and their controls."""
-    from siyarix.compliance import ComplianceEngine, FRAMEWORK_METADATA
+    from siyarix.compliance import FRAMEWORK_METADATA, ComplianceEngine
 
     table = Table(title="Supported Compliance Frameworks", header_style="bold cyan")
     table.add_column("Framework", style="cyan", no_wrap=True)

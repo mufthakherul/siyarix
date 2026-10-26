@@ -18,7 +18,7 @@ import ipaddress
 import os
 import re
 import urllib.parse
-from typing import Iterable
+from collections.abc import Iterable
 
 from .exceptions import PermissionDeniedError
 
@@ -31,9 +31,7 @@ __all__ = [
 ]
 
 # IPv4 dotted-quad (bounded octets to reduce false positives).
-_IPV4_RE = re.compile(
-    r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b"
-)
+_IPV4_RE = re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b")
 
 # Hex / decimal / octal IPv4 obfuscations commonly accepted by curl/wget.
 _IPV4_HEX_RE = re.compile(r"\b0x[0-9a-fA-F]{1,8}\b")
@@ -49,9 +47,7 @@ _IPV4_HEX_DOTTED_RE = re.compile(
 )
 # Octal-dotted IPv4 (e.g. 0177.0.0.1). Lookahead requires a 0[0-7]+ octet so
 # ordinary dotted-decimal (127.0.0.1) is not mis-parsed as base-8.
-_IPV4_OCTAL_RE = re.compile(
-    r"\b(?=(?:[0-7]{1,4}\.){0,3}0[0-7]+)(?:[0-7]{1,4}\.){3}[0-7]{1,4}\b"
-)
+_IPV4_OCTAL_RE = re.compile(r"\b(?=(?:[0-7]{1,4}\.){0,3}0[0-7]+)(?:[0-7]{1,4}\.){3}[0-7]{1,4}\b")
 # Short IPv4 (curl/wget): 127.1 → 127.0.0.1, 10.1 → 10.0.0.1, 192.168.1 → 192.168.0.1
 # Negative lookaround avoids matching a prefix of a full dotted-quad.
 _IPV4_SHORT_RE = re.compile(
@@ -568,9 +564,7 @@ _SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
 )
 # Glued short host flags: ``mysql -h1.1.1.1``, ``kcat -b1.1.1.1``, ``cypher-shell -a1.1.1.1``.
 # Letter set is filtered by the caller's ``short`` frozenset (RH-53).
-_GLUED_HOST_SHORT_RE = re.compile(
-    r"^(?P<flag>-[a-zA-Z])(?P<val>[^=\s-].+)$"
-)
+_GLUED_HOST_SHORT_RE = re.compile(r"^(?P<flag>-[a-zA-Z])(?P<val>[^=\s-].+)$")
 # Glued long host/connect flags: ``openssl … -connect1.1.1.1:443``.
 _GLUED_HOST_LONG_RE = re.compile(
     # Longer flags first so ``--hosts=`` is not parsed as ``--host`` + ``s=…`` (RH-56).
@@ -768,9 +762,7 @@ _CLOUD_KUBECONFIG_VERBS: frozenset[str] = frozenset(
     }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
-_GLUED_PROXY_SHORT_RE = re.compile(
-    r"^(?P<flag>-[xJ])(?P<val>.+)$"
-)
+_GLUED_PROXY_SHORT_RE = re.compile(r"^(?P<flag>-[xJ])(?P<val>.+)$")
 _SHELL_WRAPPERS = frozenset(
     {
         "sh",
@@ -852,9 +844,7 @@ def _try_int_ip(token: str) -> str | None:
         lower = token.lower()
         if lower.startswith("0x"):
             value = int(token, 16)
-        elif token.startswith("0") and len(token) > 1 and all(
-            c in "01234567" for c in token
-        ):
+        elif token.startswith("0") and len(token) > 1 and all(c in "01234567" for c in token):
             value = int(token, 8)
         elif token.isdigit():
             value = int(token, 10)
@@ -920,9 +910,7 @@ def _expand_inet_aton_ipv4(token: str) -> str | None:
     if not (2 <= len(parts) <= 4):
         return None
     # Require a leading-zero octal octet so plain ``127.1`` still uses short-decimal.
-    if not any(
-        p.startswith("0") and len(p) > 1 and all(c in "01234567" for c in p) for p in parts
-    ):
+    if not any(p.startswith("0") and len(p) > 1 and all(c in "01234567" for c in p) for p in parts):
         return None
     nums: list[int] = []
     for part in parts:
@@ -1119,9 +1107,7 @@ def _assert_host_token_in_scope(
         ip = str(ipaddress.ip_address(host))
     except ValueError:
         if (
-            _SINGLE_LABEL_RE.match(host)
-            or "." in host
-            or host == "localhost"
+            _SINGLE_LABEL_RE.match(host) or "." in host or host == "localhost"
         ) and not domain_in_scope(host, allowed_items):
             raise PermissionDeniedError(
                 f"Target host {host} is out of authorized scope: {scope_display}"
@@ -1176,7 +1162,6 @@ def _glued_host_flag_value(
     if short_m is not None and short_m.group("flag") in short:
         return short_m.group("val").strip().strip("'\"")
     return None
-
 
 
 # Strip Go/release platform + version suffixes: ``gost-linux-amd64``, ``ngrok-v3`` (RH-47).
@@ -1385,9 +1370,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             for _op in _par_parts[1].split():
                 if not _op or _op.startswith("-"):
                     continue
-                assert_command_in_scope(
-                    f"{_par_left} {_op}".strip(), scope_env=scope_env
-                )
+                assert_command_in_scope(f"{_par_left} {_op}".strip(), scope_env=scope_env)
         for _ssh_m in re.finditer(
             r"(?:(?:^|\s)(?:-S|--sshlogin)(?:=|\s+)|(?:^|\s)--sshloginfile(?:=|\s+))"
             r"([^\s\"']+)",
@@ -1458,9 +1441,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         for nxt in tokens[i + 1 :]:
             flag = nxt.split("=", 1)[0]
             curl_cfg = base in {"curl", "http", "httpie"} and (
-                flag in {"-K", "--config"}
-                or flag.startswith("--config")
-                or flag.startswith("-K")
+                flag in {"-K", "--config"} or flag.startswith("--config") or flag.startswith("-K")
             )
             wget_cfg = base == "wget" and (
                 flag in {"-i", "--input-file", "--config"}
@@ -1555,9 +1536,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     if len(parts) >= 3:
                         fwd_host = parts[-2].strip().strip("[]")
                         if fwd_host:
-                            _assert_host_token_in_scope(
-                                fwd_host, allowed_items, scope_display
-                            )
+                            _assert_host_token_in_scope(fwd_host, allowed_items, scope_display)
                     continue
                 # RH-55: ``HostName=`` is the real peer (argv user@IP can be decoy).
                 if key == "hostname":
@@ -1789,9 +1768,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 low = raw.lower()
                 if "://" in low:
                     # docker://host/path | docker-daemon:… | oci:…
-                    parsed = urllib.parse.urlparse(
-                        raw if "://" in raw else f"docker://{raw}"
-                    )
+                    parsed = urllib.parse.urlparse(raw if "://" in raw else f"docker://{raw}")
                     host = (parsed.hostname or "").strip()
                     if not host and low.startswith("docker://"):
                         host = raw.split("://", 1)[1].split("/")[0].split(":")[0]
@@ -1948,22 +1925,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 if not nxt.startswith("-"):
                     # Positional host (impacket-psexec / bare redis-cli target).
-                    cand = (
-                        nxt.split("@")[-1]
-                        .split("/")[0]
-                        .split(":")[0]
-                        .strip()
-                        .strip("'\"")
-                    )
+                    cand = nxt.split("@")[-1].split("/")[0].split(":")[0].strip().strip("'\"")
                     if cand and not cand.startswith("/"):
                         _assert_host_token_in_scope(cand, allowed_items, scope_display)
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
                     short=frozenset({"-h", "-H", "-i", "-S", "-w", "-a", "-b", "-s"}),
-                    long=frozenset(
-                        {"--host", "--ip", "--server", "--address", "--broker", "-c"}
-                    ),
+                    long=frozenset({"--host", "--ip", "--server", "--address", "--broker", "-c"}),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -2149,7 +2118,16 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     low = nxt.lower().strip().strip("'\"")
                     # Client remotes + server ``--socks5`` listener (RH-29 / RH-41).
                     if (
-                        low in {"r:socks", "socks", "socks5", "socks4", "--socks5", "--socks4", "--socks"}
+                        low
+                        in {
+                            "r:socks",
+                            "socks",
+                            "socks5",
+                            "socks4",
+                            "--socks5",
+                            "--socks4",
+                            "--socks",
+                        }
                         or low.startswith("r:socks")
                         or low.startswith("--socks5")
                         or low.startswith("--socks4")
@@ -2272,14 +2250,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                                 or "/" in part
                             ):
                                 continue
-                            if (
-                                _SINGLE_LABEL_RE.match(part)
-                                or "." in part
-                                or part.isdigit()
-                            ):
-                                _assert_host_token_in_scope(
-                                    part, allowed_items, scope_display
-                                )
+                            if _SINGLE_LABEL_RE.match(part) or "." in part or part.isdigit():
+                                _assert_host_token_in_scope(part, allowed_items, scope_display)
                     skip_flag_arg = False
                     continue
                 if not nxt.startswith("-"):
@@ -2297,23 +2269,15 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             or part.endswith((".yml", ".yaml", ".ini"))
                         ):
                             continue
-                        if (
-                            _SINGLE_LABEL_RE.match(part)
-                            or "." in part
-                            or part.isdigit()
-                        ):
-                            _assert_host_token_in_scope(
-                                part, allowed_items, scope_display
-                            )
+                        if _SINGLE_LABEL_RE.match(part) or "." in part or part.isdigit():
+                            _assert_host_token_in_scope(part, allowed_items, scope_display)
                     continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-i", "--inventory", "--inventory-file"}:
                     if "=" in nxt:
                         for part in nxt.split("=", 1)[1].replace(",", " ").split():
                             part = part.strip().strip("'\"")
-                            if not part or "/" in part or part.endswith(
-                                (".yml", ".yaml", ".ini")
-                            ):
+                            if not part or "/" in part or part.endswith((".yml", ".yaml", ".ini")):
                                 continue
                             _assert_host_token_in_scope(part, allowed_items, scope_display)
                     else:
@@ -2321,9 +2285,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     continue
                 if flag in {"-l", "--limit"}:
                     if "=" in nxt:
-                        for part in re.split(
-                            r"[:&!,\[\]]+", nxt.split("=", 1)[1]
-                        ):
+                        for part in re.split(r"[:&!,\[\]]+", nxt.split("=", 1)[1]):
                             part = part.strip().strip("'\"")
                             if (
                                 not part
@@ -2331,14 +2293,8 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                                 or "/" in part
                             ):
                                 continue
-                            if (
-                                _SINGLE_LABEL_RE.match(part)
-                                or "." in part
-                                or part.isdigit()
-                            ):
-                                _assert_host_token_in_scope(
-                                    part, allowed_items, scope_display
-                                )
+                            if _SINGLE_LABEL_RE.match(part) or "." in part or part.isdigit():
+                                _assert_host_token_in_scope(part, allowed_items, scope_display)
                     else:
                         skip_flag_arg = "limit"
                     continue
@@ -2421,9 +2377,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         # ``remote:container`` — check remote alias as host-like.
                         peer = name.split(":", 1)[0] if ":" in name else name
                         if peer and peer.lower() not in {"local"}:
-                            _assert_host_token_in_scope(
-                                peer, allowed_items, scope_display
-                            )
+                            _assert_host_token_in_scope(peer, allowed_items, scope_display)
                     j += 2
                     continue
                 j += 1
@@ -2528,9 +2482,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if nxt.startswith("-"):
                 flag = nxt.split("=", 1)[0]
                 ssh_opt = base in {"ssh", "autossh", "scp", "sftp"} and (
-                    flag in _ssh_opt_flags
-                    or flag.startswith("-o")
-                    or flag.startswith("--option")
+                    flag in _ssh_opt_flags or flag.startswith("-o") or flag.startswith("--option")
                 )
                 jump_opt = flag in {"-J", "--jump"}
                 # TUN/TAP device forwarding ``-w`` / ``-w0:0`` (RH-19).
@@ -2567,18 +2519,11 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     else:
                         skip_forward_spec = flag in {"-L", "-R"}
                     continue
-                if (
-                    flag in _port_flags
-                    or flag.lower().startswith("-p")
-                    or ssh_opt
-                    or jump_opt
-                ):
+                if flag in _port_flags or flag.lower().startswith("-p") or ssh_opt or jump_opt:
                     # ``-o Key=val``, ``-J bastion``, ``-p 22``.
                     if "=" not in nxt and flag in _ssh_opt_flags:
                         skip_ssh_o_val = True
-                    elif "=" not in nxt and (
-                        flag in _port_flags | {"-J", "--jump"}
-                    ):
+                    elif "=" not in nxt and (flag in _port_flags | {"-J", "--jump"}):
                         skip_next_port = True
                     elif "=" not in nxt and flag.lower().startswith("-p") and len(flag) <= 2:
                         skip_next_port = True
@@ -2613,9 +2558,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 raw_host = unc.split("@")[-1].split("/")[0]
             # IPv6 (``2001:db8::1`` / ``[2001:db8::1]``) — do not truncate on ``:``.
             # (socat already extracted the host; skip the multi-colon IPv6 bail.)
-            if not (socks_m or socat_m) and (
-                raw_host.startswith("[") or raw_host.count(":") >= 2
-            ):
+            if not (socks_m or socat_m) and (raw_host.startswith("[") or raw_host.count(":") >= 2):
                 break
             candidate = raw_host.split(":")[0].strip().strip("'\"")  # strip port + quotes
             # Empty / quote-only tokens (``rpcclient -U '' evil``) — keep scanning.
@@ -2641,8 +2584,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     except (UnicodeError, ValueError):
                         puny = dom
                     if not (
-                        domain_in_scope(dom, allowed_items)
-                        or domain_in_scope(puny, allowed_items)
+                        domain_in_scope(dom, allowed_items) or domain_in_scope(puny, allowed_items)
                     ):
                         raise PermissionDeniedError(
                             f"Target domain {dom} is out of authorized scope: {scope_display}"

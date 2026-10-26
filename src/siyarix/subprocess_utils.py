@@ -32,13 +32,25 @@ from typing import IO, Any
 
 from ._platform import (
     get_platform_id,
-    get_platform_shell_cmd as _get_platform_shell_cmd,
-    get_termux_prefix as _get_termux_prefix,
-    has_signal as _has_signal,
-    is_linux as _is_linux,
-    is_mobile as _is_mobile,
-    is_windows as _is_windows,
     set_event_loop_policy,
+)
+from ._platform import (
+    get_platform_shell_cmd as _get_platform_shell_cmd,
+)
+from ._platform import (
+    get_termux_prefix as _get_termux_prefix,
+)
+from ._platform import (
+    has_signal as _has_signal,
+)
+from ._platform import (
+    is_linux as _is_linux,
+)
+from ._platform import (
+    is_mobile as _is_mobile,
+)
+from ._platform import (
+    is_windows as _is_windows,
 )
 
 _console: Console | None = None
@@ -63,8 +75,8 @@ __all__ = [
     "get_platform_shell_cmd",
     "safe_run_async",
     "safe_run_async_stream",
-    "safe_run_sync",
     "safe_run_sandboxed",
+    "safe_run_sync",
 ]
 
 _ORPHAN_TRACKER: set[int] = set()
@@ -219,72 +231,72 @@ def get_platform_shell_cmd(command: str) -> list[str]:
 
 
 _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/(?:\.\s*)?(?:\s|$)", re.I),
-    re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.I),
-    re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
+    re.compile(r"\brm\s+(?:-rf\s+)?(?:--no-preserve-root\s+)?/(?:\.\s*)?(?:\s|$)", re.IGNORECASE),
+    re.compile(r"\bdd\s+if=/dev/zero\s+of=", re.IGNORECASE),
+    re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.IGNORECASE),
     re.compile(r":\(\)\{\s*:\|:&\s*\};\s*:"),
-    re.compile(r"\bmkfs\.", re.I),
+    re.compile(r"\bmkfs\.", re.IGNORECASE),
     re.compile(
         r"\b(mkfs(?:\.\w+)?|fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
         r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(r"\bmkswap\b"),
-    re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.I),
+    re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.IGNORECASE),
     re.compile(
         r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
         r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
         r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
-    re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
-    re.compile(r"\b(?:nwipe|scrub|sg_unmap|srm|wipe|bcwipe)\b", re.I),
-    re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.I),
-    re.compile(r"/dev/disk/", re.I),
-    re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
-    re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
+    re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.IGNORECASE),
+    re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.IGNORECASE),
+    re.compile(r"\b(?:nwipe|scrub|sg_unmap|srm|wipe|bcwipe)\b", re.IGNORECASE),
+    re.compile(r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:)", re.IGNORECASE),
+    re.compile(r"/dev/disk/", re.IGNORECASE),
+    re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+    re.compile(r"\bcp\b\s+(?:-[^\s]+\s+)*\S+\s+/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+    re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+    re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
     re.compile(
         r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(
         r"\b(wipefs|sgdisk|blkdiscard|truncate|shred|hdparm|nvme|cryptsetup|"
         r"sg_format|sg_sanitize|nwipe|scrub|sg_unmap)\b.*(/dev/)",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(
         r"\b(?:cp|tee|install|openssl|tar|dc3dd|badblocks|fio|rsync)\b"
         r".*/dev/(?:sd|nvme|vd|xvd)",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.I),
-    re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.I),
+    re.compile(r"shutil\s*\.\s*rmtree\s*\(\s*['\"]/", re.IGNORECASE),
+    re.compile(r"(?:FileUtils\s*\.\s*rm_rf|rmSync)\s*\(?\s*['\"]/", re.IGNORECASE),
     re.compile(
         r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
         r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
-        re.I,
+        re.IGNORECASE,
     ),
     re.compile(
         r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
         r"\.write_(?:bytes|text)\s*\(",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
-    re.compile(r"\brsync\b.*--delete", re.I),
-    re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
-    re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.I),
+    re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.IGNORECASE),
+    re.compile(r"\brsync\b.*--delete", re.IGNORECASE),
+    re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.IGNORECASE),
+    re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.IGNORECASE),
     re.compile(
         r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
         r"dmsetup\s+remove)\b",
-        re.I,
+        re.IGNORECASE,
     ),
-    re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
-    re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
-    re.compile(r"\bxfs_repair\b.*-L\b", re.I),
-    re.compile(r"\bdebugfs\s+-w\b", re.I),
+    re.compile(r"\bmdadm\b.*--zero-superblock\b", re.IGNORECASE),
+    re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.IGNORECASE),
+    re.compile(r"\bxfs_repair\b.*-L\b", re.IGNORECASE),
+    re.compile(r"\bdebugfs\s+-w\b", re.IGNORECASE),
 ]
 
 
@@ -605,7 +617,7 @@ async def safe_run_async(
                 ),
                 timeout=timeout + 5,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async (thread) executor timeout for cmd=%s", cmd)
             return ExecutionResult(
                 exit_code=-1,
@@ -723,13 +735,13 @@ async def safe_run_async(
     try:
         stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         exit_code = proc.returncode if proc.returncode is not None else -1
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning("safe_run_async timeout (%ds) for cmd=%s -- killing process", timeout, cmd)
         timed_out = True
         await _kill_process(proc)
         try:
             stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async -- drain after kill timed out for cmd=%s", cmd)
             stdout_bytes, stderr_bytes = b"", b""
         exit_code = -1
@@ -847,7 +859,7 @@ async def safe_run_async_stream(
                 loop.run_in_executor(None, sync_proc.wait),
                 timeout=timeout,
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("safe_run_async_stream (thread) timeout for cmd=%s", cmd)
             try:
                 sync_proc.kill()
@@ -985,11 +997,11 @@ async def safe_run_async_stream(
 
         try:
             await asyncio.wait_for(asyncio.gather(stdout_task, stderr_task), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async_stream reader tasks timed out after process exit")
             stdout_task.cancel()
             stderr_task.cancel()
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning(
             "safe_run_async_stream timeout (%ds) for cmd=%s -- killing process", timeout, cmd
         )
@@ -998,7 +1010,7 @@ async def safe_run_async_stream(
 
         try:
             await asyncio.wait_for(asyncio.gather(stdout_task, stderr_task), timeout=1.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.debug("safe_run_async_stream reader tasks timed out after process kill")
             stdout_task.cancel()
             stderr_task.cancel()

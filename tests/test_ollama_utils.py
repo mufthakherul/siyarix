@@ -7,9 +7,7 @@ import sys
 from unittest.mock import MagicMock, patch
 
 import httpx
-
 import pytest
-
 
 # CREATE_NO_WINDOW only exists on Windows
 _CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)

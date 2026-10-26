@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import logging
 import os
-from urllib.parse import urlparse
 from typing import Any
+from urllib.parse import urlparse
 
-from siyarix.events import get_event_bus, EventType
+from siyarix.events import EventType, get_event_bus
 
 logger = logging.getLogger(__name__)
 

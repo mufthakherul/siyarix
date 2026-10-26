@@ -6,13 +6,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any
 from dataclasses import dataclass, field
+from typing import Any
 
 from .events import Event, EventType
 from .exceptions import PermissionDeniedError, ToolExecutionError, ToolNotFoundError
 from .executor import BaseExecutor, StepExecutor
-from .models import ExecutionPlan, PlanStep, PlanStatus, StepStatus
+from .models import ExecutionPlan, PlanStatus, PlanStep, StepStatus
 from .planner_registry import TOOL_ALTERNATIVES
 from .registry import ToolRegistry
 
@@ -71,8 +71,8 @@ class RegistryExecutor(BaseExecutor):
 
         def generate_renderable():
             try:
-                from rich.panel import Panel as RichPanel
                 from rich.console import Group
+                from rich.panel import Panel as RichPanel
 
                 panels = []
                 for s in plan.steps:
@@ -243,7 +243,7 @@ class RegistryExecutor(BaseExecutor):
                         data={"step_id": step.id, "duration_ms": step.duration_ms},
                     )
                 )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             step.duration_ms = (time.monotonic() - start) * 1000
             step.status = StepStatus.FAILED
             step.result = {"status": "error", "error": f"Step timed out after {step.timeout}s"}
@@ -372,8 +372,8 @@ class RegistryExecutor(BaseExecutor):
                 import sys as _sys
 
                 if _sys.stdout and _sys.stdout.isatty():
-                    from .tool_installer import ToolInstaller, tty_confirm
                     from .subprocess_utils import _format_not_found
+                    from .tool_installer import ToolInstaller, tty_confirm
 
                     # Show a clear pre-install message with install hint
                     hint = _format_not_found([step.tool])
@@ -445,8 +445,8 @@ class RegistryExecutor(BaseExecutor):
 
         def generate_renderable():
             try:
-                from rich.panel import Panel as RichPanel
                 from rich.console import Group
+                from rich.panel import Panel as RichPanel
 
                 panels = []
                 for s in plan.steps:
@@ -552,6 +552,6 @@ class RegistryExecutor(BaseExecutor):
 Executor = RegistryExecutor
 
 __all__ = [
-    "RegistryExecutor",
     "Executor",
+    "RegistryExecutor",
 ]

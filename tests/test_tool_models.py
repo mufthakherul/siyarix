@@ -8,15 +8,14 @@ from unittest.mock import patch
 import pytest
 
 from siyarix.tool_models import (
+    _TOOL_WHICH_CACHE,
     RiskLevel,
     ToolCapability,
     ToolCategory,
     ToolEdge,
     _cached_which,
-    _TOOL_WHICH_CACHE,
     invalidate_which_cache,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -300,7 +299,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from siyarix.tool_installer import ToolInstallResult, ToolInstaller
+from siyarix.tool_installer import ToolInstaller, ToolInstallResult
 from siyarix.tool_metadata import (
     _db_lookup,
     _load_db,
@@ -312,7 +311,6 @@ from siyarix.tool_metadata import (
 )
 from siyarix.tool_version import _load_db as tv_load_db
 from siyarix.tool_version import get_tool_metadata
-
 
 # ── tool_metadata.py ─────────────────────────────────────────────────
 

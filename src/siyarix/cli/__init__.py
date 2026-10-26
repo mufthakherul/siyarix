@@ -58,14 +58,13 @@ from ..async_utils import run_async
 from ..audit_log import AuditEventType, AuditSeverity, audit
 from ..branding import available_themes, print_banner, resolve_theme
 from ..chat import CROSS_PLATFORM_COMMANDS, CommandProfile, CommandProfileStore, start_chat
-from ..compat import ExecutionEngine, ExecutionMode, SessionKernel
+from ..compat import EngineResult, ExecutionEngine, ExecutionMode, SessionKernel
 from ..config import SettingsStore, get_config_dir
 from ..core.router import IntentRouter
 from ..exceptions import ValidationError
 from ..health import get_health
 from ..logging_config import configure_logging
 from ..metrics import get_metrics
-from ..compat import EngineResult
 from ..registry_factory import make_tool_registry
 from ..security_commands import security_app
 from ..validators import validate_target
@@ -93,7 +92,6 @@ def _load_dotenv(path: Path | None = None) -> None:
     if not env_path.exists():
         env_path = get_config_dir() / ".env"
     apply_dotenv_file(env_path)
-
 
 
 def _display_findings_table(findings: list[Any]) -> None:
@@ -1323,9 +1321,7 @@ def ci_gate(
 @app.command("doctor")
 def production_check(
     output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
-    strict: bool = typer.Option(
-        False, "--strict", help="Exit nonzero when any check is warn/fail"
-    ),
+    strict: bool = typer.Option(False, "--strict", help="Exit nonzero when any check is warn/fail"),
 ) -> None:
     """Production readiness checklist (security gates, offline posture, config).
 
@@ -1592,6 +1588,7 @@ def generate_report(
     import asyncio
 
     asyncio.run(_run())
+
 
 # Compliance + playbook commands live in dedicated modules (ARCH-01).
 from .compliance_cmds import compliance_app

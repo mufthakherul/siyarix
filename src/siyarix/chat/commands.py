@@ -9,13 +9,12 @@ argument metadata, and help system — powers autocomplete, help, and dispatch.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict, field
-from datetime import datetime, UTC
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 
 from siyarix.config import get_config_dir
-
 
 # ── Command Categories ────────────────────────────────────────────────────
 
@@ -1333,15 +1332,15 @@ class CommandHistory:
 command_history = CommandHistory()
 
 __all__ = [
-    "CommandCategory",
-    "CommandInfo",
-    "ArgInfo",
-    "CommandRegistry",
-    "CommandProfile",
-    "CommandProfileStore",
-    "CommandHistory",
-    "command_history",
     "HELP_CATEGORIES",
     "SLASH_HELP",
     "_BUILTIN_COMMANDS",
+    "ArgInfo",
+    "CommandCategory",
+    "CommandHistory",
+    "CommandInfo",
+    "CommandProfile",
+    "CommandProfileStore",
+    "CommandRegistry",
+    "command_history",
 ]

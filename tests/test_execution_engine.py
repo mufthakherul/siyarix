@@ -13,10 +13,10 @@ import pytest
 from siyarix.compat import EngineResult, ExecutionEngine, ExecutionMode
 from siyarix.planner import (
     ExecutionPlan,
-    PlanStep,
-    PlanStatus,
-    PlanType,
     Planner,
+    PlanStatus,
+    PlanStep,
+    PlanType,
     StepStatus,
     StepType,
 )

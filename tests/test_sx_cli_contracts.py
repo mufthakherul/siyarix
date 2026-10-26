@@ -12,7 +12,6 @@ from typer.testing import CliRunner
 from siyarix.cli import app
 from siyarix.output import OutputEngine, OutputFormat
 
-
 runner = CliRunner()
 
 

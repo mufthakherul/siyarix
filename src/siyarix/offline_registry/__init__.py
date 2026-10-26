@@ -7,11 +7,10 @@ without an AI provider connection.
 
 from __future__ import annotations
 
-
 from ..offline_engine import (
+    OFFLINE_SECURITY_KNOWLEDGE,
     OfflineReasoningEngine,
     RemediationAdvisory,
-    OFFLINE_SECURITY_KNOWLEDGE,
 )
 
 
@@ -32,9 +31,9 @@ def no_provider_message() -> str:
 
 
 __all__ = [
-    "offline_instruction_hint",
-    "no_provider_message",
+    "OFFLINE_SECURITY_KNOWLEDGE",
     "OfflineReasoningEngine",
     "RemediationAdvisory",
-    "OFFLINE_SECURITY_KNOWLEDGE",
+    "no_provider_message",
+    "offline_instruction_hint",
 ]

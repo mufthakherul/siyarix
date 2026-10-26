@@ -1,5 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+
 from siyarix.chat.engine import LLMEngineMixin
 from siyarix.exceptions import LLMProviderError
 
@@ -155,7 +157,6 @@ async def test_execute_instruction_command(chat_mock):
 
     with patch("siyarix.chat.engine.LLMEngineMixin._execute_agent") as mock_run:
         mock_run.return_value = ("stdout", "stderr")
-        pass
 
 
 @pytest.mark.asyncio

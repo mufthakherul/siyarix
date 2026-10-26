@@ -8,10 +8,11 @@ import json
 import logging
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 from siyarix.config import get_config_dir
 

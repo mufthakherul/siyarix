@@ -82,17 +82,15 @@ class TestSafeRunSync:
         with patch(
             "siyarix.subprocess_utils.subprocess.run",
             side_effect=subprocess.TimeoutExpired(cmd="sleep 10", timeout=0.001),
-        ):
-            with pytest.raises(subprocess.TimeoutExpired):
-                safe_run_sync(["sleep", "10"], timeout=0.001)
+        ), pytest.raises(subprocess.TimeoutExpired):
+            safe_run_sync(["sleep", "10"], timeout=0.001)
 
     def test_exception_raises(self) -> None:
         with patch(
             "siyarix.subprocess_utils.subprocess.run",
             side_effect=FileNotFoundError("not found"),
-        ):
-            with pytest.raises(FileNotFoundError):
-                safe_run_sync(["nonexistent_tool"])
+        ), pytest.raises(FileNotFoundError):
+            safe_run_sync(["nonexistent_tool"])
 
     def test_validation_error(self) -> None:
         with pytest.raises(ValueError, match=r"(?i)destructive"):
@@ -121,7 +119,7 @@ class TestSafeRunAsync:
     @pytest.mark.asyncio
     async def test_timeout(self) -> None:
         mock_proc = AsyncMock()
-        mock_proc.communicate = AsyncMock(side_effect=[asyncio.TimeoutError(), (b"partial", b"")])
+        mock_proc.communicate = AsyncMock(side_effect=[TimeoutError(), (b"partial", b"")])
         mock_proc.kill = MagicMock()
 
         with (
@@ -643,9 +641,8 @@ class TestExecutorRegistryPlanExecution:
         executor = RegistryExecutor()
         with patch.object(
             executor, "_check_permissions", AsyncMock(side_effect=PermissionDeniedError("denied"))
-        ):
-            with pytest.raises(PermissionDeniedError):
-                await executor._try_execute(PlanStep(tool="nmap"), None)
+        ), pytest.raises(PermissionDeniedError):
+            await executor._try_execute(PlanStep(tool="nmap"), None)
 
     async def test_handle_tool_error_not_found_not_tty(self):
         executor = RegistryExecutor()

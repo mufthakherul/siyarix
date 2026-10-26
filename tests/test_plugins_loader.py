@@ -11,7 +11,6 @@ import pytest
 
 from siyarix.plugins.loader import PluginLoader
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────
 
 

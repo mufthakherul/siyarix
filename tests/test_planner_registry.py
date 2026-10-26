@@ -1,12 +1,13 @@
 from __future__ import annotations
-from siyarix.models import ExecutionPlan, PlanStatus
-from siyarix.models import PlanStep, PlanType, StepStatus
-from siyarix.nlp_engine import ParsedIntent
-from siyarix.planner_registry import RegistryPlanner
-from siyarix.planner_registry import TOOL_ALTERNATIVES
-from unittest.mock import MagicMock, patch
-import pytest
+
 import time
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from siyarix.models import ExecutionPlan, PlanStatus, PlanStep, PlanType, StepStatus
+from siyarix.nlp_engine import ParsedIntent
+from siyarix.planner_registry import TOOL_ALTERNATIVES, RegistryPlanner
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -1035,8 +1036,8 @@ class TestPlannerRegistryCore:
                 mock_dg.assert_called_once()
 
     def test_adapt_plan_refused_fallback(self):
-        from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import StepStatus
+        from siyarix.planner_registry import RegistryPlanner
 
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", args={"target": "x"})
@@ -1046,8 +1047,8 @@ class TestPlannerRegistryCore:
         assert any(s.tool == "nuclei" for s in result.steps)
 
     def test_adapt_plan_generic_retry(self):
-        from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import StepStatus
+        from siyarix.planner_registry import RegistryPlanner
 
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", retry_count=0, max_retries=3)
@@ -1056,8 +1057,8 @@ class TestPlannerRegistryCore:
         assert step.status == StepStatus.PENDING
 
     def test_adapt_plan_no_retry(self):
-        from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import StepStatus
+        from siyarix.planner_registry import RegistryPlanner
 
         planner = RegistryPlanner()
         step = PlanStep(tool="nmap", retry_count=3, max_retries=3)
@@ -1066,8 +1067,8 @@ class TestPlannerRegistryCore:
         assert step.status == StepStatus.FAILED
 
     def test_list_plans_with_status_filter(self):
-        from siyarix.planner_registry import RegistryPlanner
         from siyarix.models import PlanStatus
+        from siyarix.planner_registry import RegistryPlanner
 
         planner = RegistryPlanner()
         p1 = planner.create_plan("test1")

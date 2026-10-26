@@ -14,8 +14,8 @@ from typer.main import get_command
 from siyarix.cli import app
 from siyarix.planner import (
     ExecutionPlan,
-    PlanStep,
     Planner,
+    PlanStep,
     StepStatus,
 )
 from siyarix.tool_installer import ToolInstaller
@@ -117,20 +117,19 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from siyarix.models import ExecutionPlan, PlanStep, PlanType, PlanStatus, StepStatus
-from siyarix.exceptions import PermissionDeniedError, BudgetExceededError
-from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
-from siyarix.planner_registry import RegistryPlanner
-from siyarix.executor_registry import RegistryExecutor
-from siyarix.executor_autonomous import AutonomousExecutor
+from siyarix.compliance import ComplianceEngine
 from siyarix.config import SettingsStore
 from siyarix.context import ContextManager
-from siyarix.compliance import ComplianceEngine
-from siyarix.opsec import OPSECManager
-from siyarix.dlp import DLPEngine
-from siyarix.permission_gate import PermissionGate
 from siyarix.cvss_scorer import CVSSScorer, CVSSVector
-
+from siyarix.dlp import DLPEngine
+from siyarix.exceptions import BudgetExceededError, PermissionDeniedError
+from siyarix.executor_autonomous import AutonomousExecutor
+from siyarix.executor_registry import RegistryExecutor
+from siyarix.models import ExecutionPlan, PlanStatus, PlanStep, PlanType, StepStatus
+from siyarix.opsec import OPSECManager
+from siyarix.permission_gate import PermissionGate
+from siyarix.planner_registry import RegistryPlanner
+from siyarix.registry import ToolCapability, ToolCategory, ToolRegistry
 
 pytestmark = [pytest.mark.e2e]
 
@@ -144,7 +143,7 @@ pytestmark = [pytest.mark.e2e]
 async def test_full_pipeline_registry_mode(tool_registry):
     """End-to-end: goal -> plan -> execute -> extract findings."""
     from siyarix.core import AgentCore, AgentGoal, AgentMode
-    from siyarix.models import ExecutionPlan, PlanStep, StepStatus, PlanStatus
+    from siyarix.models import ExecutionPlan, PlanStatus, PlanStep, StepStatus
 
     agent = AgentCore(mode=AgentMode.REGISTRY, registry=tool_registry)
     with patch.object(agent._planner_registry, "plan") as mock_plan:
@@ -205,6 +204,7 @@ async def test_full_pipeline_autonomous_mode(tool_registry):
 
 def test_cli_help():
     from typer.testing import CliRunner
+
     from siyarix.cli import app
 
     runner = CliRunner()
@@ -215,6 +215,7 @@ def test_cli_help():
 
 def test_cli_version():
     from typer.testing import CliRunner
+
     from siyarix.cli import app
 
     runner = CliRunner()
@@ -224,6 +225,7 @@ def test_cli_version():
 
 def test_cli_config_set():
     from typer.testing import CliRunner
+
     from siyarix.cli import app
 
     runner = CliRunner()
@@ -233,6 +235,7 @@ def test_cli_config_set():
 
 def test_cli_config_get():
     from typer.testing import CliRunner
+
     from siyarix.cli import app
 
     runner = CliRunner()
@@ -242,6 +245,7 @@ def test_cli_config_get():
 
 def test_cli_config_list():
     from typer.testing import CliRunner
+
     from siyarix.cli import app
 
     runner = CliRunner()
@@ -251,6 +255,7 @@ def test_cli_config_list():
 
 def test_cli_config_reset():
     from typer.testing import CliRunner
+
     from siyarix.cli import app
 
     runner = CliRunner()
@@ -437,20 +442,19 @@ class TestProviderFailover:
             agent._planner_autonomous,
             "plan",
             AsyncMock(return_value=ExecutionPlan(goal="test", steps=[PlanStep(command="echo ok")])),
+        ), patch.object(
+            agent._executor_autonomous,
+            "execute_plan",
+            AsyncMock(
+                return_value=ExecutionPlan(
+                    goal="test",
+                    steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED)],
+                    status=PlanStatus.COMPLETED,
+                )
+            ),
         ):
-            with patch.object(
-                agent._executor_autonomous,
-                "execute_plan",
-                AsyncMock(
-                    return_value=ExecutionPlan(
-                        goal="test",
-                        steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED)],
-                        status=PlanStatus.COMPLETED,
-                    )
-                ),
-            ):
-                result = await agent.execute_goal(goal)
-                assert result.success is True
+            result = await agent.execute_goal(goal)
+            assert result.success is True
 
     @pytest.mark.asyncio
     async def test_provider_complete_retry_then_fail(self):
@@ -459,9 +463,8 @@ class TestProviderFailover:
         adapter = make_openai_adapter("openai", "sk-test")
         with patch(
             "siyarix.chat.openai_compat.resolve_model", side_effect=Exception("provider fail")
-        ):
-            with pytest.raises(Exception):
-                await adapter("system", "user")
+        ), pytest.raises(Exception):
+            await adapter("system", "user")
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -785,7 +788,7 @@ class TestOpenAICompatIntegration:
         assert model == "gpt-5-test"
 
     def test_build_messages_with_developer_role(self):
-        from siyarix.chat.openai_compat import build_messages, OpenAICompat
+        from siyarix.chat.openai_compat import OpenAICompat, build_messages
 
         compat = OpenAICompat(supports_developer_role=True)
         msgs = build_messages("You are helpful", "Hello", compat=compat)
@@ -884,11 +887,11 @@ async def test_autonomous_executor_review_accepts_commands():
 def test_custom_exceptions():
     """Test custom exception hierarchy."""
     from siyarix.exceptions import (
+        LLMProviderError,
+        PermissionDeniedError,
         SiyarixException,
         ToolExecutionError,
         ToolNotFoundError,
-        PermissionDeniedError,
-        LLMProviderError,
     )
 
     assert issubclass(ToolExecutionError, SiyarixException)
@@ -956,8 +959,7 @@ def test_safe_run_sync_basic():
 
 @pytest.mark.asyncio
 async def test_safe_run_async_stream():
-    from siyarix.subprocess_utils import safe_run_async_stream
-    from siyarix.subprocess_utils import get_platform_shell_cmd
+    from siyarix.subprocess_utils import get_platform_shell_cmd, safe_run_async_stream
 
     cmd = get_platform_shell_cmd("echo hello")
     result = await safe_run_async_stream(cmd, timeout=5, validate=False)
@@ -970,7 +972,7 @@ async def test_safe_run_async_stream():
 
 
 def test_memory_manager_store_retrieve():
-    from siyarix.memory import MemoryManager, MemoryLayer
+    from siyarix.memory import MemoryLayer, MemoryManager
 
     mem = MemoryManager()
     mem.store(key="e2e_key", value="e2e_value", layer=MemoryLayer.SESSION, tags=["test"])
@@ -985,7 +987,7 @@ def test_memory_manager_store_retrieve():
 
 
 def test_knowledge_graph_add_nodes_and_edges():
-    from siyarix.knowledge_graph import KnowledgeGraph, NodeType, EdgeType
+    from siyarix.knowledge_graph import EdgeType, KnowledgeGraph, NodeType
 
     kg = KnowledgeGraph()
     h1 = kg.add_node(NodeType.HOST, label="10.0.0.1", ip="10.0.0.1")

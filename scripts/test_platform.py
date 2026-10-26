@@ -55,19 +55,19 @@ def _test_platform_detection() -> dict[str, str | bool]:
     from siyarix._platform import (
         get_platform_id,
         get_platform_pretty,
-        is_windows,
-        is_macos,
-        is_linux,
-        is_termux,
-        is_ish,
-        is_harmonyos,
-        is_wsl,
-        is_mobile,
-        has_signal,
-        has_termios,
         has_fcntl,
         has_pty,
         has_resource,
+        has_signal,
+        has_termios,
+        is_harmonyos,
+        is_ish,
+        is_linux,
+        is_macos,
+        is_mobile,
+        is_termux,
+        is_windows,
+        is_wsl,
         safe_geteuid,
     )
 
@@ -153,7 +153,7 @@ def _test_subprocess_utils() -> dict[str, bool | str]:
 
 def _test_security_hardening() -> dict[str, Any]:
     try:
-        from siyarix.security_hardening import validator, redactor, danger_analyzer
+        from siyarix.security_hardening import danger_analyzer, redactor, validator
 
         ok = validator.validate_target("127.0.0.1")
         redacted = redactor.redact("sk-test12345678901234567890")
@@ -179,7 +179,7 @@ def _test_credential_store() -> dict[str, bool | str]:
 
 def _test_config() -> dict[str, bool]:
     try:
-        from siyarix.config import get_config_dir, get_settings_file, SettingsStore
+        from siyarix.config import SettingsStore, get_config_dir, get_settings_file
 
         d = get_config_dir()
         f = get_settings_file()
@@ -275,11 +275,11 @@ def _test_ish_specific() -> dict[str, bool | str]:
 def _test_chat_platform_utils() -> dict[str, Any]:
     try:
         from siyarix.chat.platform_utils import (
-            is_kali_linux,
-            pip_install_args,
+            build_platform_context,
             detect_shell,
             get_shell_platform,
-            build_platform_context,
+            is_kali_linux,
+            pip_install_args,
         )
 
         shell = detect_shell()

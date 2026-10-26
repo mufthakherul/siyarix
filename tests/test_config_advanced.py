@@ -7,9 +7,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from unittest.mock import patch
+
 import pytest
 from typer.testing import CliRunner
 
+from siyarix.cli import app
 from siyarix.config import (
     DEFAULTS,
     SettingsStore,
@@ -17,7 +19,6 @@ from siyarix.config import (
     is_sensitive_key,
     mask_value,
 )
-from siyarix.cli import app
 
 runner = CliRunner()
 

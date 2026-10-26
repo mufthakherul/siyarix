@@ -88,9 +88,7 @@ def test_production_requires_force_not_lab_trust(
     assert mgr._installed_plugins["demo"].status == PluginStatus.DISABLED
 
 
-def test_production_allows_force_trust(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_production_allows_force_trust(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "force")
     monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
     monkeypatch.setenv("SIYARIX_PLUGIN_PREFLIGHT", "1")
@@ -118,9 +116,7 @@ def test_production_allows_force_trust(
     assert mgr._installed_plugins["demo"].status == PluginStatus.ACTIVE
 
 
-def test_preflight_rejects_syntax_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_preflight_rejects_syntax_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SIYARIX_TRUST_PLUGINS", "1")
     monkeypatch.delenv("SIYARIX_PRODUCTION", raising=False)
     monkeypatch.setenv("SIYARIX_PLUGIN_PREFLIGHT", "0")  # host AST still runs
@@ -249,9 +245,7 @@ def test_preflight_blocks_eval_and_subprocess_under_production(
         assert needle in (mgr._installed_plugins[name].error_message or ""), name
 
 
-def test_os_isolate_force_requires_bwrap(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_os_isolate_force_requires_bwrap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from siyarix.plugins import isolation as iso
 
     monkeypatch.setenv("SIYARIX_PLUGIN_OS_ISOLATE", "force")

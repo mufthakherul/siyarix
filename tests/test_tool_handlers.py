@@ -17,8 +17,8 @@ from siyarix.tool_handlers import (
     make_curl_handler,
     make_dns_handler,
     make_generic_handler,
-    make_nmap_handler,
     make_network_handler,
+    make_nmap_handler,
     make_portscan_handler,
     make_recon_handler,
     make_web_handler,
@@ -287,9 +287,7 @@ class TestMakeWebHandler:
     @patch("siyarix.webhooks._https_request_pinned")
     @patch("siyarix.stealth.StealthEngine")
     @patch("siyarix.subprocess_utils.safe_run_async", new_callable=AsyncMock)
-    async def test_stealth_mode_no_stealth_kwarg(
-        self, mock_safe_run, MockStealth, mock_pinned
-    ):
+    async def test_stealth_mode_no_stealth_kwarg(self, mock_safe_run, MockStealth, mock_pinned):
         mock_engine = MagicMock()
         mock_engine.get_decoy_requests.return_value = []
         MockStealth.return_value = mock_engine

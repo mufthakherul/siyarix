@@ -6,8 +6,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -50,7 +51,6 @@ def _cfg() -> Any:
     return _config
 
 
-
 def get_engine(mode: str = "integrated") -> Any:
     assert _get_engine is not None
     return _get_engine(mode)
@@ -64,6 +64,7 @@ def display_findings(findings: list[Any]) -> None:
 def execute_deep_scan(target: str, output: str = "table", save: bool = False) -> None:
     assert _execute_deep_scan is not None
     _execute_deep_scan(target, output=output, save=save)
+
 
 def _build_scan_instruction(target: str, *, tool: str = "", nmap_args: str = "") -> str:
     """Build a natural-language scan instruction for a single target."""
@@ -88,9 +89,7 @@ async def _execute_targets_parallel(
     """Run one engine.execute per target with bounded concurrency; merge results."""
     workers = max(1, min(int(parallel), len(targets), 32))
     sem = asyncio.Semaphore(workers)
-    _c().print(
-        f"[dim]Scanning {len(targets)} targets with {workers} parallel workers[/dim]"
-    )
+    _c().print(f"[dim]Scanning {len(targets)} targets with {workers} parallel workers[/dim]")
 
     async def _one(target: str) -> EngineResult:
         instruction = _build_scan_instruction(target, tool=tool, nmap_args=nmap_args)
@@ -120,9 +119,7 @@ async def _execute_targets_parallel(
         TimeElapsedColumn(),
         console=_c(),
     ) as progress:
-        task_id = progress.add_task(
-            f"0/{len(targets)} done · 0 ok · 0 fail", total=len(targets)
-        )
+        task_id = progress.add_task(f"0/{len(targets)} done · 0 ok · 0 fail", total=len(targets))
         completed = 0
         ok_count = 0
         fail_count = 0
@@ -155,8 +152,7 @@ async def _execute_targets_parallel(
                     task_id,
                     advance=1,
                     description=(
-                        f"{completed}/{len(targets)} done · {ok_count} ok · "
-                        f"{fail_count} fail"
+                        f"{completed}/{len(targets)} done · {ok_count} ok · {fail_count} fail"
                     ),
                 )
             return result
@@ -173,9 +169,7 @@ async def _execute_targets_parallel(
             merged.success = False
             msg = f"{target}: error ({raw})"
             summaries.append(msg)
-            merged.error_message = (
-                f"{merged.error_message}; {msg}" if merged.error_message else msg
-            )
+            merged.error_message = f"{merged.error_message}; {msg}" if merged.error_message else msg
             continue
         for finding in raw.all_findings or []:
             if isinstance(finding, dict):
@@ -187,9 +181,9 @@ async def _execute_targets_parallel(
                 # Best-effort tag object findings for multi-target rollups.
                 try:
                     if getattr(finding, "target", None) in (None, ""):
-                        setattr(finding, "target", target)
+                        finding.target = target
                     if getattr(finding, "scan_target", None) in (None, ""):
-                        setattr(finding, "scan_target", target)
+                        finding.scan_target = target
                 except Exception:
                     pass
                 merged.all_findings.append(finding)
@@ -388,7 +382,6 @@ def _execute_scan_core(
     return result
 
 
-
 def scan(
     ctx: typer.Context,
     targets: list[str] = typer.Argument(..., help="Target IPs, hostnames, URLs, or @file.txt"),
@@ -461,7 +454,6 @@ def scan(
     )
     if result is not None and not getattr(result, "success", True):
         raise typer.Exit(1)
-
 
 
 def scan_quick(
@@ -601,8 +593,6 @@ def scan_web(
     )
 
 
-
-
 def register_scan_commands(
     app: typer.Typer,
     *,
@@ -615,7 +605,14 @@ def register_scan_commands(
     active_theme: str,
 ) -> None:
     """Attach scan / scan-* commands to *app* using CLI runtime dependencies."""
-    global _console, _config, _get_engine, _display_findings, _execute_deep_scan, _ci_mode, _active_theme
+    global \
+        _console, \
+        _config, \
+        _get_engine, \
+        _display_findings, \
+        _execute_deep_scan, \
+        _ci_mode, \
+        _active_theme
     _console = console
     _config = config
     _get_engine = get_engine

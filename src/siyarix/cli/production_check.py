@@ -161,9 +161,7 @@ def build_production_payload(
         reg = make_tool_registry()
         _add(
             "tool_registry",
-            "pass"
-            if getattr(reg, "_permission_gate", None) is not None or not gate_on
-            else "fail",
+            "pass" if getattr(reg, "_permission_gate", None) is not None or not gate_on else "fail",
             "make_tool_registry() builds gated registry",
         )
     except Exception as exc:  # pragma: no cover - defensive
@@ -288,11 +286,12 @@ def build_production_payload(
             "yes",
             "on",
         }
+        import shutil
+
         from siyarix.plugins.isolation import (
             plugin_os_isolate_enabled,
             plugin_preflight_enabled,
         )
-        import shutil
 
         preflight = plugin_preflight_enabled()
         os_iso = plugin_os_isolate_enabled()
@@ -327,11 +326,7 @@ def build_production_payload(
 
     health = run_async(get_health().check_all())
     # Optional provider gaps are informational — do not tank readiness score.
-    _health_status = (
-        "info"
-        if health.state.value == "degraded"
-        else health.state.value
-    )
+    _health_status = "info" if health.state.value == "degraded" else health.state.value
     _add(
         "health",
         _health_status,
@@ -411,9 +406,7 @@ def emit_production_check(
     for c in payload["checks"]:
         table.add_row(c["name"], c["status"], c["detail"])
     out.print(table)
-    out.print(
-        f"[bold]Readiness score:[/bold] {payload['score']}/100 ({payload['grade']})"
-    )
+    out.print(f"[bold]Readiness score:[/bold] {payload['score']}/100 ({payload['grade']})")
     out.print(
         "[dim]Siyarix accelerates authorized security research; "
         "guards protect the operator (optional engagement scope).[/dim]"

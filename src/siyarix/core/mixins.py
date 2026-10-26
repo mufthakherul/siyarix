@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from ..planner import ExecutionPlan, PlanStatus, StepStatus, PlanStep
 from ..events import Event, EventType
+from ..planner import ExecutionPlan, PlanStatus, PlanStep, StepStatus
 
 logger = logging.getLogger(__name__)
 
@@ -338,7 +339,7 @@ class GraphMixin:
         return findings
 
     def _ingest_finding_to_graph(self, finding: dict[str, Any], discovered_by: str) -> None:
-        from ..knowledge_graph import NodeType, EdgeType
+        from ..knowledge_graph import EdgeType, NodeType
 
         target = finding.get("target", "")
         host_node = None

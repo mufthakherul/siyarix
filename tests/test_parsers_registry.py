@@ -5,13 +5,12 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-
-from siyarix.parsers import Parser, _now_iso
-
 from siyarix.parsers import (
     BaseParser,
+    Parser,
     ParserRegistry,
     _class_to_tool_names,
+    _now_iso,
     build_finding,
 )
 
@@ -498,7 +497,6 @@ class TestParserRegistryEdgeCases:
 class TestParserProtocol:
     def test_base_parser_is_not_a_parser(self):
         """BaseParser alone doesn't have parse() instance method on the class itself."""
-        pass
 
     def test_concrete_implements_protocol(self):
         """A class with parse() should satisfy Parser protocol."""
@@ -682,12 +680,18 @@ class TestParsersInitConcurrency:
                     rust_nmap = [
                         c
                         for c in mock_register.call_args_list
-                        if c.args and c.args[0] == "nmap" and len(c.args) >= 3 and c.args[2] == "rust"
+                        if c.args
+                        and c.args[0] == "nmap"
+                        and len(c.args) >= 3
+                        and c.args[2] == "rust"
                     ]
                     rust_nuclei = [
                         c
                         for c in mock_register.call_args_list
-                        if c.args and c.args[0] == "nuclei" and len(c.args) >= 3 and c.args[2] == "rust"
+                        if c.args
+                        and c.args[0] == "nuclei"
+                        and len(c.args) >= 3
+                        and c.args[2] == "rust"
                     ]
                     assert len(rust_nmap) == 1
                     assert rust_nuclei == []

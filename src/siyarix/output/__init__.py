@@ -16,14 +16,15 @@ Features:
 from __future__ import annotations
 
 import csv
+import getpass as _getpass
 import html as _html
 import io
-import getpass as _getpass
 import json
 import logging
+from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -642,15 +643,15 @@ def set_formatter(
 
 
 __all__ = [
-    "EXIT_OK",
-    "EXIT_ERROR",
     "EXIT_AUTH_ERROR",
-    "OutputFormatter",
-    "OutputFormat",
-    "OutputTheme",
+    "EXIT_ERROR",
+    "EXIT_OK",
     "THEMES",
     "OutputEngine",
-    "output",
+    "OutputFormat",
+    "OutputFormatter",
+    "OutputTheme",
     "get_formatter",
+    "output",
     "set_formatter",
 ]

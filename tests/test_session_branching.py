@@ -1,10 +1,13 @@
 from __future__ import annotations
+
+import json
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
 from siyarix.chat.session import ChatSession
 from siyarix.session_branching import BranchEntry, BranchingSession, _new_id, _now
-from unittest.mock import patch
-import json
-import pytest
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

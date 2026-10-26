@@ -201,7 +201,7 @@ def compress_context(ctx: dict[str, Any], max_tokens: int = 8000) -> dict[str, A
 
 __all__ = [
     "ContextChunk",
-    "ContextWindow",
     "ContextManager",
+    "ContextWindow",
     "compress_context",
 ]

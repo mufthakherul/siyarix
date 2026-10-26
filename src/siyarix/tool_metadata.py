@@ -383,8 +383,8 @@ def personas_for_tool(name: str) -> list[str]:
 
 __all__ = [
     "categorize_tool",
-    "risk_for_tool",
     "describe_tool",
-    "tags_for_tool",
     "personas_for_tool",
+    "risk_for_tool",
+    "tags_for_tool",
 ]

@@ -1,6 +1,8 @@
 from __future__ import annotations
-from siyarix.cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
+
 import pytest
+
+from siyarix.cvss_scorer import CVSSResult, CVSSScorer, CVSSVector, Severity
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

@@ -342,7 +342,7 @@ def resolve_api_key(provider: str, env_var: str | None = None) -> str | None:
     """
     key: str | None = None
     try:
-        from siyarix.credential_store import get_creds  # noqa: PLC0415
+        from siyarix.credential_store import get_creds
 
         store = get_creds()
         key = store.retrieve(provider, "api_key")
@@ -366,6 +366,6 @@ def get_provider_env_var(provider: str) -> str:
 
 __all__ = [
     "ProviderManager",
-    "resolve_api_key",
     "get_provider_env_var",
+    "resolve_api_key",
 ]

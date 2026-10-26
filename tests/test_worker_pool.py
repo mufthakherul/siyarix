@@ -1,15 +1,14 @@
 from __future__ import annotations
-from siyarix.worker_pool import AsyncWorkerPool
-from unittest.mock import patch, MagicMock
-import asyncio
-import pytest
 
+import asyncio
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
-
-
 import os
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from siyarix.chat.platform_utils import (
     detect_shell,
     get_security_commands,
@@ -19,6 +18,7 @@ from siyarix.chat.platform_utils import (
     normalize_shell,
     provider_env_var,
 )
+from siyarix.worker_pool import AsyncWorkerPool
 
 
 def test_worker_pool_concurrency_and_results():
@@ -140,7 +140,7 @@ class TestAsyncWorkerPoolSubmitAfterClose:
         # Task may be cancelled
         try:
             await t
-        except (asyncio.CancelledError, asyncio.TimeoutError):
+        except (TimeoutError, asyncio.CancelledError):
             pass
 
     @pytest.mark.asyncio
@@ -158,11 +158,11 @@ class TestAsyncWorkerPoolSubmitAfterClose:
         await asyncio.sleep(0.01)
         try:
             await t1
-        except (asyncio.CancelledError, asyncio.TimeoutError):
+        except (TimeoutError, asyncio.CancelledError):
             pass
         try:
             await t2
-        except (asyncio.CancelledError, asyncio.TimeoutError):
+        except (TimeoutError, asyncio.CancelledError):
             pass
 
     @pytest.mark.asyncio
@@ -245,10 +245,9 @@ class TestPlatformUtils:
                     assert detect_shell() == "/usr/bin/bash"
 
     def test_detect_shell_no_shell_found_fallback_nt(self):
-        with patch("os.name", "nt"):
-            with patch.dict(os.environ, {}, clear=True):
-                with patch("shutil.which", return_value=None):
-                    assert detect_shell() == "cmd.exe"
+        with patch("os.name", "nt"), patch.dict(os.environ, {}, clear=True):
+            with patch("shutil.which", return_value=None):
+                assert detect_shell() == "cmd.exe"
 
     def test_detect_shell_no_shell_found_fallback_posix(self):
         with patch("siyarix.chat.platform_utils._is_windows", return_value=False):

@@ -37,9 +37,10 @@ def test_production_check_json() -> None:
     assert "research tooling" in detail
     assert by_name["command_review"]["status"] in {"pass", "warn"}
     assert by_name["allowed_scope"]["status"] == "pass"
-    assert "research tooling" in by_name["allowed_scope"]["detail"] or "engagement" in by_name[
-        "allowed_scope"
-    ]["detail"]
+    assert (
+        "research tooling" in by_name["allowed_scope"]["detail"]
+        or "engagement" in by_name["allowed_scope"]["detail"]
+    )
     assert isinstance(payload.get("score"), int)
     assert 0 <= payload["score"] <= 100
     assert payload.get("grade") in {"production-ready", "needs-attention", "not-ready"}

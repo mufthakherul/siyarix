@@ -109,13 +109,9 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="DynamicForward|dynamicforward"):
             assert_command_in_scope("ssh -D9050 10.0.0.1", scope_env="10.0.0.0/8")
         with pytest.raises(PermissionDeniedError, match="dynamicforward"):
-            assert_command_in_scope(
-                "ssh -oDynamicForward=9050 10.0.0.1", scope_env="10.0.0.0/8"
-            )
+            assert_command_in_scope("ssh -oDynamicForward=9050 10.0.0.1", scope_env="10.0.0.0/8")
         with pytest.raises(PermissionDeniedError, match="dynamicforward"):
-            assert_command_in_scope(
-                "ssh -o DynamicForward=9050 10.0.0.1", scope_env="10.0.0.0/8"
-            )
+            assert_command_in_scope("ssh -o DynamicForward=9050 10.0.0.1", scope_env="10.0.0.0/8")
 
     def test_blocks_nmap_proxies_under_scope(self) -> None:
         with pytest.raises(PermissionDeniedError):
@@ -138,13 +134,9 @@ class TestAssertCommandInScope:
     def test_blocks_transport_env_and_tsocks_under_scope(self) -> None:
         scope = "10.0.0.0/8"
         with pytest.raises(PermissionDeniedError, match="Transport environment"):
-            assert_command_in_scope(
-                "DOCKER_HOST=tcp://evil:2375 docker ps", scope_env=scope
-            )
+            assert_command_in_scope("DOCKER_HOST=tcp://evil:2375 docker ps", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="Transport environment"):
-            assert_command_in_scope(
-                "CONTAINER_HOST=tcp://evil:2375 podman ps", scope_env=scope
-            )
+            assert_command_in_scope("CONTAINER_HOST=tcp://evil:2375 podman ps", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="Transport environment"):
             assert_command_in_scope(
                 "GIT_SSH_COMMAND=ssh git ls-remote https://example.com/r.git",
@@ -164,21 +156,15 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
             assert_command_in_scope("ss-local -s evil -p 8388 -l 1080", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="config-from-file|Transport"):
-            assert_command_in_scope(
-                "KUBECONFIG=/tmp/evil kubectl get pods", scope_env=scope
-            )
+            assert_command_in_scope("KUBECONFIG=/tmp/evil kubectl get pods", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="config-from-file"):
-            assert_command_in_scope(
-                "kubectl --kubeconfig=/tmp/evil get pods", scope_env=scope
-            )
+            assert_command_in_scope("kubectl --kubeconfig=/tmp/evil get pods", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="Transport environment"):
             assert_command_in_scope("MYSQL_HOST=evil mysql", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="Proxy/tunnel"):
             assert_command_in_scope("corkscrew evil 80 10.0.0.1 22", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="config-from-file"):
-            assert_command_in_scope(
-                "nerdctl --host tcp://evil:2375 ps", scope_env=scope
-            )
+            assert_command_in_scope("nerdctl --host tcp://evil:2375 ps", scope_env=scope)
 
     def test_blocks_out_of_scope_ipv4(self) -> None:
         with pytest.raises(PermissionDeniedError, match="out of authorized scope"):
@@ -359,9 +345,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="evil-host"):
             assert_command_in_scope("smbclient -L evil-host", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil-host"):
-            assert_command_in_scope(
-                "mount -t cifs //evil-host/share /mnt", scope_env=scope
-            )
+            assert_command_in_scope("mount -t cifs //evil-host/share /mnt", scope_env=scope)
         assert_command_in_scope("smbclient //example.com/share", scope_env=scope)
         assert_command_in_scope("smbclient //10.1.2.3/share", scope_env=scope)
         assert_command_in_scope("mount -t cifs //10.1.2.3/share /mnt", scope_env=scope)
@@ -382,13 +366,9 @@ class TestAssertCommandInScope:
     def test_ssh_opt_sftp_rsync_aria2c_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"
         with pytest.raises(PermissionDeniedError, match="jump"):
-            assert_command_in_scope(
-                "ssh -o ProxyJump=jump evilhost", scope_env=scope
-            )
+            assert_command_in_scope("ssh -o ProxyJump=jump evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "ssh -o ForwardAgent=yes evilhost", scope_env=scope
-            )
+            assert_command_in_scope("ssh -o ForwardAgent=yes evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
             assert_command_in_scope("sftp bastion", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
@@ -398,18 +378,12 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="URL/config-from-file"):
             assert_command_in_scope("wget --config=/tmp/wgetrc", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "curl -x socks5h://evil:1080 http://10.0.0.1/", scope_env=scope
-            )
+            assert_command_in_scope("curl -x socks5h://evil:1080 http://10.0.0.1/", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
-            assert_command_in_scope(
-                "scp -J bastion f 10.1.2.3:/t", scope_env=scope
-            )
+            assert_command_in_scope("scp -J bastion f 10.1.2.3:/t", scope_env=scope)
         assert_command_in_scope("ssh -o ForwardAgent=yes 10.1.2.3", scope_env=scope)
         assert_command_in_scope("rsync 10.1.2.3:/path .", scope_env=scope)
-        assert_command_in_scope(
-            "ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope
-        )
+        assert_command_in_scope("ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope)
 
     def test_shell_c_wrapper_and_socat_socks_under_scope(self) -> None:
         scope = "10.0.0.0/8,*.lab.example"
@@ -418,49 +392,31 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="bastion"):
             assert_command_in_scope("sh -c 'ssh bastion'", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil-host|proxy"):
-            assert_command_in_scope(
-                "socat SOCKS4A:proxy:evil-host:80 -", scope_env=scope
-            )
+            assert_command_in_scope("socat SOCKS4A:proxy:evil-host:80 -", scope_env=scope)
         assert_command_in_scope("bash -c 'nmap 10.1.2.3'", scope_env=scope)
-        assert_command_in_scope(
-            "socat SOCKS4A:10.1.2.3:10.1.2.4:80 -", scope_env=scope
-        )
+        assert_command_in_scope("socat SOCKS4A:10.1.2.3:10.1.2.4:80 -", scope_env=scope)
 
     def test_glued_proxy_jump_and_quoted_ssh_o_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"
         with pytest.raises(PermissionDeniedError, match="evil"):
             assert_command_in_scope("ssh -oProxyJump=evil 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="(?i)proxycommand"):
-            assert_command_in_scope(
-                "ssh -oProxyCommand=/bin/nc 10.0.0.1", scope_env=scope
-            )
+            assert_command_in_scope("ssh -oProxyCommand=/bin/nc 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="11.1.1.1"):
-            assert_command_in_scope(
-                "curl -x11.1.1.1:8080 http://10.0.0.1/", scope_env=scope
-            )
+            assert_command_in_scope("curl -x11.1.1.1:8080 http://10.0.0.1/", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="11.1.1.1"):
             assert_command_in_scope("ssh -J11.1.1.1 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
             assert_command_in_scope("ssh -o'ProxyJump=evil' 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil-proxy"):
-            assert_command_in_scope(
-                "socat SOCKS4:evil-proxy:10.0.0.1:80 -", scope_env=scope
-            )
-        assert_command_in_scope(
-            "ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope
-        )
+            assert_command_in_scope("socat SOCKS4:evil-proxy:10.0.0.1:80 -", scope_env=scope)
+        assert_command_in_scope("ssh -o ProxyJump=10.1.2.3 10.1.2.4", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "ssh -J evil,other 10.0.0.1", scope_env=scope
-            )
+            assert_command_in_scope("ssh -J evil,other 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "ssh -Jevil,other 10.0.0.1", scope_env=scope
-            )
+            assert_command_in_scope("ssh -Jevil,other 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "scp -J evil,other f 10.0.0.1:/t", scope_env=scope
-            )
+            assert_command_in_scope("scp -J evil,other f 10.0.0.1:/t", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
             assert_command_in_scope("rpcclient -U '' evil", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
@@ -471,36 +427,22 @@ class TestAssertCommandInScope:
                 scope_env=scope,
             )
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "ssh -L 8080:evil:80 10.0.0.1", scope_env=scope
-            )
+            assert_command_in_scope("ssh -L 8080:evil:80 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "ssh -R 8080:evil:80 10.0.0.1", scope_env=scope
-            )
+            assert_command_in_scope("ssh -R 8080:evil:80 10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "openssl s_client -connect evil:443", scope_env=scope
-            )
+            assert_command_in_scope("openssl s_client -connect evil:443", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
             assert_command_in_scope(
                 "openssl s_client -proxy evil:8080 -connect 10.0.0.1:443",
                 scope_env=scope,
             )
         with pytest.raises(PermissionDeniedError, match="git://"):
-            assert_command_in_scope(
-                "git ls-remote git://evil/repo", scope_env=scope
-            )
+            assert_command_in_scope("git ls-remote git://evil/repo", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "rpcclient -U foo%bar evil", scope_env=scope
-            )
-        assert_command_in_scope(
-            "ssh -L 8080:10.1.2.3:80 10.1.2.4", scope_env=scope
-        )
-        assert_command_in_scope(
-            "openssl s_client -connect 10.1.2.3:443", scope_env=scope
-        )
+            assert_command_in_scope("rpcclient -U foo%bar evil", scope_env=scope)
+        assert_command_in_scope("ssh -L 8080:10.1.2.3:80 10.1.2.4", scope_env=scope)
+        assert_command_in_scope("openssl s_client -connect 10.1.2.3:443", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("mysql -h evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
@@ -512,9 +454,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope("smbmap -H1.1.1.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
-            assert_command_in_scope(
-                "curl --proxy1.1.1.1:8080 http://10.0.0.1/", scope_env=scope
-            )
+            assert_command_in_scope("curl --proxy1.1.1.1:8080 http://10.0.0.1/", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope(
                 "curl --socks5-hostname1.1.1.1:1080 http://10.0.0.1/",
@@ -527,34 +467,24 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope("evil-winrm -i1.1.1.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
-            assert_command_in_scope(
-                "openssl s_client -connect1.1.1.1:443", scope_env=scope
-            )
+            assert_command_in_scope("openssl s_client -connect1.1.1.1:443", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
-            assert_command_in_scope(
-                "hydra -l a -p b bastion ssh", scope_env=scope
-            )
+            assert_command_in_scope("hydra -l a -p b bastion ssh", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
             assert_command_in_scope("medusa -h bastion -u a -p b", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
             assert_command_in_scope("rdesktop bastion", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="bastion"):
             assert_command_in_scope("impacket-wmiexec bastion", scope_env=scope)
-        assert_command_in_scope(
-            "hydra -l a -p b 10.1.2.3 ssh", scope_env=scope
-        )
+        assert_command_in_scope("hydra -l a -p b 10.1.2.3 ssh", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("psql --host=evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("redis-cli -h evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "docker -H tcp://evilhost:2375 ps", scope_env=scope
-            )
+            assert_command_in_scope("docker -H tcp://evilhost:2375 ps", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "host example.com evilhost", scope_env=scope
-            )
+            assert_command_in_scope("host example.com evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost|Proxy environment"):
             assert_command_in_scope(
                 "wget -e http_proxy=evilhost:8080 http://10.0.0.1/",
@@ -565,38 +495,24 @@ class TestAssertCommandInScope:
         assert_command_in_scope("mysql -h 10.1.2.3", scope_env=scope)
         assert_command_in_scope("host example.com 10.1.2.3", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "ansible -i evilhost, all -m ping", scope_env=scope
-            )
-        assert_command_in_scope(
-            "ansible -i 10.1.2.3, all -m ping", scope_env=scope
-        )
+            assert_command_in_scope("ansible -i evilhost, all -m ping", scope_env=scope)
+        assert_command_in_scope("ansible -i 10.1.2.3, all -m ping", scope_env=scope)
         # Unset engagement scope must not restrict research tooling.
         assert_command_in_scope("nmap evilhost", scope_env="")
         assert_command_in_scope("mysql -h target.lab", scope_env=None)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "sshuttle -r user@evilhost 0/0", scope_env=scope
-            )
+            assert_command_in_scope("sshuttle -r user@evilhost 0/0", scope_env=scope)
         # Out-of-scope hop with R:socks: SOCKS pivot blocked first (RH-29).
         with pytest.raises(PermissionDeniedError, match="SOCKS|socks|evilhost"):
-            assert_command_in_scope(
-                "chisel client evilhost:8080 R:socks", scope_env=scope
-            )
+            assert_command_in_scope("chisel client evilhost:8080 R:socks", scope_env=scope)
         # RH-29: in-scope hop + trailing R:socks still pivots out of engagement.
         with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
-            assert_command_in_scope(
-                "chisel client 10.0.0.1:8080 R:socks", scope_env=scope
-            )
+            assert_command_in_scope("chisel client 10.0.0.1:8080 R:socks", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
-            assert_command_in_scope(
-                "chisel client 10.0.0.1:8080 1080:socks", scope_env=scope
-            )
+            assert_command_in_scope("chisel client 10.0.0.1:8080 1080:socks", scope_env=scope)
         # RH-30: sshuttle full-tunnel via in-scope remote.
         with pytest.raises(PermissionDeniedError, match="full-tunnel|0/0"):
-            assert_command_in_scope(
-                "sshuttle -r user@10.0.0.1 0/0", scope_env=scope
-            )
+            assert_command_in_scope("sshuttle -r user@10.0.0.1 0/0", scope_env=scope)
         # RH-32 / RH-34: opaque proxy wrappers / docker context hide egress.
         with pytest.raises(PermissionDeniedError, match="pproxy|Proxy/tunnel"):
             assert_command_in_scope(
@@ -611,28 +527,20 @@ class TestAssertCommandInScope:
             assert_command_in_scope("docker context use prod", scope_env=scope)
         # RH-41: podman system connection + chisel server SOCKS
         with pytest.raises(PermissionDeniedError, match="connection|context"):
-            assert_command_in_scope(
-                "podman system connection use evil", scope_env=scope
-            )
+            assert_command_in_scope("podman system connection use evil", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="SOCKS|socks"):
             assert_command_in_scope("chisel server --socks5", scope_env=scope)
         # RH-42 — image registries / local-cluster / kubectl proxy
         with pytest.raises(PermissionDeniedError, match="evil"):
-            assert_command_in_scope(
-                "skopeo copy docker://evil/img dir:/tmp/x", scope_env=scope
-            )
-        assert_command_in_scope(
-            "skopeo copy docker://10.0.0.1/img dir:/tmp/x", scope_env=scope
-        )
+            assert_command_in_scope("skopeo copy docker://evil/img dir:/tmp/x", scope_env=scope)
+        assert_command_in_scope("skopeo copy docker://10.0.0.1/img dir:/tmp/x", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="proxy|port-forward"):
             assert_command_in_scope("kubectl proxy --port=8001", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="minikube|Proxy/tunnel"):
             assert_command_in_scope("minikube ssh", scope_env=scope)
         # RH-43 — brook / mitmproxy SOCKS wrappers
         with pytest.raises(PermissionDeniedError, match="brook|Proxy/tunnel"):
-            assert_command_in_scope(
-                "brook socks -l :1080 -p evilhost:9999", scope_env=scope
-            )
+            assert_command_in_scope("brook socks -l :1080 -p evilhost:9999", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="mitmproxy|Proxy/tunnel"):
             assert_command_in_scope("mitmproxy --mode socks5", scope_env=scope)
         # RH-44 — VPN / mesh / covert tunnels + rclone mount
@@ -661,18 +569,14 @@ class TestAssertCommandInScope:
             assert_command_in_scope("ip tuntap add mode tun siy0", scope_env=scope)
         # RH-46 — cloud kubeconfig rewrite + local-cluster/proxy wrappers
         with pytest.raises(PermissionDeniedError, match="kubeconfig|update-kubeconfig"):
-            assert_command_in_scope(
-                "aws eks update-kubeconfig --name c", scope_env=scope
-            )
+            assert_command_in_scope("aws eks update-kubeconfig --name c", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="kubeconfig|get-credentials"):
             assert_command_in_scope(
                 "gcloud container clusters get-credentials c --zone z",
                 scope_env=scope,
             )
         with pytest.raises(PermissionDeniedError, match="kubeconfig|get-credentials"):
-            assert_command_in_scope(
-                "az aks get-credentials -g g -n n", scope_env=scope
-            )
+            assert_command_in_scope("az aks get-credentials -g g -n n", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="lima|Proxy/tunnel"):
             assert_command_in_scope("lima start", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="privoxy|Proxy/tunnel"):
@@ -680,18 +584,12 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="ipsec|Proxy/tunnel"):
             assert_command_in_scope("ipsec up home", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="singularity|Proxy/tunnel"):
-            assert_command_in_scope(
-                "singularity run docker://alpine:latest", scope_env=scope
-            )
+            assert_command_in_scope("singularity run docker://alpine:latest", scope_env=scope)
         # RH-47 — versioned wrappers, autossh -D, tor/sockd, nmcli VPN, k3d, kubeconfig bare
         with pytest.raises(PermissionDeniedError, match="gost|Proxy/tunnel"):
-            assert_command_in_scope(
-                "gost-linux-amd64 -L=socks5://:1080", scope_env=scope
-            )
+            assert_command_in_scope("gost-linux-amd64 -L=socks5://:1080", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="DynamicForward|ssh -D"):
-            assert_command_in_scope(
-                "autossh -M 0 -D 1080 user@10.0.0.5", scope_env=scope
-            )
+            assert_command_in_scope("autossh -M 0 -D 1080 user@10.0.0.5", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="tor|Proxy/tunnel"):
             assert_command_in_scope("tor -f /tmp/torrc", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="sockd|Proxy/tunnel"):
@@ -703,9 +601,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="kubeconfig"):
             assert_command_in_scope("talosctl kubeconfig", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="SSM|ECS|interactive"):
-            assert_command_in_scope(
-                "aws ssm start-session --target i-0123", scope_env=scope
-            )
+            assert_command_in_scope("aws ssm start-session --target i-0123", scope_env=scope)
         # RH-48 — public shells, Teleport, mosh, parallel unwrap
         with pytest.raises(PermissionDeniedError, match="tmate|Proxy/tunnel"):
             assert_command_in_scope("tmate -F", scope_env=scope)
@@ -720,9 +616,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="upterm|Proxy/tunnel"):
             assert_command_in_scope("upterm host", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="openvpn3|Proxy/tunnel"):
-            assert_command_in_scope(
-                "openvpn3 session-start --config cfg", scope_env=scope
-            )
+            assert_command_in_scope("openvpn3 session-start --config cfg", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="telebit|Proxy/tunnel"):
             assert_command_in_scope("telebit http 8080", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
@@ -761,9 +655,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("plink user@evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="URL scheme|redis"):
-            assert_command_in_scope(
-                "redis-cli -u redis://evilhost:6379/0", scope_env=scope
-            )
+            assert_command_in_scope("redis-cli -u redis://evilhost:6379/0", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="playit|Proxy/tunnel"):
             assert_command_in_scope("playit-cli", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="wormhole|Proxy/tunnel"):
@@ -776,24 +668,18 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="rclone"):
             assert_command_in_scope("rclone copy /tmp remote:", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="megatools"):
-            assert_command_in_scope(
-                "megatools put --path /Root file", scope_env=scope
-            )
+            assert_command_in_scope("megatools put --path /Root file", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="aws s3"):
             assert_command_in_scope("aws s3 sync /tmp s3://bucket", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="az storage"):
-            assert_command_in_scope(
-                "az storage blob upload -f x", scope_env=scope
-            )
+            assert_command_in_scope("az storage blob upload -f x", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match=r"kubectl cp|\bcp\b"):
             assert_command_in_scope("kubectl cp /tmp/x pod:/tmp/x", scope_env=scope)
         # RH-52 — tcsh/csh/pwsh -c; postgresql:// URI; putty/pscp
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("tcsh -c 'nmap evilhost'", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="URL scheme|postgresql"):
-            assert_command_in_scope(
-                "curl postgresql://u:p@evilhost:5432/db", scope_env=scope
-            )
+            assert_command_in_scope("curl postgresql://u:p@evilhost:5432/db", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("putty -ssh evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
@@ -819,9 +705,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("nu -c 'nmap evilhost'", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="URL scheme|couchdb"):
-            assert_command_in_scope(
-                "curl couchdb://evilhost:5984/", scope_env=scope
-            )
+            assert_command_in_scope("curl couchdb://evilhost:5984/", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="run-command"):
             assert_command_in_scope(
                 "az vm run-command invoke -g g -n n --command-id RunShellScript",
@@ -830,9 +714,7 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="podman-remote"):
             assert_command_in_scope("podman-remote run alpine", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="tmux send-keys"):
-            assert_command_in_scope(
-                "tmux send-keys 'nmap evilhost' Enter", scope_env=scope
-            )
+            assert_command_in_scope("tmux send-keys 'nmap evilhost' Enter", scope_env=scope)
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(
@@ -840,31 +722,23 @@ class TestAssertCommandInScope:
                 scope_env=scope,
             )
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "clickhouse-client -h evilhost", scope_env=scope
-            )
+            assert_command_in_scope("clickhouse-client -h evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="GRPC_PROXY|Proxy environment"):
             assert_command_in_scope(
                 "GRPC_PROXY=http://evil:8080 curl http://10.0.0.1/",
                 scope_env=scope,
             )
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "crackmapexec smb evilhost", scope_env=scope
-            )
+            assert_command_in_scope("crackmapexec smb evilhost", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("nikto -h evilhost", scope_env=scope)
         # RH-40: kubectl verbs are not hosts; opaque context switches are blocked.
         assert_command_in_scope("kubectl get pods", scope_env=scope)
         assert_command_in_scope("helm list", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="context|use-context"):
-            assert_command_in_scope(
-                "kubectl --context prod get pods", scope_env=scope
-            )
+            assert_command_in_scope("kubectl --context prod get pods", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="use-context"):
-            assert_command_in_scope(
-                "kubectl config use-context prod", scope_env=scope
-            )
+            assert_command_in_scope("kubectl config use-context prod", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope(
                 "kubectl --server=https://evilhost:6443 get pods",
@@ -876,28 +750,16 @@ class TestAssertCommandInScope:
         )
         # RH-55 — HostName=, parallel -S, influx/clickhouse URI, ansible/fab/lxc/virsh
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "ssh -oHostName=evilhost user@10.0.0.1", scope_env=scope
-            )
+            assert_command_in_scope("ssh -oHostName=evilhost user@10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "ssh -o HostName=evilhost user@10.0.0.1", scope_env=scope
-            )
-        assert_command_in_scope(
-            "ssh -oHostName=10.0.0.9 user@10.0.0.1", scope_env=scope
-        )
+            assert_command_in_scope("ssh -o HostName=evilhost user@10.0.0.1", scope_env=scope)
+        assert_command_in_scope("ssh -oHostName=10.0.0.9 user@10.0.0.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "parallel -S evilhost echo hi", scope_env=scope
-            )
+            assert_command_in_scope("parallel -S evilhost echo hi", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="URL scheme|influx"):
-            assert_command_in_scope(
-                "curl influxdb://evilhost:8086/query", scope_env=scope
-            )
+            assert_command_in_scope("curl influxdb://evilhost:8086/query", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="URL scheme|clickhouse"):
-            assert_command_in_scope(
-                "curl clickhouse://evilhost:9000/", scope_env=scope
-            )
+            assert_command_in_scope("curl clickhouse://evilhost:9000/", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("ansible evilhost -m ping", scope_env=scope)
         assert_command_in_scope("ansible all -m ping", scope_env=scope)
@@ -913,20 +775,14 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("lxc exec evilhost -- id", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost|URL scheme|qemu"):
-            assert_command_in_scope(
-                "virsh -c qemu+tcp://evilhost/system list", scope_env=scope
-            )
+            assert_command_in_scope("virsh -c qemu+tcp://evilhost/system list", scope_env=scope)
 
     def test_su_sudo_script_c_wrappers_under_scope(self) -> None:
         scope = "10.0.0.0/8,example.com"
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("su user -c 'ssh evilhost'", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
-            assert_command_in_scope(
-                "sudo -u root -c 'ssh evilhost'", scope_env=scope
-            )
+            assert_command_in_scope("sudo -u root -c 'ssh evilhost'", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evil-host"):
-            assert_command_in_scope(
-                "script -c 'nmap evil-host' /dev/null", scope_env=scope
-            )
+            assert_command_in_scope("script -c 'nmap evil-host' /dev/null", scope_env=scope)
         assert_command_in_scope("su user -c 'ssh 10.1.2.3'", scope_env=scope)

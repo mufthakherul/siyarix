@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from siyarix.core import AgentCore, AgentGoal, AgentResult, AgentMode, AgentStatus
-from siyarix.planner import ExecutionPlan, PlanStep, PlanStatus, StepStatus
+from siyarix.core import AgentCore, AgentGoal, AgentMode, AgentResult, AgentStatus
+from siyarix.planner import ExecutionPlan, PlanStatus, PlanStep, StepStatus
 from siyarix.validators import RecoveryAction, RecoveryPlan
 
 

@@ -6,10 +6,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+import siyarix.planner_registry as pr
 from siyarix.deep_scan import DeepScanEngine
 from siyarix.exceptions import PermissionDeniedError
 from siyarix.models import PlanStep
-import siyarix.planner_registry as pr
 
 
 class _DenyAltExecutor:

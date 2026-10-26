@@ -229,7 +229,7 @@ entry = {
     "action": "execute_tool",
     "status": "completed",
     "hash": "sha256_of_previous_entry_hash + content",
-    "previous_hash": "a1b2c3d4..."
+    "previous_hash": "a1b2c3d4...",
 }
 ```
 

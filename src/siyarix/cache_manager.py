@@ -14,10 +14,11 @@ import json
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 from siyarix.config import get_config_dir
 
@@ -300,7 +301,7 @@ def cached(domain: str = "tool_output") -> Callable[[F], F]:
     def decorator(func: F) -> F:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            key = f"{func.__name__}:{str(args)}:{str(sorted(kwargs.items()))}"
+            key = f"{func.__name__}:{args!s}:{sorted(kwargs.items())!s}"
             return cache_manager.get_or_compute(key, domain, lambda: str(func(*args, **kwargs)))
 
         return wrapper  # type: ignore
@@ -308,4 +309,4 @@ def cached(domain: str = "tool_output") -> Callable[[F], F]:
     return decorator
 
 
-__all__ = ["CacheManager", "CacheEntry", "cache_manager", "cached", "CACHE_DOMAINS"]
+__all__ = ["CACHE_DOMAINS", "CacheEntry", "CacheManager", "cache_manager", "cached"]

@@ -98,20 +98,22 @@ pm = ProviderManager.get_instance()
 All 25 providers are registered using individual profile files located in `src/siyarix/providers/profiles/`. This modular approach makes it super easy to add new providers in the future.
 
 ```python
-pm.register(ProviderProfile(
-    name="openai",
-    display_name="OpenAI",
-    default_model="gpt-5.5",
-    api_key_env="OPENAI_API_KEY",
-    base_url="",
-    supports_streaming=True,
-    supports_tools=True,
-    supports_vision=True,
-    cost_tier=CostTier.HIGH,
-    provider_type=ProviderType.CLOUD,
-    priority=10,
-    docs_url="https://platform.openai.com/docs/models",
-))
+pm.register(
+    ProviderProfile(
+        name="openai",
+        display_name="OpenAI",
+        default_model="gpt-5.5",
+        api_key_env="OPENAI_API_KEY",
+        base_url="",
+        supports_streaming=True,
+        supports_tools=True,
+        supports_vision=True,
+        cost_tier=CostTier.HIGH,
+        provider_type=ProviderType.CLOUD,
+        priority=10,
+        docs_url="https://platform.openai.com/docs/models",
+    )
+)
 ```
 
 Each profile defines its supported models using the `ModelInfo` dataclass, ensuring Siyarix knows exactly what each model is capable of:
@@ -163,24 +165,24 @@ This defines everything Siyarix needs to know about a provider.
 ```python
 @dataclass
 class ProviderProfile:
-    name: str                          # Internal identifier (e.g. "openai")
-    display_name: str                  # Human-readable name
-    models: list[ModelInfo]            # Supported models with capability metadata
-    default_model: str                 # Fallback model for this provider
-    api_key_env: str                   # Environment variable for API key
-    base_url: str                      # API base URL
-    supports_streaming: bool           # Streaming support
-    supports_tools: bool               # Function/tool calling
-    supports_vision: bool              # Image input support
-    supports_structured_output: bool   # JSON structured output mode
-    sdk_dependency: str                # Optional SDK package requirement
-    max_tokens: int                    # Max output tokens
-    max_context_tokens: int            # Max context window size
-    priority: int                      # Preference ordering
-    cost_tier: CostTier                # FREE / LOW / MEDIUM / HIGH
-    provider_type: ProviderType        # CLOUD or LOCAL
-    fallback_models: list[str]         # Alternative models to try on failure
-    docs_url: str                      # Link to provider documentation
+    name: str  # Internal identifier (e.g. "openai")
+    display_name: str  # Human-readable name
+    models: list[ModelInfo]  # Supported models with capability metadata
+    default_model: str  # Fallback model for this provider
+    api_key_env: str  # Environment variable for API key
+    base_url: str  # API base URL
+    supports_streaming: bool  # Streaming support
+    supports_tools: bool  # Function/tool calling
+    supports_vision: bool  # Image input support
+    supports_structured_output: bool  # JSON structured output mode
+    sdk_dependency: str  # Optional SDK package requirement
+    max_tokens: int  # Max output tokens
+    max_context_tokens: int  # Max context window size
+    priority: int  # Preference ordering
+    cost_tier: CostTier  # FREE / LOW / MEDIUM / HIGH
+    provider_type: ProviderType  # CLOUD or LOCAL
+    fallback_models: list[str]  # Alternative models to try on failure
+    docs_url: str  # Link to provider documentation
 ```
 
 ### ProviderCredential
@@ -313,9 +315,9 @@ This ensures that if you hit an hour-long rate limit, restarting Siyarix won't a
 
 ```python
 state_manager.record_failure(provider, reason)  # Saves to JSON automatically
-state_manager.record_success(provider)           # Clears cooldown status
-state_manager.is_disabled(provider)              # Checks if still in cooldown
-state_manager.cooldown_remaining(provider)       # Time left until ready
+state_manager.record_success(provider)  # Clears cooldown status
+state_manager.is_disabled(provider)  # Checks if still in cooldown
+state_manager.cooldown_remaining(provider)  # Time left until ready
 ```
 
 ---
@@ -345,8 +347,8 @@ Model names change, and standardizing them is crucial. `model_aliases.py` ensure
 from siyarix.model_aliases import normalize_model_id, resolve_alias, list_aliases, register_alias
 
 model = normalize_model_id("anthropic", "claude-opus-4.8")  # → "claude-opus-4-8"
-model = normalize_model_id("gemini", "gemini-3-pro")        # → "gemini-3.1-pro-preview"
-model = normalize_model_id("deepseek", "deepseek-v4")       # → "deepseek-v4-flash"
+model = normalize_model_id("gemini", "gemini-3-pro")  # → "gemini-3.1-pro-preview"
+model = normalize_model_id("deepseek", "deepseek-v4")  # → "deepseek-v4-flash"
 ```
 
 ---
@@ -404,7 +406,9 @@ Keep an eye on your API costs! The `UsageTracker` (found in `usage.py`) monitors
 from siyarix.providers import UsageTracker
 
 tracker = UsageTracker()
-tracker.record_call("openai", "gpt-5.5", input_tokens=500, output_tokens=150, cost_tier=CostTier.HIGH)
+tracker.record_call(
+    "openai", "gpt-5.5", input_tokens=500, output_tokens=150, cost_tier=CostTier.HIGH
+)
 print(tracker.summary())
 # LLM calls: 1 | Tokens: 500↑ 150↓ | Est. cost: $0.0086
 ```

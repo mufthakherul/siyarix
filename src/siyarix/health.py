@@ -17,7 +17,7 @@ from .events import Event, EventType, emit_sync
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["HealthStatus", "HealthChecker", "get_health"]
+__all__ = ["HealthChecker", "HealthStatus", "get_health"]
 
 
 class HealthState(StrEnum):
@@ -192,9 +192,7 @@ class HealthChecker:
                             "localai": (8080, "/readyz"),
                         }
                         port, path = endpoints.get(provider_name, (11434, "/api/tags"))
-                        async with httpx.AsyncClient(
-                            timeout=0.5, follow_redirects=False
-                        ) as client:
+                        async with httpx.AsyncClient(timeout=0.5, follow_redirects=False) as client:
                             resp = await client.get(f"http://localhost:{port}{path}")
                             available = resp.status_code == 200
                             message = (
@@ -242,7 +240,7 @@ class HealthChecker:
                 return ComponentHealth(
                     name=f"ModelProvider/{display_name}",
                     state=HealthState.UNHEALTHY,
-                    message=f"Error: {str(exc)}",
+                    message=f"Error: {exc!s}",
                     latency_ms=(time.time() - start) * 1000,
                 )
 
@@ -289,7 +287,7 @@ class HealthChecker:
                     ComponentHealth(
                         name=f"Tool/{tool}",
                         state=HealthState.UNHEALTHY,
-                        message=f"Error: {str(exc)}",
+                        message=f"Error: {exc!s}",
                         latency_ms=(time.time() - start) * 1000,
                     )
                 )

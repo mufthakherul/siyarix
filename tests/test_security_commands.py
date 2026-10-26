@@ -243,7 +243,7 @@ class TestCommandsCore:
     """Cover missing commands.py lines."""
 
     def test_save_sets_created_at_when_empty(self, tmp_path):
-        from siyarix.chat.commands import CommandProfileStore, CommandProfile
+        from siyarix.chat.commands import CommandProfile, CommandProfileStore
 
         store = CommandProfileStore()
         store._profiles_dir = tmp_path

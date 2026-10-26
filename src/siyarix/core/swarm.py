@@ -52,8 +52,7 @@ class SpecializedAgent:
                 data={
                     "sub_type": "text_end",
                     "text": (
-                        f"[{self.role}] Stub swarm agent — no tools executed "
-                        f"for {task.target}"
+                        f"[{self.role}] Stub swarm agent — no tools executed for {task.target}"
                     ),
                 },
             )

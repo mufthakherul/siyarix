@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .platform_utils import build_platform_context
+
 import asyncio
 import json
 import logging
@@ -15,8 +15,9 @@ from typing import TYPE_CHECKING, Any
 from rich.panel import Panel
 
 from ..exceptions import LLMProviderError
-from .session import ChatSession
 from .console import console
+from .platform_utils import build_platform_context
+from .session import ChatSession
 
 if TYPE_CHECKING:
     from ..config import SettingsStore
@@ -244,7 +245,7 @@ class LLMEngineMixin:
 
         # Adversarial plan review
         try:
-            from .stubs import AdversarialTester, AdversarialSeverity
+            from .stubs import AdversarialSeverity, AdversarialTester
 
             tester = AdversarialTester()
             plan_lines = []
@@ -370,8 +371,9 @@ class LLMEngineMixin:
 
         # Print results — match autonomous mode output format
         if self._mode in ("registry", "offline"):
-            from ..models import StepStatus
             from rich.panel import Panel as _RichPanel
+
+            from ..models import StepStatus
 
             # Per-step full output panels (matches autonomous agent loop)
             for r in result.step_results:
@@ -719,8 +721,8 @@ class LLMEngineMixin:
             load_compact_neutral_prompt,
             load_compact_prompt,
             load_neutral_prompt,
-            load_system_prompt,
             load_rules,
+            load_system_prompt,
             platform_context,
         )
 
@@ -858,8 +860,8 @@ class LLMEngineMixin:
                     console.print(f"[yellow]⚠ Could not start {provider_name}[/yellow]")
             else:
                 # Check model availability and discover+enrich provider models
-                from ..provider_utils import ensure_model_pulled, discover_provider_models
-                from ..providers import ProviderManager, ModelInfo
+                from ..provider_utils import discover_provider_models, ensure_model_pulled
+                from ..providers import ModelInfo, ProviderManager
 
                 base_url = self._settings.get(f"{provider_name}_url") or os.getenv(
                     f"SIYARIX_{provider_name.upper()}_URL", ""
@@ -934,14 +936,13 @@ class LLMEngineMixin:
             else:
                 # Quick connectivity probe before committing to a 120s LLM call
                 try:
-                    from .openai_compat import PROVIDER_CONFIG
                     import httpx
+
+                    from .openai_compat import PROVIDER_CONFIG
 
                     base_url = PROVIDER_CONFIG.get(provider_name, ("", "", ""))[0]
                     if base_url:
-                        async with httpx.AsyncClient(
-                            timeout=5, follow_redirects=False
-                        ) as _client:
+                        async with httpx.AsyncClient(timeout=5, follow_redirects=False) as _client:
                             await _client.get(base_url.rstrip("/v1"))
                         llm_connected = True
                     else:
@@ -991,7 +992,8 @@ class LLMEngineMixin:
                             _hi_skill, _real_target, raw_anon_goal=_raw_anon
                         )
                         if _prerun_steps:
-                            from ..models import ExecutionPlan as _EP, PlanType, PlanStep
+                            from ..models import ExecutionPlan as _EP
+                            from ..models import PlanStep, PlanType
 
                             _prerun_plan = _EP(
                                 goal=instruction_with_target,
@@ -1341,7 +1343,7 @@ class LLMEngineMixin:
             last_executed_plan = plan
 
             if plan.status.name == "CANCELLED":
-                from siyarix.shell_review import is_interactive, PREAUTHORIZED_ENV_VAR
+                from siyarix.shell_review import PREAUTHORIZED_ENV_VAR, is_interactive
 
                 if is_interactive():
                     console.print("[yellow]⚠ Command cancelled by user[/yellow]")
@@ -1532,7 +1534,7 @@ class LLMEngineMixin:
                             is_first_call=is_first_wave,
                         )
                         llm_model = provider_name or "none"
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         plan = None
                 import sys
 
@@ -1869,7 +1871,7 @@ class LLMEngineMixin:
         which returns an async generator yielding content tokens.
         history is a list of {"role": ..., "content": ...} dicts from prior conversation.
         """
-        from .openai_compat import make_openai_adapter, PROVIDER_CONFIG
+        from .openai_compat import PROVIDER_CONFIG, make_openai_adapter
 
         # -- Anthropic (native SDK) ---------------------------------------------
         if provider_name == "anthropic":
@@ -1992,7 +1994,7 @@ class LLMEngineMixin:
 
         Uses provider_utils defaults for binary names and URLs.
         """
-        from ..provider_utils import check_provider_health, PROVIDER_DEFAULTS
+        from ..provider_utils import PROVIDER_DEFAULTS, check_provider_health
 
         cfg = PROVIDER_DEFAULTS.get(provider_name)
         if not cfg:

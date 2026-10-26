@@ -1,9 +1,12 @@
 from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from siyarix.core import AgentCore, AgentMode, AgentGoal
-from siyarix.planner import ExecutionPlan, PlanStep, StepStatus, PlanStatus
+
+from siyarix.core import AgentCore, AgentGoal, AgentMode
 from siyarix.knowledge_graph import NodeType
+from siyarix.planner import ExecutionPlan, PlanStatus, PlanStep, StepStatus
 
 
 @pytest.mark.asyncio
@@ -53,24 +56,23 @@ async def test_e2e_simulation_network_scan_and_enum():
 
         with patch.object(
             agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan
-        ):
-            with patch.object(
-                agent._validator, "validate_plan", new_callable=AsyncMock
-            ) as mock_val:
-                mock_val.return_value = (True, [])
+        ), patch.object(
+            agent._validator, "validate_plan", new_callable=AsyncMock
+        ) as mock_val:
+            mock_val.return_value = (True, [])
 
-                # Execute
-                result = await agent.execute_goal(goal)
+            # Execute
+            result = await agent.execute_goal(goal)
 
-                # Assertions
-                assert result.success is True
-                assert len(result.plan.steps) == 2
-                assert result.plan.steps[0].status == StepStatus.COMPLETED
-                assert result.plan.steps[1].status == StepStatus.COMPLETED
+            # Assertions
+            assert result.success is True
+            assert len(result.plan.steps) == 2
+            assert result.plan.steps[0].status == StepStatus.COMPLETED
+            assert result.plan.steps[1].status == StepStatus.COMPLETED
 
-                # Check Knowledge Graph
-                assert any(n.label == "port_80" for n in agent._knowledge_graph._nodes.values())
-                assert any(n.label == "path_admin" for n in agent._knowledge_graph._nodes.values())
+            # Check Knowledge Graph
+            assert any(n.label == "port_80" for n in agent._knowledge_graph._nodes.values())
+            assert any(n.label == "path_admin" for n in agent._knowledge_graph._nodes.values())
 
 
 @pytest.mark.asyncio
@@ -106,31 +108,30 @@ async def test_e2e_simulation_failure_and_recovery():
 
         with patch.object(
             agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan
-        ):
+        ), patch.object(
+            agent._validator, "validate_plan", new_callable=AsyncMock
+        ) as mock_val:
+            mock_val.return_value = (True, [])
+
             with patch.object(
-                agent._validator, "validate_plan", new_callable=AsyncMock
-            ) as mock_val:
-                mock_val.return_value = (True, [])
+                agent._validator, "plan_recovery", new_callable=AsyncMock
+            ) as mock_rec:
+                from siyarix.validators import RecoveryAction, RecoveryPlan
 
-                with patch.object(
-                    agent._validator, "plan_recovery", new_callable=AsyncMock
-                ) as mock_rec:
-                    from siyarix.validators import RecoveryAction, RecoveryPlan
+                # Provide recovery plan
+                mock_rec.return_value = RecoveryPlan(
+                    original_step=step1,
+                    action=RecoveryAction.RETRY,
+                    modified_step=PlanStep(
+                        id="s1", command="exploit", tool="metasploit", args={"retry": True}
+                    ),
+                    message="Retrying exploit",
+                )
 
-                    # Provide recovery plan
-                    mock_rec.return_value = RecoveryPlan(
-                        original_step=step1,
-                        action=RecoveryAction.RETRY,
-                        modified_step=PlanStep(
-                            id="s1", command="exploit", tool="metasploit", args={"retry": True}
-                        ),
-                        message="Retrying exploit",
-                    )
+                result = await agent.execute_goal(goal)
 
-                    result = await agent.execute_goal(goal)
-
-                    assert execution_attempts["count"] == 2
-                    assert result.success is True
+                assert execution_attempts["count"] == 2
+                assert result.success is True
 
 
 @pytest.mark.asyncio
@@ -169,21 +170,20 @@ async def test_e2e_simulation_swarm_routing():
 
         with patch.object(
             agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan
-        ):
+        ), patch.object(
+            agent._validator, "validate_plan", new_callable=AsyncMock
+        ) as mock_val:
+            mock_val.return_value = (True, [])
+
             with patch.object(
-                agent._validator, "validate_plan", new_callable=AsyncMock
-            ) as mock_val:
-                mock_val.return_value = (True, [])
+                agent, "execute_subagent", new_callable=AsyncMock
+            ) as mock_subagent:
+                mock_subagent.return_value = MagicMock(findings=[1, 2, 3])
 
-                with patch.object(
-                    agent, "execute_subagent", new_callable=AsyncMock
-                ) as mock_subagent:
-                    mock_subagent.return_value = MagicMock(findings=[1, 2, 3])
+                result = await agent.execute_goal(goal)
 
-                    result = await agent.execute_goal(goal)
-
-                    assert result.success is True
-                    assert result.plan.steps[0].status == StepStatus.COMPLETED
-                    mock_subagent.assert_called_once_with(
-                        "database_specialist", "Audit DB on 10.0.0.3"
-                    )
+                assert result.success is True
+                assert result.plan.steps[0].status == StepStatus.COMPLETED
+                mock_subagent.assert_called_once_with(
+                    "database_specialist", "Audit DB on 10.0.0.3"
+                )

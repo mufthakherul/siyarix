@@ -95,8 +95,8 @@ Using the analyzer is straightforward:
 from siyarix.security_hardening import danger_analyzer
 
 report = danger_analyzer.analyze("rm -rf /tmp")
-print(report.severity)        # "medium"
-print(report.is_dangerous)    # True
+print(report.severity)  # "medium"
+print(report.is_dangerous)  # True
 print(report.recommendation)  # "⚡ CAUTION — Review this command before execution."
 ```
 
@@ -109,6 +109,7 @@ You can also output these warnings directly to the console with beautiful, color
 
 ```python
 from rich.console import Console
+
 danger_analyzer.format_warning(report, Console())
 ```
 
@@ -243,19 +244,19 @@ Every single action generates a structured `AuditEvent`:
 ```python
 @dataclass
 class AuditEvent:
-    event_id: str               # Unique UUID hex
-    timestamp: datetime         # UTC timestamp
-    event_type: str             # Category of the event
-    severity: str               # info / low / medium / high / critical
-    user: str                   # The user who triggered the event
-    session_id: str             # Unique session identifier
-    source_ip: str              # Originating IP address
-    target: str                 # What resource was targeted
-    action: str                 # The action performed
-    result: str                 # success / failure / denied
-    details: dict               # Any extra structured data
-    hash_prev: str | None       # Link to the previous event's hash
-    hash_current: str | None    # This event's hash
+    event_id: str  # Unique UUID hex
+    timestamp: datetime  # UTC timestamp
+    event_type: str  # Category of the event
+    severity: str  # info / low / medium / high / critical
+    user: str  # The user who triggered the event
+    session_id: str  # Unique session identifier
+    source_ip: str  # Originating IP address
+    target: str  # What resource was targeted
+    action: str  # The action performed
+    result: str  # success / failure / denied
+    details: dict  # Any extra structured data
+    hash_prev: str | None  # Link to the previous event's hash
+    hash_current: str | None  # This event's hash
 ```
 
 ### 🔗 Tamper-Evident Chain
@@ -267,7 +268,7 @@ To guarantee that logs haven't been altered, each event's hash incorporates the 
 
 ```python
 audit = AuditLogger()
-result = audit.verify_chain() # Returns a validation dictionary
+result = audit.verify_chain()  # Returns a validation dictionary
 ```
 
 ### 🏷️ Event Types

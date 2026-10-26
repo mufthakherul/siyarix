@@ -117,7 +117,7 @@ class _PinnedHttpResponse:
     def __enter__(self) -> _PinnedHttpResponse:
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(self, *args: object) -> None:
         return None
 
 
@@ -162,15 +162,10 @@ def _assert_safe_requirement_line(line: str, *, plugin: str) -> None:
     lower = stripped.lower()
     if lower.startswith("-"):
         raise RuntimeError(f"Refusing unsafe requirements line in {plugin}: {stripped!r}")
-    if any(
-        tok in lower
-        for tok in ("://", "git+", "svn+", "hg+", "bzr+", "file:", "ssh:")
-    ):
+    if any(tok in lower for tok in ("://", "git+", "svn+", "hg+", "bzr+", "file:", "ssh:")):
         raise RuntimeError(f"Refusing unsafe requirements line in {plugin}: {stripped!r}")
     if any(c in stripped for c in ("/", "\\", "@")):
-        raise RuntimeError(
-            f"Refusing path/URL requirements line in {plugin}: {stripped!r}"
-        )
+        raise RuntimeError(f"Refusing path/URL requirements line in {plugin}: {stripped!r}")
     if not _SAFE_REQ_RE.match(stripped.split(";")[0].strip()):
         raise RuntimeError(
             f"Refusing non-PEP508 name/version requirements line in {plugin}: {stripped!r}"
@@ -394,9 +389,7 @@ class PluginManager:
             return False
 
         if not plugins_trusted_for_load():
-            production = _env_flag_on(
-                "SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"
-            )
+            production = _env_flag_on("SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD")
             meta.status = PluginStatus.DISABLED
             if production:
                 meta.error_message = (
@@ -728,8 +721,7 @@ class PluginManager:
                 )
             repo_url = _validate_git_clone_url(name_or_url)
             target_name = repo_url.rstrip("/").split("/")[-1]
-            if target_name.endswith(".git"):
-                target_name = target_name[:-4]
+            target_name = target_name.removesuffix(".git")
             target_name = _safe_plugin_name(target_name)
             dest = _assert_under_dir(
                 self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"

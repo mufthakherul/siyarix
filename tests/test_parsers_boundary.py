@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from siyarix.parsers.gobuster_parser import GobusterParser
+from siyarix.parsers.masscan_parser import MasscanParser
 from siyarix.parsers.nuclei_parser import NucleiParser
 from siyarix.parsers.subfinder_parser import SubfinderParser
-from siyarix.parsers.masscan_parser import MasscanParser
-from siyarix.parsers.gobuster_parser import GobusterParser
 
 
 class TestParserEdgeCases:

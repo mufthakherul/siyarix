@@ -110,23 +110,21 @@ class TestValidateTarget:
 import ipaddress
 from unittest.mock import AsyncMock, patch
 
-
 from siyarix.planner import PlanStep
 from siyarix.validators import (
+    _MAX_INPUT_LENGTH,
     RecoveryAction,
     RecoveryPlan,
-    validate_cidr,
-    validate_email,
-    validate_port,
-    validate_port_range,
     ValidationResult,
     ValidationSeverity,
     Validator,
     _enforce_length,
     _redact,
-    _MAX_INPUT_LENGTH,
+    validate_cidr,
+    validate_email,
+    validate_port,
+    validate_port_range,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Internal helpers

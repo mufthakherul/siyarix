@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from siyarix.registry import ToolRegistry
-from siyarix.tool_models import ToolCapability, ToolCategory, RiskLevel
+from siyarix.tool_models import RiskLevel, ToolCapability, ToolCategory
 
 logger = logging.getLogger(__name__)
 

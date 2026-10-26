@@ -17,11 +17,13 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from siyarix.config import get_config_dir
 from siyarix._platform import (
     get_platform_id as _get_platform_id,
+)
+from siyarix._platform import (
     is_wsl as _is_wsl,
 )
+from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +227,7 @@ class BootstrapEngine:
     def auto_install_packages(self, packages: list[str]) -> dict[str, bool]:
         """Auto-install approved packages (T10)."""
         import subprocess  # nosec B404
+
         from siyarix.chat.platform_utils import pip_install_args
 
         results: dict[str, bool] = {}
@@ -411,9 +414,9 @@ class BootstrapEngine:
 
 
 __all__ = [
+    "INITIALIZED_MARKER",
+    "SIYARIX_HOME",
     "BootstrapEngine",
     "BootstrapResult",
     "PlatformInfo",
-    "SIYARIX_HOME",
-    "INITIALIZED_MARKER",
 ]

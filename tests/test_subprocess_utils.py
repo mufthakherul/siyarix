@@ -14,12 +14,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from siyarix.subprocess_utils import (
+    _ORPHAN_LOCK,
+    _ORPHAN_TRACKER,
     ExecutionResult,
     _cleanup_orphans,
     _cleanup_orphans_atexit,
     _kill_process,
-    _ORPHAN_LOCK,
-    _ORPHAN_TRACKER,
     _prepare_env,
     _use_thread_fallback,
     _validate_cmd_list,
@@ -30,7 +30,6 @@ from siyarix.subprocess_utils import (
     safe_run_sandboxed,
     safe_run_sync,
 )
-
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -678,7 +677,6 @@ kill-exception pass, and full async streaming path."""
 import itertools
 import subprocess
 from unittest.mock import patch
-
 
 # ── helpers ──────────────────────────────────────────────────────────────
 

@@ -126,28 +126,28 @@ The `ToolCapability` dataclass represents everything we know about a tool:
 ```python
 @dataclass
 class ToolCapability:
-    name: str                           # The tool's command name
-    description: str                    # What the tool does
-    category: ToolCategory              # Functional category (e.g., RECON)
-    risk_level: RiskLevel               # Safety rating (SAFE to CRITICAL)
-    aliases: list[str]                  # Other names for this tool
-    tags: list[str]                     # Keywords for AI matching
-    inputs: dict[str, str]              # What inputs the tool expects
-    input_schema: dict[str, Any]        # JSON schema for input validation
-    outputs: dict[str, str]             # What the tool returns
-    dependencies: list[str]             # Other tools required to run
-    related_tools: list[str]            # Similar alternatives
-    workflows: list[str]                # Known workflow associations
-    binary: str                         # Absolute or relative path to the binary
-    version: str                        # Current installed version
-    installed: bool                     # Is it available on the system?
-    source: str                         # Where this metadata came from
-    metadata: dict[str, Any]            # Extra info (e.g., ideal personas)
-    parser: str                         # Name of the parser module to use
-    availability: dict | None           # Logic rules for when this tool can run
-    usage_count: int                    # Telemetry: times used
-    last_used: float                    # Telemetry: timestamp of last use
-    avg_duration_ms: float              # Telemetry: average runtime
+    name: str  # The tool's command name
+    description: str  # What the tool does
+    category: ToolCategory  # Functional category (e.g., RECON)
+    risk_level: RiskLevel  # Safety rating (SAFE to CRITICAL)
+    aliases: list[str]  # Other names for this tool
+    tags: list[str]  # Keywords for AI matching
+    inputs: dict[str, str]  # What inputs the tool expects
+    input_schema: dict[str, Any]  # JSON schema for input validation
+    outputs: dict[str, str]  # What the tool returns
+    dependencies: list[str]  # Other tools required to run
+    related_tools: list[str]  # Similar alternatives
+    workflows: list[str]  # Known workflow associations
+    binary: str  # Absolute or relative path to the binary
+    version: str  # Current installed version
+    installed: bool  # Is it available on the system?
+    source: str  # Where this metadata came from
+    metadata: dict[str, Any]  # Extra info (e.g., ideal personas)
+    parser: str  # Name of the parser module to use
+    availability: dict | None  # Logic rules for when this tool can run
+    usage_count: int  # Telemetry: times used
+    last_used: float  # Telemetry: timestamp of last use
+    avg_duration_ms: float  # Telemetry: average runtime
 ```
 
 ### 🗂️ ToolCategory
@@ -227,10 +227,8 @@ def make_nmap_handler(tool_name: str) -> ToolHandler:
         # Execute safely
         result = await _run(tool_name, cmd, kwargs.get("timeout", 120))
 
-        return {
-            "status": "success" if not result.exit_code else "error",
-            "output": result.stdout
-        }
+        return {"status": "success" if not result.exit_code else "error", "output": result.stdout}
+
     return handler
 ```
 
@@ -260,12 +258,9 @@ You can combine signals for complex requirements:
 
 ```python
 # The tool requires BOTH nmap installed AND stealth mode enabled
-result = evaluate_availability({
-    "allOf": [
-        {"installed": {"name": "nmap"}},
-        {"env": {"var": "STEALTH_MODE"}}
-    ]
-}, ctx)
+result = evaluate_availability(
+    {"allOf": [{"installed": {"name": "nmap"}}, {"env": {"var": "STEALTH_MODE"}}]}, ctx
+)
 ```
 
 ---
@@ -279,9 +274,9 @@ Tool metadata (`tool_metadata.py`) is gathered using a reliable two-tier system:
 ```python
 from siyarix.tool_metadata import categorize_tool, risk_for_tool, describe_tool
 
-category = categorize_tool("nmap")     # Returns: ToolCategory.RECON
-risk = risk_for_tool("metasploit")     # Returns: RiskLevel.HIGH
-desc = describe_tool("nuclei")         # Returns: "Template-based vulnerability scanner"
+category = categorize_tool("nmap")  # Returns: ToolCategory.RECON
+risk = risk_for_tool("metasploit")  # Returns: RiskLevel.HIGH
+desc = describe_tool("nuclei")  # Returns: "Template-based vulnerability scanner"
 ```
 
 ---

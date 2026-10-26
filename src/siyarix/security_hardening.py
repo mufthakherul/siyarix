@@ -41,14 +41,14 @@ except ImportError:  # pragma: no cover
     Panel = None  # type: ignore[assignment,misc]
 
 __all__ = [
-    "InputValidator",
-    "SecretRedactor",
     "DangerAnalyzer",
     "DangerReport",
+    "InputValidator",
     "SeccompProfile",
-    "validator",
-    "redactor",
+    "SecretRedactor",
     "danger_analyzer",
+    "redactor",
+    "validator",
 ]
 
 logger = logging.getLogger(__name__)
@@ -465,30 +465,30 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     # (pattern, severity, description)
     # ── CRITICAL ──
     (
-        re.compile(r"\bsudo\s+rm\s+(?:-[a-zA-Z]*r\b)", re.I),
+        re.compile(r"\bsudo\s+rm\s+(?:-[a-zA-Z]*r\b)", re.IGNORECASE),
         "critical",
         "sudo rm -r",
     ),
     (
         re.compile(
             r"\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*\s+-[a-zA-Z]*f\b|-[a-zA-Z]*f[a-zA-Z]*\s+-[a-zA-Z]*r\b|-[a-zA-Z]*[rf][a-zA-Z]*[rf]\b|\s+--(?:recursive|force)\s+--(?:recursive|force)\b)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Recursive force delete (rm -rf)",
     ),
     (
-        re.compile(r"\bmkfs\b", re.I),
+        re.compile(r"\bmkfs\b", re.IGNORECASE),
         "critical",
         "Format disk (mkfs)",
     ),
     (
-        re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.I),
+        re.compile(r"\bdd\b.*\bof=/dev/(?!null\b|zero\b)\S+", re.IGNORECASE),
         "critical",
         "Raw disk overwrite (dd of=/dev/…)",
     ),
     (
-        re.compile(r"\bdd\s+if=", re.I),
+        re.compile(r"\bdd\s+if=", re.IGNORECASE),
         "critical",
         "Raw disk overwrite (dd)",
     ),
@@ -496,7 +496,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(
             r"\b(fdisk|sfdisk|cfdisk|gdisk|sgdisk|parted|mkswap|"
             r"ntfsformat|mkntfs|newfs(?:_\w+)?)\b",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Partition / swap device tool",
@@ -504,7 +504,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(
             r"\b(hdparm|nvme|cryptsetup|sg_format|sg_sanitize)\b.*/dev/",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "ATA/NVMe/LUKS wipe utility",
@@ -513,43 +513,43 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(
             r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
             r"dmsetup\s+remove)\b",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Volume/array destroy",
     ),
     (
-        re.compile(r"\bmdadm\b.*--zero-superblock\b", re.I),
+        re.compile(r"\bmdadm\b.*--zero-superblock\b", re.IGNORECASE),
         "critical",
         "mdadm zero-superblock",
     ),
     (
-        re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.I),
+        re.compile(r"\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize)\b", re.IGNORECASE),
         "critical",
         "btrfs destructive operation",
     ),
     (
-        re.compile(r"\b(?:xfs_repair\b.*-L\b|debugfs\s+-w\b)", re.I),
+        re.compile(r"\b(?:xfs_repair\b.*-L\b|debugfs\s+-w\b)", re.IGNORECASE),
         "critical",
         "Filesystem repair/write wipe",
     ),
     (
         re.compile(
             r"\b(?:tar|dc3dd|badblocks|fio|rsync)\b.*/dev/(?:sd|nvme|vd|xvd)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Archive/forensics write onto block device",
     ),
     (
-        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vd[a-z]|disk/|block/)", re.I),
+        re.compile(r">\s*/dev/(?:sd[a-z]|nvme\d+n\d+|vd[a-z]|disk/|block/)", re.IGNORECASE),
         "critical",
         "Write to block device",
     ),
     (
         re.compile(
             r"\b(?:cp|tee|cat)\b.*/dev/(?:sd[a-z]|nvme\d+|vd[a-z]|xvd[a-z]|disk/)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Copy/tee onto block device",
@@ -557,13 +557,13 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(
             r"\b(wipefs|sgdisk|blkdiscard|shred|nwipe|scrub|sg_unmap|dwipe|mop)\b.*/dev/",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Block-device wipe utility",
     ),
     (
-        re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.I),
+        re.compile(r"\b(?:srm|wipe|bcwipe)\b", re.IGNORECASE),
         "critical",
         "Secure file wipe utility",
     ),
@@ -571,7 +571,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(
             r"(?:os\s*\.\s*(?:system|popen)|subprocess\s*\.\s*(?:call|run|Popen))"
             r"\s*\([^)]*(?:\brm\b|\bdd\b|rmtree|/dev/sd)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Interpreter os.system/subprocess wipe",
@@ -579,18 +579,18 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(
             r"\bfind\b.*(?:-delete\b|-exec\s+(?:rm|shred|wipe|srm|dd|bcwipe)\b)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "find -delete / -exec rm",
     ),
     (
-        re.compile(r"(?:shutil\s*\.\s*)?rmtree\s*\(\s*['\"]?/", re.I),
+        re.compile(r"(?:shutil\s*\.\s*)?rmtree\s*\(\s*['\"]?/", re.IGNORECASE),
         "critical",
         "Python shutil.rmtree on system path",
     ),
     (
-        re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.I),
+        re.compile(r"\bsocat\b.*(?:OPEN|CREATE):/dev/(?:sd|nvme|vd|disk/)", re.IGNORECASE),
         "critical",
         "socat OPEN onto block device",
     ),
@@ -599,7 +599,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
             r"(?:\\\\\.\\physicaldrive|\bformat\s+[a-z]\s*:|"
             r"\bclear-disk\b|\bformat-volume\b|\binitialize-disk\b|"
             r"\bsdelete(?:64)?\b|\bcipher\b.*/w)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Windows disk wipe",
@@ -607,33 +607,33 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     (
         re.compile(
             r"\bdiskutil\b.*(erasedisk|secureerase|zerodisk|partitiondisk)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "macOS diskutil wipe",
     ),
     (
-        re.compile(r"\basr\b.*--erase\b", re.I),
+        re.compile(r"\basr\b.*--erase\b", re.IGNORECASE),
         "critical",
         "macOS asr --erase",
     ),
     (
         re.compile(
             r"(?:FileUtils\s*\.\s*rm_rf|rmSync|fs\s*\.\s*rmSync)\s*\(?\s*['\"]/",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Interpreter recursive delete of /",
     ),
     (
-        re.compile(r"\b(?:truncate|openssl|install)\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        re.compile(r"\b(?:truncate|openssl|install)\b.*/dev/(?:sd|nvme|vd|xvd)", re.IGNORECASE),
         "critical",
         "truncate/openssl/install onto block device",
     ),
     (
         re.compile(
             r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Recursive chmod/chown on /",
@@ -643,28 +643,28 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
             r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
             r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"
             r"(?:=|\s*)(?:\d+=)?/dev/(?:sd|nvme|vd|xvd|disk/)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Download onto block device",
     ),
     (
-        re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.I),
+        re.compile(r"\blwp-download\b.*/dev/(?:sd|nvme|vd|xvd|disk/)", re.IGNORECASE),
         "critical",
         "lwp-download onto block device",
     ),
     (
-        re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.I),
+        re.compile(r"\bln\b.*/dev/null.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
         "critical",
         "Symlink /dev/null over auth file",
     ),
     (
-        re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.I),
+        re.compile(r"(?:>{1,2}|\btee\b)\s*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
         "critical",
         "Redirect/tee onto auth file",
     ),
     (
-        re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.I),
+        re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
         "critical",
         "truncate/shred/install onto auth file",
     ),
@@ -672,7 +672,7 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(
             r"(?:open|File\.write|IO\.write|writeFile(?:Sync)?|file_put_contents)\s*\(\s*"
             r"['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/)",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "Interpreter write to block device",
@@ -681,196 +681,196 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         re.compile(
             r"Path\s*\(\s*['\"]?/dev/(?:sd|nvme|vd|xvd|hd|loop|dm-|mapper/).{0,80}"
             r"\.write_(?:bytes|text)\s*\(",
-            re.I,
+            re.IGNORECASE,
         ),
         "critical",
         "pathlib write to block device",
     ),
     (
-        re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.I),
+        re.compile(r"\bqemu-img\b.*/dev/(?:sd|nvme|vd|xvd)", re.IGNORECASE),
         "critical",
         "qemu-img write onto block device",
     ),
     (
-        re.compile(r"\brsync\b.*--delete.*/", re.I),
+        re.compile(r"\brsync\b.*--delete.*/", re.IGNORECASE),
         "critical",
         "rsync --delete on system path",
     ),
     (
-        re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.I),
+        re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.IGNORECASE),
         "critical",
         "Move system directory",
     ),
     (
-        re.compile(r"\bmv\s+/.*\s+/dev/null", re.I),
+        re.compile(r"\bmv\s+/.*\s+/dev/null", re.IGNORECASE),
         "critical",
         "Move files to /dev/null (data destruction)",
     ),
     (
-        re.compile(r">\s*/etc/(?:passwd|shadow|sudoers)", re.I),
+        re.compile(r">\s*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
         "critical",
         "Overwrite auth files",
     ),
     (
-        re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.I),
+        re.compile(r":\(\)\s*\{\s*:\|:&\s*\}\s*;", re.IGNORECASE),
         "critical",
         "Bash fork bomb",
     ),
     (
         # H-09: start-of-line or word-boundary + the command name + args
         # ensures "chmod" inside tool names like "wichmod" won't match.
-        re.compile(r"(?:^|(?<=\s))chmod\s+777\s+/", re.I | re.M),
+        re.compile(r"(?:^|(?<=\s))chmod\s+777\s+/", re.IGNORECASE | re.MULTILINE),
         "critical",
         "World-writable root (chmod 777 /)",
     ),
     # ── HIGH ──
-    (re.compile(r"\bshutdown\b", re.I), "high", "System shutdown"),
-    (re.compile(r"\breboot\b", re.I), "high", "System reboot"),
-    (re.compile(r"\bhalt\b", re.I), "high", "System halt"),
-    (re.compile(r"\binit\s+0\b", re.I), "high", "init 0 (shutdown)"),
+    (re.compile(r"\bshutdown\b", re.IGNORECASE), "high", "System shutdown"),
+    (re.compile(r"\breboot\b", re.IGNORECASE), "high", "System reboot"),
+    (re.compile(r"\bhalt\b", re.IGNORECASE), "high", "System halt"),
+    (re.compile(r"\binit\s+0\b", re.IGNORECASE), "high", "init 0 (shutdown)"),
     (
-        re.compile(r"\bchown\s+.*\s+/(?!tmp)", re.I),
+        re.compile(r"\bchown\s+.*\s+/(?!tmp)", re.IGNORECASE),
         "high",
         "chown on system directories",
     ),
-    (re.compile(r">\s*/etc/", re.I), "high", "Overwrite system config"),
+    (re.compile(r">\s*/etc/", re.IGNORECASE), "high", "Overwrite system config"),
     (
-        re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh|python)\b", re.I),
+        re.compile(r"\bcurl\b.*\|\s*(?:sudo\s+)?(?:bash|sh|python)\b", re.IGNORECASE),
         "high",
         "Pipe curl to shell/python",
     ),
     (
-        re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh|python)\b", re.I),
+        re.compile(r"\bwget\b.*\|\s*(?:sudo\s+)?(?:bash|sh|python)\b", re.IGNORECASE),
         "high",
         "Pipe wget to shell/python",
     ),
-    (re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.I), "high", "SQL DROP statement"),
+    (re.compile(r"\bDROP\s+(?:TABLE|DATABASE)\b", re.IGNORECASE), "high", "SQL DROP statement"),
     (
-        re.compile(r"\bDELETE\s+FROM\b(?!.*\bWHERE\b)", re.I),
+        re.compile(r"\bDELETE\s+FROM\b(?!.*\bWHERE\b)", re.IGNORECASE),
         "high",
         "SQL DELETE without WHERE",
     ),
-    (re.compile(r"\bTRUNCATE\s+TABLE\b", re.I), "high", "SQL TRUNCATE TABLE"),
+    (re.compile(r"\bTRUNCATE\s+TABLE\b", re.IGNORECASE), "high", "SQL TRUNCATE TABLE"),
     # ── MEDIUM ──
-    (re.compile(r"\brm\s+", re.I), "medium", "File deletion (rm)"),
-    (re.compile(r"\bkillall\b", re.I), "medium", "Kill all processes"),
-    (re.compile(r"\bpkill\s+-9\b", re.I), "medium", "Force kill processes"),
-    (re.compile(r"\biptables\s+-F\b", re.I), "medium", "Flush firewall rules"),
-    (re.compile(r"\bufw\s+disable\b", re.I), "medium", "Disable firewall"),
+    (re.compile(r"\brm\s+", re.IGNORECASE), "medium", "File deletion (rm)"),
+    (re.compile(r"\bkillall\b", re.IGNORECASE), "medium", "Kill all processes"),
+    (re.compile(r"\bpkill\s+-9\b", re.IGNORECASE), "medium", "Force kill processes"),
+    (re.compile(r"\biptables\s+-F\b", re.IGNORECASE), "medium", "Flush firewall rules"),
+    (re.compile(r"\bufw\s+disable\b", re.IGNORECASE), "medium", "Disable firewall"),
     (
-        re.compile(r"\bsystemctl\s+(?:stop|disable)\b", re.I),
+        re.compile(r"\bsystemctl\s+(?:stop|disable)\b", re.IGNORECASE),
         "medium",
         "Stop/disable service",
     ),
     (
-        re.compile(r"\bnc\s+-[a-zA-Z]*l", re.I),
+        re.compile(r"\bnc\s+-[a-zA-Z]*l", re.IGNORECASE),
         "medium",
         "Netcat listener (possible reverse shell)",
     ),
     (
-        re.compile(r"\bpython[23]?\s+-c\s+.*socket", re.I),
+        re.compile(r"\bpython[23]?\s+-c\s+.*socket", re.IGNORECASE),
         "medium",
         "Python socket (possible reverse shell)",
     ),
-    (re.compile(r"/dev/tcp/", re.I), "medium", "Bash /dev/tcp (reverse shell pattern)"),
-    (re.compile(r"\bxmrig\b", re.I), "medium", "Cryptominer (xmrig)"),
-    (re.compile(r"\bcpuminer\b", re.I), "medium", "Cryptominer (cpuminer)"),
-    (re.compile(r"\bcrontab\s+-e\b", re.I), "medium", "Edit crontab (persistence)"),
+    (re.compile(r"/dev/tcp/", re.IGNORECASE), "medium", "Bash /dev/tcp (reverse shell pattern)"),
+    (re.compile(r"\bxmrig\b", re.IGNORECASE), "medium", "Cryptominer (xmrig)"),
+    (re.compile(r"\bcpuminer\b", re.IGNORECASE), "medium", "Cryptominer (cpuminer)"),
+    (re.compile(r"\bcrontab\s+-e\b", re.IGNORECASE), "medium", "Edit crontab (persistence)"),
     (
-        re.compile(r">>\s*(?:~/\.bashrc|~/\.zshrc|~/\.profile)", re.I),
+        re.compile(r">>\s*(?:~/\.bashrc|~/\.zshrc|~/\.profile)", re.IGNORECASE),
         "medium",
         "Modify shell rc (persistence)",
     ),
-    (re.compile(r"\bbase64\s+-d\s*\|", re.I), "high", "Base64 decode pipe (encoded execution)"),
-    (re.compile(r"\|\s*base64\s+-d\b", re.I), "high", "Pipe to base64 decode (encoded execution)"),
+    (re.compile(r"\bbase64\s+-d\s*\|", re.IGNORECASE), "high", "Base64 decode pipe (encoded execution)"),
+    (re.compile(r"\|\s*base64\s+-d\b", re.IGNORECASE), "high", "Pipe to base64 decode (encoded execution)"),
     (
-        re.compile(r"\bcat\s+(?:/etc/shadow|~/\.ssh/|/root/\.ssh/)", re.I),
+        re.compile(r"\bcat\s+(?:/etc/shadow|~/\.ssh/|/root/\.ssh/)", re.IGNORECASE),
         "critical",
         "Credential exfiltration (shadow/ssh)",
     ),
     # ── Windows-specific ──
-    (re.compile(r"\bformat\s+[a-zA-Z]:", re.I), "critical", "Windows format disk"),
+    (re.compile(r"\bformat\s+[a-zA-Z]:", re.IGNORECASE), "critical", "Windows format disk"),
     (
-        re.compile(r"\bdel\s+/[fF]\s+[a-zA-Z]:\\", re.I),
+        re.compile(r"\bdel\s+/[fF]\s+[a-zA-Z]:\\", re.IGNORECASE),
         "critical",
         "Windows force delete system drive",
     ),
     (
-        re.compile(r"\brmdir\s+/[sSqQ]", re.I),
+        re.compile(r"\brmdir\s+/[sSqQ]", re.IGNORECASE),
         "critical",
         "Windows recursive directory delete (rmdir /S)",
     ),
-    (re.compile(r"\breg\s+delete\s+HKLM", re.I), "critical", "Windows registry delete (HKLM)"),
+    (re.compile(r"\breg\s+delete\s+HKLM", re.IGNORECASE), "critical", "Windows registry delete (HKLM)"),
     (
         re.compile(
-            r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.I
+            r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE
         ),
         "high",
         "Windows registry persistence key deletion",
     ),
     (
-        re.compile(r"\bbcdedit\s+/set\s+{default}\s+.*\b(?:boot|recovery)sequence", re.I),
+        re.compile(r"\bbcdedit\s+/set\s+{default}\s+.*\b(?:boot|recovery)sequence", re.IGNORECASE),
         "critical",
         "Windows boot config tampering",
     ),
-    (re.compile(r"\bdiskpart\b", re.I), "high", "Windows disk partition manipulation"),
+    (re.compile(r"\bdiskpart\b", re.IGNORECASE), "high", "Windows disk partition manipulation"),
     (
-        re.compile(r"\bvssadmin\s+delete\s+shadows", re.I),
+        re.compile(r"\bvssadmin\s+delete\s+shadows", re.IGNORECASE),
         "high",
         "Windows volume shadow copy deletion",
     ),
     (
-        re.compile(r"\bwmic\s+(?:shadowcopy|volume)\s+delete", re.I),
+        re.compile(r"\bwmic\s+(?:shadowcopy|volume)\s+delete", re.IGNORECASE),
         "high",
         "Windows WMIC volume deletion",
     ),
-    (re.compile(r"\bwevtutil\s+cl\b", re.I), "high", "Windows event log clearing"),
-    (re.compile(r"\bClear-EventLog\b", re.I), "high", "PowerShell event log clearing"),
-    (re.compile(r"\bcipher\s+/w:", re.I), "medium", "Windows disk overwrite (cipher /w)"),
+    (re.compile(r"\bwevtutil\s+cl\b", re.IGNORECASE), "high", "Windows event log clearing"),
+    (re.compile(r"\bClear-EventLog\b", re.IGNORECASE), "high", "PowerShell event log clearing"),
+    (re.compile(r"\bcipher\s+/w:", re.IGNORECASE), "medium", "Windows disk overwrite (cipher /w)"),
     (
-        re.compile(r"\bnet\s+(?:user|localgroup)\s+/delete", re.I),
+        re.compile(r"\bnet\s+(?:user|localgroup)\s+/delete", re.IGNORECASE),
         "medium",
         "Windows user/group deletion",
     ),
     (
-        re.compile(r"\bpowershell\s+.*-EncodedCommand\b", re.I),
+        re.compile(r"\bpowershell\s+.*-EncodedCommand\b", re.IGNORECASE),
         "medium",
         "PowerShell encoded command (obfuscation)",
     ),
-    (re.compile(r"\bsc\s+(?:stop|delete)\s+\w+", re.I), "medium", "Windows service stop/delete"),
+    (re.compile(r"\bsc\s+(?:stop|delete)\s+\w+", re.IGNORECASE), "medium", "Windows service stop/delete"),
     (
-        re.compile(r"\breg\s+add\s+HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", re.I),
+        re.compile(r"\breg\s+add\s+HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE),
         "medium",
         "Windows registry persistence (Run key)",
     ),
     (
-        re.compile(r"\breg\s+add\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.I),
+        re.compile(r"\breg\s+add\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE),
         "medium",
         "Windows registry persistence (CurrentUser Run key)",
     ),
-    (re.compile(r"\bschtasks\s+/create\b", re.I), "medium", "Windows scheduled task creation"),
-    (re.compile(r"\bschtasks\s+/delete\b", re.I), "high", "Windows scheduled task deletion"),
+    (re.compile(r"\bschtasks\s+/create\b", re.IGNORECASE), "medium", "Windows scheduled task creation"),
+    (re.compile(r"\bschtasks\s+/delete\b", re.IGNORECASE), "high", "Windows scheduled task deletion"),
     (
-        re.compile(r"\bGet-WmiObject\s+Win32_ShadowCopy\b.*\bDelete\(\)", re.I),
+        re.compile(r"\bGet-WmiObject\s+Win32_ShadowCopy\b.*\bDelete\(\)", re.IGNORECASE),
         "medium",
         "PowerShell WMI shadow copy deletion",
     ),
-    (re.compile(r"\bRemove-Item\s+-Recurse\b", re.I), "high", "PowerShell recursive deletion"),
-    (re.compile(r"\bRemove-Item\s+.*\\$", re.I), "high", "PowerShell drive wipe"),
-    (re.compile(r"\bdel\s+/[fF]\s+/[sS]", re.I), "high", "Windows recursive force delete"),
+    (re.compile(r"\bRemove-Item\s+-Recurse\b", re.IGNORECASE), "high", "PowerShell recursive deletion"),
+    (re.compile(r"\bRemove-Item\s+.*\\$", re.IGNORECASE), "high", "PowerShell drive wipe"),
+    (re.compile(r"\bdel\s+/[fF]\s+/[sS]", re.IGNORECASE), "high", "Windows recursive force delete"),
     (
-        re.compile(r"\bGet-ChildItem\s+.*\|\s*Remove-Item", re.I),
+        re.compile(r"\bGet-ChildItem\s+.*\|\s*Remove-Item", re.IGNORECASE),
         "high",
         "PowerShell piped mass deletion",
     ),
     # ── INFO ──
-    (re.compile(r"\bsudo\b", re.I), "info", "Sudo privilege escalation"),
+    (re.compile(r"\bsudo\b", re.IGNORECASE), "info", "Sudo privilege escalation"),
     # ── LOW ──
     # H-09: use start-of-line-aware pattern so tool names containing
     # "chmod" (e.g. "gochmod") don't false-positive.
-    (re.compile(r"(?:^|(?<=\s))chmod\b", re.I | re.M), "low", "Permission change (chmod)"),
-    (re.compile(r"\bchown\b", re.I), "low", "Ownership change (chown)"),
-    (re.compile(r"\bcrontab\b", re.I), "low", "Crontab modification"),
+    (re.compile(r"(?:^|(?<=\s))chmod\b", re.IGNORECASE | re.MULTILINE), "low", "Permission change (chmod)"),
+    (re.compile(r"\bchown\b", re.IGNORECASE), "low", "Ownership change (chown)"),
+    (re.compile(r"\bcrontab\b", re.IGNORECASE), "low", "Crontab modification"),
 ]
 
 _SEVERITY_RANK = {

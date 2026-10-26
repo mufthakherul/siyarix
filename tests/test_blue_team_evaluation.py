@@ -1294,10 +1294,10 @@ if __name__ == "__main__":
         ok, msg = check_plan(planner, goal, expected_tools, min_steps, max_steps)
         if ok:
             passed += 1
-            print(f"  [92m[PASS][0m ({passed:3d}) {goal[:70]}")
+            print(f"  \x1b[92m[PASS]\x1b[0m ({passed:3d}) {goal[:70]}")
         else:
             failed += 1
-            print(f"  [91m[FAIL][0m ({failed:3d}) {goal[:70]}")
+            print(f"  \x1b[91m[FAIL]\x1b[0m ({failed:3d}) {goal[:70]}")
             print(f"    Reason: {msg}")
             failures.append((goal, msg))
 

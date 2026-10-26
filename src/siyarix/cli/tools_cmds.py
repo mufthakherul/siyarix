@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -64,9 +64,9 @@ def tools_list(
         False, "--installed", "-i", help="Show only installed tools"
     ),
     missing_only: bool = typer.Option(False, "--missing", "-m", help="Show only missing tools"),
-    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
-    persona: Optional[str] = typer.Option(None, "--persona", "-p", help="Filter by persona"),
-    risk: Optional[str] = typer.Option(None, "--risk", "-r", help="Filter by risk level"),
+    category: str | None = typer.Option(None, "--category", "-c", help="Filter by category"),
+    persona: str | None = typer.Option(None, "--persona", "-p", help="Filter by persona"),
+    risk: str | None = typer.Option(None, "--risk", "-r", help="Filter by risk level"),
     json_out: bool = typer.Option(False, "--json", help="Output results as JSON"),
 ) -> None:
     """List security tools with installation status and customizations."""
@@ -297,15 +297,15 @@ def tools_info(tool: str = typer.Argument(..., help="Name of tool to inspect")) 
 
 @tools_app.command("install")
 def tools_install(
-    tools: Optional[list[str]] = typer.Argument(None, help="Tool(s) to install"),
+    tools: list[str] | None = typer.Argument(None, help="Tool(s) to install"),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
-    method: Optional[str] = typer.Option(
+    method: str | None = typer.Option(
         None,
         "--method",
         "-m",
         help="Installer method (winget, choco, scoop, apt, pacman, brew, pkg, pip, go)",
     ),
-    preset: Optional[str] = typer.Option(
+    preset: str | None = typer.Option(
         None, "--preset", "-p", help="Install tool preset: recon|web|network|pentester|devsecops"
     ),
     dry_run: bool = typer.Option(
@@ -408,7 +408,7 @@ def tools_uninstall(
 
 @tools_app.command("update")
 def tools_update(
-    tools: Optional[list[str]] = typer.Argument(None, help="Specific tool(s) to update"),
+    tools: list[str] | None = typer.Argument(None, help="Specific tool(s) to update"),
     all_tools: bool = typer.Option(
         False, "--all", "-a", help="Update all installed security tools"
     ),
@@ -440,25 +440,26 @@ def tools_update(
 @tools_app.command("modify")
 def tools_modify(
     tool: str = typer.Argument(..., help="Tool name to modify"),
-    binary: Optional[str] = typer.Option(
+    binary: str | None = typer.Option(
         None, "--binary", "-b", help="Custom executable binary path"
     ),
-    risk: Optional[str] = typer.Option(
+    risk: str | None = typer.Option(
         None, "--risk", "-r", help="Override risk level: safe|low|medium|high|critical"
     ),
-    category: Optional[str] = typer.Option(None, "--category", "-c", help="Override category"),
-    timeout: Optional[int] = typer.Option(
+    category: str | None = typer.Option(None, "--category", "-c", help="Override category"),
+    timeout: int | None = typer.Option(
         None, "--timeout", "-t", help="Execution timeout in seconds"
     ),
-    default_args: Optional[str] = typer.Option(
+    default_args: str | None = typer.Option(
         None, "--default-args", help="Arguments to always include (space separated)"
     ),
-    description: Optional[str] = typer.Option(
+    description: str | None = typer.Option(
         None, "--description", "-d", help="Custom tool description"
     ),
 ) -> None:
     """Modify configuration, binary location, default flags, or risk level for a tool."""
     import shlex
+
     from ..tool_config import ToolConfigManager
 
     cfg_mgr = ToolConfigManager.get_instance()
@@ -506,7 +507,7 @@ def tools_disable(tool: str = typer.Argument(..., help="Tool name to disable")) 
 
 @tools_app.command("reset")
 def tools_reset(
-    tool: Optional[str] = typer.Argument(
+    tool: str | None = typer.Argument(
         None, help="Tool name to reset (omit to reset all modifications)"
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
@@ -537,13 +538,14 @@ def tools_add_custom(
     risk: str = typer.Option(
         "safe", "--risk", "-r", help="Risk level: safe|low|medium|high|critical"
     ),
-    default_args: Optional[str] = typer.Option(
+    default_args: str | None = typer.Option(
         None, "--default-args", help="Default arguments (space separated)"
     ),
     timeout: int = typer.Option(120, "--timeout", "-t", help="Execution timeout in seconds"),
 ) -> None:
     """Register a new custom script or tool in Siyarix."""
     import shlex
+
     from ..tool_config import CustomToolDefinition, ToolConfigManager
 
     cfg_mgr = ToolConfigManager.get_instance()
@@ -577,7 +579,7 @@ def tools_remove_custom(
 
 @tools_app.command("check")
 def tools_check(
-    tools: Optional[list[str]] = typer.Argument(
+    tools: list[str] | None = typer.Argument(
         None, help="Specific tools to check (default: all installed)"
     ),
 ) -> None:

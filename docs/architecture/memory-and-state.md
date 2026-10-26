@@ -126,7 +126,7 @@ memory = MemoryManager()
 # Store a new memory with rich metadata
 await memory.store(
     content="Host 10.0.0.1 has Apache 2.4.41 running on port 80",
-    metadata={"source": "nmap", "session_id": "sess-123"}
+    metadata={"source": "nmap", "session_id": "sess-123"},
 )
 
 # Search for related concepts
@@ -264,11 +264,7 @@ restored = kernel.load(session_id)
 Located at `siyarix/cache_manager.py`, the **CacheManager** speeds up operations by temporarily holding onto frequently accessed data.
 
 ```python
-cache = CacheManager(
-    max_size=1000,
-    ttl=300,
-    persist_path="~/.siyarix/cache.db"
-)
+cache = CacheManager(max_size=1000, ttl=300, persist_path="~/.siyarix/cache.db")
 
 # Easily monitor cache health
 stats = cache.get_stats()
@@ -299,20 +295,21 @@ Located at `siyarix/learning_system.py`, the **Continuous Learning System** is h
 @dataclass
 class LearnedStep:
     tool: str
-    command_template: str     # E.g., "nmap -sS {target}"
+    command_template: str  # E.g., "nmap -sS {target}"
     description: str
     args: dict
+
 
 @dataclass
 class LearnedSkill:
     skill_id: str
-    intent_pattern: str       # The anonymised intent
+    intent_pattern: str  # The anonymised intent
     steps: list[LearnedStep]
-    confidence: float         # 0.0 to 1.0 (Bayesian-smoothed)
+    confidence: float  # 0.0 to 1.0 (Bayesian-smoothed)
     usage_count: int
     success_count: int
-    tokens: list[str]         # NLP tokens for rapid similarity matching
-    source: str               # Origin: 'llm', 'offline', or 'inferred'
+    tokens: list[str]  # NLP tokens for rapid similarity matching
+    source: str  # Origin: 'llm', 'offline', or 'inferred'
 ```
 
 ### 🔄 The Learning Flow

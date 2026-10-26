@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+
 import pytest
+
 from siyarix.parsers.amass_parser import AmassParser
 from siyarix.parsers.assetfinder_parser import AssetfinderParser
 from siyarix.parsers.dig_parser import DigParser
@@ -14,11 +16,9 @@ from siyarix.parsers.dnstwist_parser import DnstwistParser
 from siyarix.parsers.dnsx_parser import DnsxParser
 from siyarix.parsers.gau_parser import GauParser
 from siyarix.parsers.recon_ng_parser import ReconNgParser
+from siyarix.parsers.subfinder_parser import SubfinderParser
 from siyarix.parsers.sublist3r_parser import Sublist3rParser
 from siyarix.parsers.theharvester_parser import TheharvesterParser
-
-
-from siyarix.parsers.subfinder_parser import SubfinderParser
 
 
 def _check_finding(finding, expected_tool, min_fields=None):

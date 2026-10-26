@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-import json
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 import urllib.error
 import urllib.request
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from siyarix.events import Event, EventType, get_event_bus, reset_event_bus
 from siyarix.webhooks import WebhookDispatcher, webhook_dispatcher
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

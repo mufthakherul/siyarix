@@ -33,12 +33,13 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
-from siyarix.config import get_config_dir
+
 from siyarix._platform import safe_chmod as _safe_chmod
+from siyarix.config import get_config_dir
 
 HAS_AESGCM = False
 
@@ -446,8 +447,7 @@ class CredentialStore:
         if not HAS_AESGCM or not self._master_key:
             return self._decrypt(encrypted)
         payload = encrypted
-        if payload.startswith(_ENVELOPE_V2):
-            payload = payload[len(_ENVELOPE_V2) :]
+        payload = payload.removeprefix(_ENVELOPE_V2)
         raw = base64.b64decode(payload)
         nonce = raw[:_AES_NONCE_SIZE]
         ct = raw[_AES_NONCE_SIZE:]
@@ -668,6 +668,7 @@ class CredentialStore:
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
+
                         import boto3  # type: ignore[import-not-found] # pyright: ignore[reportMissingImports]
 
                         kms_key_blob = _b64.b64decode(obj["encrypted_key"])
@@ -748,6 +749,7 @@ class CredentialStore:
                         if not self._kms_available():
                             raise RuntimeError("KMS provider configured but boto3 not available")
                         import base64 as _b64
+
                         import boto3  # pyright: ignore[reportMissingImports]
 
                         encrypted_key = obj["encrypted_key"]
@@ -843,6 +845,7 @@ class CredentialStore:
         if use_kms:
             try:
                 import base64 as _b64
+
                 import boto3  # pyright: ignore[reportMissingImports]
 
                 if not self._kms_data_key or not self._kms_encrypted_key:
@@ -1111,11 +1114,11 @@ def store_credential(name: str, value: str, cred_type: str = "api_key") -> Crede
 
 __all__ = [
     "HAS_AESGCM",
-    "CredentialType",
-    "Environment",
     "Credential",
     "CredentialStore",
-    "get_creds",
+    "CredentialType",
+    "Environment",
     "get_credential",
+    "get_creds",
     "store_credential",
 ]

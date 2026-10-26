@@ -10,18 +10,20 @@ from __future__ import annotations
 
 import difflib
 import time
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 from prompt_toolkit.completion import Completer, Completion, PathCompleter
 from prompt_toolkit.document import Document
-from rich.panel import Panel
-from rich.text import Text
 from rich.align import Align
 from rich.columns import Columns
-from rich.console import Console as RichConsole, Group
+from rich.console import Console as RichConsole
+from rich.console import Group
+from rich.panel import Panel
+from rich.text import Text
 
-from ..output import output as _output_engine
 from ..branding import design_token, resolve_theme, resolve_version
+from ..output import output as _output_engine
 from .commands import CommandRegistry
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -845,9 +847,7 @@ def render_welcome_banner(
         "offline": "Offline mode — /queue for queued commands | /scan <target> for local scans",
         "autonomous": "Autonomous mode — /model to configure LLM | /agent run <goal>",
     }
-    tip = mode_tips.get(
-        mode, "Press Tab for autocomplete | ? or /help for all commands"
-    )
+    tip = mode_tips.get(mode, "Press Tab for autocomplete | ? or /help for all commands")
 
     footer_content = Text.assemble(
         ("Type natural language ", f"bold {accent}"),
@@ -895,6 +895,7 @@ class SplitPane:
     ) -> str:
         from rich.panel import Panel as RichPanel
         from rich.text import Text as RichText
+
         from .console import get_terminal_size
 
         term_cols, _ = get_terminal_size(fallback=(120, 30))
@@ -1187,8 +1188,8 @@ class ConfigPanel:
 
 
 __all__ = [
-    "SmartAutocomplete",
-    "render_welcome_banner",
-    "SplitPane",
     "ConfigPanel",
+    "SmartAutocomplete",
+    "SplitPane",
+    "render_welcome_banner",
 ]

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-
 from siyarix.chat.prompts import platform_context
 from siyarix.personas import (
     build_persona_prompt,
@@ -12,7 +11,6 @@ from siyarix.personas import (
     get_persona,
     list_personas,
 )
-
 
 PERSONAS = get_all_personas()
 

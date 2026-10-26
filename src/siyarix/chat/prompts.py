@@ -7,14 +7,14 @@ rendering functions remain here as they are presentation logic.
 
 from __future__ import annotations
 
-import sys
 import platform as _platform
+import sys
 from typing import Any
 
-from rich.text import Text
 from rich.console import RenderableType
+from rich.text import Text
 
-from ..data_loader import load_text, load_json
+from ..data_loader import load_json, load_text
 
 # ── Mode colour map ───────────────────────────────────────────────────────
 
@@ -320,16 +320,16 @@ def make_bottom_toolbar(
 
 
 __all__ = [
-    "mode_color",
-    "load_system_prompt",
-    "load_neutral_prompt",
-    "load_compact_prompt",
     "load_compact_neutral_prompt",
+    "load_compact_prompt",
+    "load_neutral_prompt",
     "load_rules",
-    "platform_context",
-    "make_prompt_top",
-    "make_prompt_bottom",
-    "make_prompt_bar",
+    "load_system_prompt",
     "make_bottom_toolbar",
+    "make_prompt_bar",
+    "make_prompt_bottom",
+    "make_prompt_top",
+    "mode_color",
     "mode_prompt_hint",
+    "platform_context",
 ]

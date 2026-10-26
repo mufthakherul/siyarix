@@ -132,9 +132,9 @@ def _resolve_path(category: str, filename: str) -> Path:
 
 
 __all__ = [
-    "load_text",
-    "load_json",
     "file_exists",
-    "list_files",
     "list_custom_personas",
+    "list_files",
+    "load_json",
+    "load_text",
 ]

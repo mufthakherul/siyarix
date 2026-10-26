@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -89,8 +88,8 @@ def list_plugins() -> None:
 @plugins_app.command("search")
 def search_plugins(
     query: str = typer.Argument("", help="Search query (name, category, tag, or description)"),
-    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
-    tag: Optional[str] = typer.Option(None, "--tag", "-t", help="Filter by tag"),
+    category: str | None = typer.Option(None, "--category", "-c", help="Filter by category"),
+    tag: str | None = typer.Option(None, "--tag", "-t", help="Filter by tag"),
 ) -> None:
     """Search the remote Siyarix plugin registry."""
     mgr = PluginManager.get_instance()
@@ -183,7 +182,7 @@ def uninstall_plugin(
 
 @plugins_app.command("update")
 def update_plugins(
-    name: Optional[str] = typer.Argument(
+    name: str | None = typer.Argument(
         None, help="Specific plugin name to update (or all if omitted)"
     ),
 ) -> None:

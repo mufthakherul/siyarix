@@ -9,10 +9,10 @@ and rich side-by-side or tabular execution preview and switching.
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
-import logging
 from typing import Any
 
 from rich.box import ROUNDED
@@ -299,7 +299,7 @@ class SubagentManager:
         self, record: SubagentRecord, chat_session: Any = None
     ) -> SubagentRecord:
         """Execute the subagent lifecycle using AgentCore."""
-        from ..core import AgentCore, AgentMode, AgentGoal
+        from ..core import AgentCore, AgentGoal, AgentMode
 
         record.status = SubagentStatus.PLANNING
         record.started_at = datetime.now(timezone.utc)
@@ -534,9 +534,9 @@ class SubagentManager:
 
 
 __all__ = [
+    "SubagentManager",
+    "SubagentRecord",
     "SubagentRole",
     "SubagentStatus",
     "SubagentTask",
-    "SubagentRecord",
-    "SubagentManager",
 ]

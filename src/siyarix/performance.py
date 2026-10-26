@@ -164,4 +164,4 @@ class PerformanceOptimizer:
 performance_optimizer = PerformanceOptimizer()
 
 
-__all__ = ["PerformanceOptimizer", "PerformanceConfig", "SystemResources", "performance_optimizer"]
+__all__ = ["PerformanceConfig", "PerformanceOptimizer", "SystemResources", "performance_optimizer"]

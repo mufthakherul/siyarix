@@ -83,7 +83,7 @@ class TestChaosSimulation:
 
     @pytest.mark.asyncio
     async def test_1c_partial_module_failure_isolation(self):
-        from siyarix.security_hardening import validator, danger_analyzer
+        from siyarix.security_hardening import danger_analyzer, validator
 
         report = danger_analyzer.analyze("echo hello")
         assert not report.is_dangerous
@@ -150,6 +150,7 @@ class TestChaosSimulation:
     @pytest.mark.asyncio
     async def test_1f_executor_validate_cmd_list_blocking(self):
         from unittest.mock import patch
+
         from siyarix.subprocess_utils import _validate_cmd_list
 
         destructive_cmds = [
@@ -212,9 +213,9 @@ class TestAdversarialInput:
                 if pattern.search(payload):
                     detected = True
                     break
-            assert (
-                detected
-            ), f"Injection not detected: {payload!r} (expected pattern '{expected_name}')"
+            assert detected, (
+                f"Injection not detected: {payload!r} (expected pattern '{expected_name}')"
+            )
 
     @pytest.mark.asyncio
     async def test_2c_danger_patterns_catch_destructive(self):
@@ -237,9 +238,9 @@ class TestAdversarialInput:
             report = danger_analyzer.analyze(cmd)
             min_rank = sev_rank.get(expected_min, 0)
             actual_rank = sev_rank.get(report.severity, 0)
-            assert (
-                actual_rank >= min_rank
-            ), f"{cmd!r} -> severity {report.severity} (expected >= {expected_min})"
+            assert actual_rank >= min_rank, (
+                f"{cmd!r} -> severity {report.severity} (expected >= {expected_min})"
+            )
 
     @pytest.mark.asyncio
     async def test_2d_conflicting_tasks_safe(self):
@@ -282,11 +283,11 @@ class TestSelfHealing:
             jitter = random.uniform(0, base * 0.1)
             return min(60.0, base + jitter)
 
-        for attempt in range(0, 20):
+        for attempt in range(20):
             delay = await calculate_backoff_delay(attempt)
-            assert (
-                0.01 <= delay <= 60.0
-            ), f"Backoff delay {delay}s out of bounds for attempt {attempt}"
+            assert 0.01 <= delay <= 60.0, (
+                f"Backoff delay {delay}s out of bounds for attempt {attempt}"
+            )
 
     @pytest.mark.asyncio
     async def test_4b_is_transient_error(self):

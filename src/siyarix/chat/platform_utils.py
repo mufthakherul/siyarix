@@ -1,22 +1,29 @@
 from __future__ import annotations
+
 import logging
-import platform as _platform
 import os
+import platform as _platform
 import shutil
 import sys
 from typing import Any
 
-from siyarix.config import get_config_dir
 from siyarix._platform import (
-    is_windows as _is_windows,
-    is_termux as _is_termux,
-    is_ish as _is_ish,
-    is_kali_linux,
-    is_parrot_os,
     detect_security_distro,
     get_platform_id,
     get_termux_prefix,
+    is_kali_linux,
+    is_parrot_os,
 )
+from siyarix._platform import (
+    is_ish as _is_ish,
+)
+from siyarix._platform import (
+    is_termux as _is_termux,
+)
+from siyarix._platform import (
+    is_windows as _is_windows,
+)
+from siyarix.config import get_config_dir
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,8 @@
-import pytest
 import os
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from siyarix.chat import SiyarixChat
 from siyarix.chat.commands import CommandProfile
 

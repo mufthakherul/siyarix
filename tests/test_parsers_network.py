@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+
 from siyarix.parsers.dmitry_parser import DmitryParser
 from siyarix.parsers.findomain_parser import FindomainParser
 from siyarix.parsers.ike_scan_parser import IkeScanParser

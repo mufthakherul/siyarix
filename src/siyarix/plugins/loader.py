@@ -49,11 +49,9 @@ class PluginLoader:
 
     def _load_plugin(self, path: Path) -> None:
         """Dynamically load a single python file as a plugin (path-sandboxed)."""
-        import os
-
-        from siyarix.plugins.manager import _assert_under_dir
 
         from siyarix.plugins.manager import (
+            _assert_under_dir,
             _env_flag_on,
             plugin_trust_mode,
             plugins_trusted_for_load,

@@ -1,12 +1,11 @@
-from siyarix.exceptions import ToolExecutionError
-from siyarix.exceptions import ToolNotFoundError
-from siyarix.executor_autonomous import AutonomousExecutor
-from siyarix.executor_autonomous import CommandResult
-from siyarix.models import ExecutionPlan, PlanStep
-from siyarix.models import PlanStatus
-from unittest.mock import MagicMock, patch, AsyncMock
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+
+from siyarix.exceptions import ToolExecutionError, ToolNotFoundError
+from siyarix.executor_autonomous import AutonomousExecutor, CommandResult
+from siyarix.models import ExecutionPlan, PlanStatus, PlanStep
 
 
 @pytest.fixture
@@ -176,8 +175,7 @@ class TestExecutorAutonomousCore:
 
     @pytest.mark.asyncio
     async def test_exec_one_budget_exhausted(self):
-        from siyarix.executor_autonomous import AutonomousExecutor
-        from siyarix.executor_autonomous import CommandResult
+        from siyarix.executor_autonomous import AutonomousExecutor, CommandResult
 
         ae = AutonomousExecutor()
         ae._budget._iterations = ae._budget.max_iterations

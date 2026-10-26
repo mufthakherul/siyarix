@@ -384,12 +384,12 @@ def print_theme_preview(console: Console, theme: str) -> None:
 
 
 __all__ = [
-    "resolve_theme",
     "available_themes",
     "design_token",
-    "severity_style",
-    "severity_label",
-    "resolve_version",
     "print_banner",
     "print_theme_preview",
+    "resolve_theme",
+    "resolve_version",
+    "severity_label",
+    "severity_style",
 ]

@@ -1,5 +1,7 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+
 from siyarix.planner_autonomous import AutonomousPlanner
 
 
@@ -89,8 +91,8 @@ def test_plan_validator_deduplication(planner):
 
 
 def test_plan_validator_dangerous_command():
-    from siyarix.planner_autonomous import PlanValidator
     from siyarix.models import PlanStep
+    from siyarix.planner_autonomous import PlanValidator
 
     dangerous_step = PlanStep(tool="bash", command="rm -rf /")
     validated = PlanValidator.validate_and_sanitize_step(dangerous_step)
@@ -99,8 +101,8 @@ def test_plan_validator_dangerous_command():
 
 
 def test_plan_validator_windows_sanitization():
-    from siyarix.planner_autonomous import PlanValidator
     from siyarix.models import PlanStep
+    from siyarix.planner_autonomous import PlanValidator
 
     win_step = PlanStep(tool="nmap", command="sudo nmap -sS 192.168.1.1")
     validated = PlanValidator.validate_and_sanitize_step(win_step, platform_system="Windows")
@@ -109,8 +111,8 @@ def test_plan_validator_windows_sanitization():
 
 
 def test_plan_validator_thread_clamping():
-    from siyarix.planner_autonomous import PlanValidator
     from siyarix.models import PlanStep
+    from siyarix.planner_autonomous import PlanValidator
 
     step = PlanStep(tool="gobuster", command="gobuster dir -u http://target -w list.txt -t 200")
     validated = PlanValidator.validate_and_sanitize_step(step)
@@ -118,8 +120,8 @@ def test_plan_validator_thread_clamping():
 
 
 def test_plan_validator_execution_waves():
-    from siyarix.planner_autonomous import PlanValidator
     from siyarix.models import PlanStep
+    from siyarix.planner_autonomous import PlanValidator
 
     s1 = PlanStep(id="s1", tool="nmap", command="nmap target")
     s2 = PlanStep(id="s2", tool="nikto", command="nikto target", dependencies=["s1"])

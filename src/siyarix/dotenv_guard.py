@@ -213,7 +213,6 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "BUILDKIT_HOST",
         "RES_OPTIONS",
         "BOTO_CONFIG",
-        "AWS_CONFIG_FILE",
         "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE",
         "EDITOR",
         "VISUAL",
@@ -256,7 +255,6 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "PKG_CONFIG_PATH",
         "KUBE_EDITOR",
         "CARGO_BUILD_RUSTC_WRAPPER",
-        "RUSTC_WRAPPER",
         "GTK_MODULES",
         "GTK3_MODULES",
         "GTK2_MODULES",
@@ -357,7 +355,6 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "NPM_CONFIG_STRICT_SSL",
         "COMPOSER_DISABLE_TLS",
         "UV_INSECURE_HOST",
-        "LESSOPEN",
         "SUDO_ASKPASS",
         "GCONV_PATH",
         "HOSTALIASES",
@@ -522,7 +519,6 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "PGHOSTADDR",
         "PGPORT",
         "PGSERVICE",
-        "PGSERVICEFILE",
         "MYSQL_HOST",
         "MYSQL_UNIX_PORT",
         "MARIADB_HOST",
@@ -652,8 +648,7 @@ def should_skip_dotenv_key(key: str) -> bool:
     # Broad plugin/module path pivots (RH-12 / RH-18 / RH-23), including versioned
     # suffixes like ``GST_PLUGIN_SYSTEM_PATH_1_0``.
     if "PLUGIN" in key_upper and (
-        "_PATH" in key_upper
-        or key_upper.endswith(("_DIR", "_HOME", "_DIRS", "_PATHS"))
+        "_PATH" in key_upper or key_upper.endswith(("_DIR", "_HOME", "_DIRS", "_PATHS"))
     ):
         return True
     if key_upper.endswith("_MODULES") or key_upper.endswith("_MODULE_PATH"):
@@ -976,9 +971,7 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper.startswith("PARALLEL_SSH"):
         return True
-    if key_upper.endswith(
-        ("_BASTION", "_JUMP_HOST", "_GATEWAY", "_TUNNEL_HOST")
-    ):
+    if key_upper.endswith(("_BASTION", "_JUMP_HOST", "_GATEWAY", "_TUNNEL_HOST")):
         return True
     if key_upper.endswith("_PROXY") and key_upper not in {"NO_PROXY", "no_proxy"}:
         return True
@@ -986,8 +979,15 @@ def should_skip_dotenv_key(key: str) -> bool:
         return True
     if key_upper.endswith(("_CONFIG_HOME", "_CONFIG_DIR", "_CONFIG_FILE")):
         return True
-    if key_upper in {"BOUNDARY_ADDR", "NERDCTL_HOST", "MSSQL_HOST", "OVPN_CONFIG",
-                     "TMATE_SERVER", "ARGOCD_SERVER", "KUBE_API_SERVER"}:
+    if key_upper in {
+        "BOUNDARY_ADDR",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "OVPN_CONFIG",
+        "TMATE_SERVER",
+        "ARGOCD_SERVER",
+        "KUBE_API_SERVER",
+    }:
         return True
     if key_upper.startswith("TELEPORT_") or key_upper.startswith("TSH_"):
         return True

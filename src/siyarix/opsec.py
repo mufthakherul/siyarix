@@ -26,6 +26,7 @@ import secrets
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+
 from .config import get_config_dir
 
 logger = logging.getLogger(__name__)
@@ -386,9 +387,9 @@ opsec_manager = OPSECManager()
 
 
 __all__ = [
+    "OPSECActionResult",
     "OPSECManager",
     "OPSECStatus",
-    "OPSECActionResult",
     "opsec_manager",
     "random_string",
 ]

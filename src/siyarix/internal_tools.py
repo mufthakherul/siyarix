@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Internal tools for Siyarix (Graph Analytics, Threat Intel)."""
 
-from typing import Any
 import json
+from typing import Any
+
 from .tool_models import ToolHandler
 
 
@@ -11,8 +12,8 @@ def make_graph_analyzer_handler() -> ToolHandler:
         action = kwargs.get("action", "")
         args = kwargs.get("args", {})
 
-        from .knowledge_graph import KnowledgeGraph
         from .config import get_config_dir
+        from .knowledge_graph import KnowledgeGraph
 
         kg = KnowledgeGraph()
         path = get_config_dir() / "knowledge_graph.json"
@@ -58,7 +59,7 @@ def make_threat_intel_handler() -> ToolHandler:
         action = kwargs.get("action", "")
         query = kwargs.get("query", "")
 
-        from .threat_intel import ThreatIntelFeed, MITREAttackDB
+        from .threat_intel import MITREAttackDB, ThreatIntelFeed
 
         result: dict[str, Any] = {}
         if action == "cve_lookup":

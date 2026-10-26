@@ -573,36 +573,12 @@ class CommandHandlersMixin:
                 "[dim]Tip: Key will only last for this session. Install cryptography for persistent storage: pip install cryptography[/dim]"
             )
 
-        # If user set Gemini key and the client package is missing, offer to install it
+        # Gemini uses native REST via httpx — no provider SDK required.
         if provider == "gemini":
-            pkg_name = "google-genai"
-            try:
-                import google.genai as _test_genai  # type: ignore[import-untyped]  # noqa: F401
-
-                gemini_pkg_installed = True
-            except Exception:
-                gemini_pkg_installed = False
-
-            if not gemini_pkg_installed:
-                ans = Prompt.ask(
-                    f"{pkg_name} not installed — install now? (y/N)",
-                    default="N",
-                )
-                if ans.lower().startswith("y"):
-                    console.print(f"[dim]Installing {pkg_name} — this may take a moment...[/dim]")
-                    try:
-                        res = safe_run_sync(
-                            pip_install_args(pkg_name),
-                            timeout=600,
-                        )
-                        if not res.exit_code:
-                            console.print(
-                                f"[green]✓ {pkg_name} installed — Gemini should be available now.[/green]"
-                            )
-                        else:
-                            console.print(f"[red]Failed to install package: {res.stderr}[/red]")
-                    except Exception as exc:
-                        logger.exception("Failed to run pip install for %s: %s", pkg_name, exc)
+            console.print(
+                "[dim]Gemini uses built-in HTTP (httpx); no google-generativeai / "
+                "google-genai SDK install is required.[/dim]"
+            )
 
     def _cmd_theme(self, args: str) -> None:
         tokens = args.split() if args else []

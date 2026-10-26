@@ -57,9 +57,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+        with:
+          enable-cache: true
+
       - name: List outdated packages
         run: |
-          pip install -e .
+          uv pip install --system -e .
           echo "## Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          pip list --outdated --format=columns >> $GITHUB_STEP_SUMMARY || echo "No outdated packages found."
+          uv pip list --system --outdated >> $GITHUB_STEP_SUMMARY || echo "No outdated packages found."

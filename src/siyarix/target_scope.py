@@ -84,13 +84,37 @@ _HTTP_URL_RE = re.compile(r"https?://[^\s\"']+", re.IGNORECASE)
 # Schemes that bypass host extraction / are not IP-scoped when scope is set.
 _NON_HTTP_URL_RE = re.compile(
     r"\b(?:file|ftp|ftps|gopher|data|unix|smb|nfs|ldap|ldaps|dict|tftp|"
-    r"rtsp|ssh|sftp|scp|rsync|git|jar|mailto|telnet):[^\s\"']*",
+    r"rtsp|ssh|sftp|scp|rsync|git|jar|mailto|telnet|"
+    # RH-50 — DB / messaging / VNC URI schemes that hide hosts.
+    r"redis|rediss|mongodb(?:\+srv)?|bolt|neo4j|nats|amqp|amqps|vnc|vncs|"
+    r"oracle|jdbc|"
+    # RH-52 — SQL URI schemes curl/clients use without -h.
+    r"postgres(?:ql)?|mysql|mariadb|sqlserver|mssql|cockroach(?:db)?|cassandra|"
+    # RH-54 — search / cache / document URI schemes.
+    r"couch(?:db)?|elasticsearch|opensearch|memcache(?:d)?|solr|"
+    # RH-55 — time-series / columnar / libvirt URI schemes.
+    r"influx(?:db)?|clickhouse|qemu(?:\+(?:tcp|ssh|tls|libssh2?))?):[^\s\"']*",
     re.IGNORECASE,
 )
 # Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
 _HOST_TOOL_NAMES = frozenset(
     {
         "ssh",
+        "autossh",
+        "rsh",
+        "rlogin",
+        "rexec",
+        "plink",
+        "dbclient",
+        "putty",
+        "pscp",
+        "psftp",
+        "mosh",
+        "mosh-client",
+        "argocd",
+        "et",
+        "sshrc",
+        "sshfs",
         "nmap",
         "ncat",
         "nc",
@@ -123,16 +147,46 @@ _HOST_TOOL_NAMES = frozenset(
         "openssl",
         "git",
         "mysql",
+        "mariadb",
+        "mycli",
         "psql",
+        "pgcli",
         "redis-cli",
+        "redis-benchmark",
         "mongosh",
         "mongo",
+        "valkey-cli",
+        "valkey-benchmark",
+        "keydb-cli",
+        "keydb-benchmark",
+        "cypher-shell",
+        "cockroach",
+        "sqlplus",
+        "kcat",
+        "kafkacat",
+        "mosquitto_sub",
+        "mosquitto_pub",
+        "nats",
+        "rabbitmqadmin",
+        "pssh",
+        "parallel-ssh",
+        "pdsh",
+        "vncviewer",
+        "remmina",
         "impacket-psexec",
         "psexec.py",
         "evil-winrm",
         "xfreerdp",
         "docker",
         "podman",
+        "kubectl",
+        "oc",
+        "helm",
+        "kustomize",
+        "nerdctl",
+        "clickhouse-client",
+        "clickhouse",
+        "cqlsh",
         "nslookup",
         "ansible",
         "ansible-playbook",
@@ -162,15 +216,365 @@ _HOST_TOOL_NAMES = frozenset(
         "mssql-cli",
         "osql",
         "smbmap",
+        # Proxy / tunnel wrappers — engagement-bound when scope is set (RH-06/16).
+        "proxychains",
+        "proxychains4",
+        "torsocks",
+        "torify",
+        "tsocks",
+        "gost",
+        "ss-local",
+        "ss-server",
+        "ss-redir",
+        "ss-tunnel",
+        "shadowsocks",
+        "shadowsocks-libev",
+        "shadowsocks-client",
+        "v2ray",
+        "xray",
+        "corkscrew",
+        "connect-proxy",
+        "connect",
+        "pproxy",
+        "proxy.py",
+        "redsocks",
+        "microsocks",
+        "brook",
+        "mitmproxy",
+        "mitmdump",
+        "mitmweb",
+        "cloudflared",
+        "ngrok",
+        "bore",
+        "localtunnel",
+        "lt",
+        # Image / local-cluster pivots (RH-42).
+        "skopeo",
+        "buildah",
+        "minikube",
+        "kind",
+        "istioctl",
+        "telepresence",
+        # VPN / mesh / covert tunnels (RH-44).
+        "wg-quick",
+        "wireguard",
+        "wg",
+        "openvpn",
+        "openconnect",
+        "tailscale",
+        "frpc",
+        "frps",
+        "clash",
+        "clash-meta",
+        "mihomo",
+        "sing-box",
+        "hysteria",
+        "hysteria2",
+        "trojan",
+        "wstunnel",
+        "dnscat2",
+        "iodine",
+        "pingtunnel",
+        "udp2raw",
+        "kcptun-client",
+        "kcptun-server",
+        "sshx",
+        "softether-vpnclient",
+        "vpncloud",
+        # Mesh / overlay VPN clients (RH-45).
+        "zerotier-cli",
+        "zerotier-one",
+        "netbird",
+        "headscale",
+        "innernet",
+        "firezone",
+        "nebula",
+        "v2raya",
+        "proxifier",
+        "outline-ss-server",
+        "outline-client",
+        # RH-46 — IPsec / local-cluster / short proxies / FUSE tunnels.
+        "ipsec",
+        "strongswan",
+        "strongswan-starter",
+        "vpnc",
+        "lima",
+        "colima",
+        "lxd",
+        "lxc",
+        "incus",
+        "fab",
+        "fabric",
+        "virsh",
+        "singularity",
+        "apptainer",
+        "privoxy",
+        "polipo",
+        "tinyproxy",
+        "dante",
+        "danted",
+        "icmptunnel",
+        "stunnel",
+        "stunnel4",
+        "rathole",
+        # RH-47 — SOCKS daemons, Tor/I2P, VPN activate, local k8s.
+        "sockd",
+        "ss5",
+        "cntlm",
+        "srelay",
+        "delegate",
+        "tor",
+        "obfs4proxy",
+        "lyrebird",
+        "snowflake-client",
+        "meek-client",
+        "i2pd",
+        "onioncat",
+        "openfortivpn",
+        "twingate",
+        "cloudflare-warp",
+        "warp-cli",
+        "tincd",
+        "tinc",
+        "forticlient",
+        "hamachi",
+        "k3d",
+        "k3s",
+        "kubefwd",
+        "microk8s",
+        # RH-48 — public shells / Teleport / VPN / C2 / tunnels.
+        "tmate",
+        "ttyd",
+        "gotty",
+        "wetty",
+        "tsh",
+        "tctl",
+        "upterm",
+        "openvpn3",
+        "telebit",
+        "pwncat",
+        "pwncat-cs",
+        "websocat",
+        # RH-49 — public shares, graftcp, AmneziaWG/WG-SOCKS, Teleport daemon, C2 tunnels.
+        "zrok",
+        "playit",
+        "tunnelto",
+        "localtonet",
+        "graftcp",
+        "awg-quick",
+        "awg",
+        "wireproxy",
+        "teleport",
+        "proxytunnel",
+        "hans",
+        "n2n-edge",
+        "rustdesk",
+        "wscat",
+        "croc",
+        # RH-50 — sibling wrappers / n2n edge / wormhole / inlets / NPS.
+        "edge",
+        "playit-cli",
+        "zrok-share",
+        "tunnelto-client",
+        "openconnect-sso",
+        "tbot",
+        "boringtun",
+        "wireguard-go",
+        "amneziawg-go",
+        "hbbs",
+        "hbbr",
+        "wormhole",
+        "magic-wormhole",
+        "inlets",
+        "3proxy",
+        "npc",
+        "netclient",
+        "easytier-core",
+        "easytier",
     }
 )
-# Glued short host flags: ``mysql -h1.1.1.1``, ``evil-winrm -i10.0.0.1``, ``sqlcmd -S1.1.1.1``.
+# When scope is set, these tools create out-of-engagement pivots / public ingress.
+_SCOPE_BLOCKED_WRAPPERS: frozenset[str] = frozenset(
+    {
+        "proxychains",
+        "proxychains4",
+        "torsocks",
+        "torify",
+        "tsocks",  # RH-16
+        "gost",  # RH-20
+        "ss-local",
+        "ss-server",
+        "ss-redir",
+        "ss-tunnel",
+        "shadowsocks",
+        "shadowsocks-libev",
+        "shadowsocks-client",
+        "v2ray",
+        "xray",
+        "corkscrew",  # RH-25
+        "connect-proxy",
+        "connect",
+        "pproxy",  # RH-32
+        "proxy.py",
+        "redsocks",  # RH-37
+        "microsocks",
+        "brook",  # RH-43
+        "mitmproxy",
+        "mitmdump",
+        "mitmweb",
+        "cloudflared",
+        "ngrok",
+        "bore",
+        "localtunnel",
+        "lt",
+        # Local-cluster / mesh sidecars hide API egress (RH-42).
+        "minikube",
+        "kind",
+        "istioctl",
+        "telepresence",
+        # VPN / mesh / covert tunnels (RH-44).
+        "wg-quick",
+        "wireguard",
+        "wg",
+        "openvpn",
+        "openconnect",
+        "tailscale",
+        "frpc",
+        "frps",
+        "clash",
+        "clash-meta",
+        "mihomo",
+        "sing-box",
+        "hysteria",
+        "hysteria2",
+        "trojan",
+        "wstunnel",
+        "dnscat2",
+        "iodine",
+        "pingtunnel",
+        "udp2raw",
+        "kcptun-client",
+        "kcptun-server",
+        "sshx",
+        "softether-vpnclient",
+        "vpncloud",
+        # Mesh / overlay VPN clients (RH-45).
+        "zerotier-cli",
+        "zerotier-one",
+        "netbird",
+        "headscale",
+        "innernet",
+        "firezone",
+        "nebula",
+        "v2raya",
+        "proxifier",
+        "outline-ss-server",
+        "outline-client",
+        # RH-46 — IPsec / local-cluster / short proxies / FUSE tunnels.
+        "ipsec",
+        "strongswan",
+        "strongswan-starter",
+        "vpnc",
+        "lima",
+        "colima",
+        "lxd",
+        "incus",
+        "singularity",
+        "apptainer",
+        "privoxy",
+        "polipo",
+        "tinyproxy",
+        "dante",
+        "danted",
+        "icmptunnel",
+        "stunnel",
+        "stunnel4",
+        "rathole",
+        # RH-47 — SOCKS daemons, Tor/I2P, VPN activate, local k8s.
+        "sockd",
+        "ss5",
+        "cntlm",
+        "srelay",
+        "delegate",
+        "tor",
+        "obfs4proxy",
+        "lyrebird",
+        "snowflake-client",
+        "meek-client",
+        "i2pd",
+        "onioncat",
+        "openfortivpn",
+        "twingate",
+        "cloudflare-warp",
+        "warp-cli",
+        "tincd",
+        "tinc",
+        "forticlient",
+        "hamachi",
+        "k3d",
+        "k3s",
+        "kubefwd",
+        "microk8s",
+        # RH-48 — public shells / Teleport / VPN / C2 / tunnels.
+        "tmate",
+        "ttyd",
+        "gotty",
+        "wetty",
+        "tsh",
+        "tctl",
+        "upterm",
+        "openvpn3",
+        "telebit",
+        "pwncat",
+        "pwncat-cs",
+        "websocat",
+        # RH-49 — public shares, graftcp, AmneziaWG/WG-SOCKS, Teleport daemon, C2 tunnels.
+        "zrok",
+        "playit",
+        "tunnelto",
+        "localtonet",
+        "graftcp",
+        "awg-quick",
+        "awg",
+        "wireproxy",
+        "teleport",
+        "proxytunnel",
+        "hans",
+        "n2n-edge",
+        "rustdesk",
+        "wscat",
+        "croc",
+        # RH-50 — sibling wrappers / n2n edge / wormhole / inlets / NPS.
+        "edge",
+        "playit-cli",
+        "zrok-share",
+        "tunnelto-client",
+        "openconnect-sso",
+        "tbot",
+        "boringtun",
+        "wireguard-go",
+        "amneziawg-go",
+        "hbbs",
+        "hbbr",
+        "wormhole",
+        "magic-wormhole",
+        "inlets",
+        "3proxy",
+        "npc",
+        "netclient",
+        "easytier-core",
+        "easytier",
+    }
+)
+# Glued short host flags: ``mysql -h1.1.1.1``, ``kcat -b1.1.1.1``, ``cypher-shell -a1.1.1.1``.
+# Letter set is filtered by the caller's ``short`` frozenset (RH-53).
 _GLUED_HOST_SHORT_RE = re.compile(
-    r"^(?P<flag>-[hHiS])(?P<val>[^=\s-].+)$"
+    r"^(?P<flag>-[a-zA-Z])(?P<val>[^=\s-].+)$"
 )
 # Glued long host/connect flags: ``openssl … -connect1.1.1.1:443``.
 _GLUED_HOST_LONG_RE = re.compile(
-    r"^(?P<flag>--host|--ip|--server|--proxy|-host|-connect|-proxy)"
+    # Longer flags first so ``--hosts=`` is not parsed as ``--host`` + ``s=…`` (RH-56).
+    r"^(?P<flag>--hosts|--host|--ip|--server|--proxy|-host|-connect|-proxy)"
     r"(?:=(?P<eq>.+)|(?P<glued>[^=].+))$",
     re.IGNORECASE,
 )
@@ -233,21 +637,169 @@ _SOCAT_SOCKS_RE = re.compile(
     r"(?i)^(?:SOCKS4A?|PROXY):"
     r"(?P<proxy>[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
 )
-# Glued ssh ``-oProxyJump=evil`` / ``-o'ProxyJump=evil'`` / ``-oProxyCommand=…``.
+# Glued ssh ``-oProxyJump=evil`` / ``-oProxyCommand=…`` / ``-oDynamicForward=…`` /
+# ``-oTunnel=ethernet`` (RH-19).
 _GLUED_SSH_O_RE = re.compile(
-    r"(?i)^(?:-o|--option)['\"]?(?P<key>proxyjump|proxycommand)=(?P<val>.+?)['\"]?$"
+    r"(?i)^(?:-o|--option)['\"]?"
+    r"(?P<key>proxyjump|proxycommand|dynamicforward|localforward|remoteforward|"
+    r"tunnel|hostname)"
+    r"=(?P<val>.+?)['\"]?$"
+)
+# Ansible inventory keywords / wildcards that are not remote peer hosts.
+_ANSIBLE_NON_HOST_PATTERNS = frozenset({"all", "*"})
+# Leading ``ALL_PROXY=… curl …`` style env assignments (SOCKS/HTTP pivots).
+_SCOPE_PROXY_ENV_NAMES: frozenset[str] = frozenset(
+    {
+        "ALL_PROXY",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "FTP_PROXY",
+        "SOCKS_PROXY",
+        "SOCKS5_PROXY",
+        "SOCKS5_SERVER",
+        "SOCKS_SERVER",
+        "GIT_HTTP_PROXY",
+        "GIT_HTTPS_PROXY",
+        "RSYNC_PROXY",
+        "GRPC_PROXY",
+        "grpc_proxy",
+        # Client HTTP library proxy pivots (RH-46).
+        "HTTPX_PROXY",
+        "REQUESTS_PROXY",
+        "AIOHTTP_PROXY",
+        "TOR_SOCKS_HOST",
+        "TOR_SOCKS_PORT",
+    }
+)
+# Leading daemon / transport pivots that hide the real egress host (RH-14/15).
+_SCOPE_TRANSPORT_ENV_NAMES: frozenset[str] = frozenset(
+    {
+        "DOCKER_HOST",
+        "DOCKER_CONTEXT",
+        "CONTAINER_HOST",
+        "PODMAN_HOST",
+        "PODMAN_CONNECTION",
+        "BUILDKIT_HOST",
+        "CONTAINERS_CONF",
+        "CRICTL_RUNTIME_ENDPOINT",
+        "GIT_SSH_COMMAND",
+        "GIT_SSH",
+        "GIT_PROXY_COMMAND",
+        "RSYNC_RSH",
+        "RSYNC_CONNECT_PROG",
+        "CVS_RSH",
+        "SVN_SSH",
+        "ANSIBLE_SSH_EXECUTABLE",
+        "ANSIBLE_SSH_ARGS",
+        "KUBECONFIG",
+        "KUBE_CONFIG",
+        "KUBE_CONFIG_PATH",
+        "HELM_KUBECONFIG",
+        "KUBERNETES_SERVICE_HOST",
+        "KUBERNETES_SERVICE_PORT",
+        # DB client transport hosts (RH-24 / RH-46).
+        "MYSQL_HOST",
+        "MYSQLHOST",
+        "MYSQL_UNIX_PORT",
+        "PGHOST",
+        "PGHOSTADDR",
+        "PGPORT",
+        "PGSERVICE",
+        "PGSERVICEFILE",
+        "REDIS_HOST",
+        "REDIS_URL",
+        "MONGO_URL",
+        "MONGODB_URI",
+        "DATABASE_URL",
+        "DATABASE_HOST",
+        "DB_HOST",
+        "SQLALCHEMY_DATABASE_URI",
+        "AZURE_MYSQL_HOST",
+        # Service discovery / DB hosts (RH-33).
+        "CONSUL_HTTP_ADDR",
+        "CONSUL_HTTP_HOST",
+        "VAULT_ADDR",
+        "NOMAD_ADDR",
+        "CLICKHOUSE_HOST",
+        "CASSANDRA_HOST",
+        "ETCDCTL_ENDPOINTS",
+        # Cloud object-store endpoint pivots (RH-46).
+        "AWS_ENDPOINT",
+        "AWS_ENDPOINT_URL",
+        "S3_ENDPOINT",
+        "MINIO_ENDPOINT",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "DYNAMODB_ENDPOINT",
+        "R2_ENDPOINT",
+        "ELASTICSEARCH_HOST",
+        "KAFKA_HOST",
+        "BOUNDARY_ADDR",
+        "TORSOCKS_TOR_ADDRESS",
+        "ZROK_API_ENDPOINT",
+        "ET_HOST",
+        "PROXYTUNNEL_HOST",
+        "HANS_SERVER",
+        "N2N_SUPERNODE",
+        "NETMAKER_HOST",
+    }
+)
+# Cloud CLIs that rewrite kubeconfig to an opaque API server (RH-46).
+_CLOUD_KUBECONFIG_TOOLS: frozenset[str] = frozenset(
+    {
+        "aws",
+        "gcloud",
+        "az",
+        "eksctl",
+        "doctl",
+        "oci",
+        "talosctl",
+        "k0s",
+        "microk8s",
+    }
+)
+_CLOUD_KUBECONFIG_VERBS: frozenset[str] = frozenset(
+    {
+        "update-kubeconfig",
+        "get-credentials",
+        "write-kubeconfig",
+        "create-kubeconfig",
+        "kubeconfig",
+    }
 )
 # Glued short proxy/jump: ``-x11.1.1.1:8080``, ``-Jbastion``.
 _GLUED_PROXY_SHORT_RE = re.compile(
     r"^(?P<flag>-[xJ])(?P<val>.+)$"
 )
 _SHELL_WRAPPERS = frozenset(
-    {"sh", "bash", "zsh", "dash", "ksh", "ash", "busybox"}
+    {
+        "sh",
+        "bash",
+        "zsh",
+        "dash",
+        "ksh",
+        "ash",
+        "busybox",
+        "fish",
+        # RH-52 — C-shell / PowerShell / xonsh -c wrappers.
+        "csh",
+        "tcsh",
+        "pwsh",
+        "powershell",
+        "xonsh",
+        # RH-54 — modern shells with -c payload unwrap.
+        "ion",
+        "elvish",
+        "nu",
+        "nushell",
+        "yash",
+    }
 )
 # ``bash -c '…'``, ``su user -c '…'``, ``sudo -c '…'``, ``script -c '…'``.
 _SHELL_C_PAYLOAD_RE = re.compile(
-    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|su|sudo|script))\b"
-    r"[\s\S]{0,80}?(?:--command=|-c)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
+    r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|fish|t?csh|pwsh|powershell|xonsh|"
+    r"ion|elvish|nu(?:shell)?|yash|su|sudo|script))\b"
+    r"[\s\S]{0,80}?(?:--command=|-c|-Command)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
 )
 # UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
 # Negative lookbehind skips URL schemes (``https://host/...``).
@@ -284,6 +836,10 @@ def _decode_for_extract(command: str) -> str:
         if decoded == text:
             break
         text = decoded
+    # RH-50: mid-token quote splitting ``n'map`` / ``n""map`` → ``nmap``.
+    text = re.sub(r"(?<=[\w./-])['\"]+(?=[\w./-])", "", text)
+    # ``${IFS}`` / ``$IFS`` as whitespace (``nmap${IFS}evilhost``).
+    text = re.sub(r"\$\{IFS\}|\$IFS", " ", text)
     return text
 
 
@@ -577,6 +1133,29 @@ def _assert_host_token_in_scope(
             )
 
 
+# Multi-letter mode flags that must not be parsed as glued ``-s`` + host (RH-53).
+_MULTI_LETTER_SHORT_FLAGS = frozenset(
+    {
+        "-ssh",
+        "-ssl",
+        "-sku",
+        "-smtp",
+        "-socks",
+        "-socks5",
+        "-socks4",
+        "-server",
+        "-session",
+        "-serial",
+        "-silent",
+        "-stdin",
+        "-stdout",
+        "-help",
+        "-version",
+        "-verbose",
+    }
+)
+
+
 def _glued_host_flag_value(
     token: str, *, short: frozenset[str], long: frozenset[str]
 ) -> str | None:
@@ -588,10 +1167,47 @@ def _glued_host_flag_value(
     long_m = _GLUED_HOST_LONG_RE.match(raw)
     if long_m is not None and long_m.group("flag").lower() in {f.lower() for f in long}:
         return (long_m.group("eq") or long_m.group("glued") or "").strip().strip("'\"")
+    low = raw.lower().split("=", 1)[0]
+    if low in _MULTI_LETTER_SHORT_FLAGS or any(
+        low == f or low.startswith(f + "=") for f in _MULTI_LETTER_SHORT_FLAGS
+    ):
+        return None
     short_m = _GLUED_HOST_SHORT_RE.match(raw)
     if short_m is not None and short_m.group("flag") in short:
         return short_m.group("val").strip().strip("'\"")
     return None
+
+
+
+# Strip Go/release platform + version suffixes: ``gost-linux-amd64``, ``ngrok-v3`` (RH-47).
+_TOOL_PLATFORM_SUFFIX_RE = re.compile(
+    r"-(?:linux|darwin|windows|freebsd|openbsd|netbsd|macos)"
+    r"(?:-(?:amd64|arm64|armv\d+|arm|386|x86_64|aarch64|ppc64le|s390x|riscv64|musl))?$",
+    re.IGNORECASE,
+)
+_TOOL_VERSION_SUFFIX_RE = re.compile(r"-v?\d+(?:\.\d+)*$", re.IGNORECASE)
+
+
+def _normalize_tool_basename(name: str) -> str:
+    """Return canonical tool basename after stripping path and release suffixes."""
+    base = name.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+    changed = True
+    while changed:
+        changed = False
+        nxt = _TOOL_PLATFORM_SUFFIX_RE.sub("", base)
+        if nxt != base:
+            base, changed = nxt, True
+            continue
+        nxt = _TOOL_VERSION_SUFFIX_RE.sub("", base)
+        if nxt != base:
+            base, changed = nxt, True
+    if base in _SCOPE_BLOCKED_WRAPPERS:
+        return base
+    # RH-50: ``proxychains-ng`` / ``playit-cli`` / ``zrok-share`` → known wrappers.
+    for wrapper in sorted(_SCOPE_BLOCKED_WRAPPERS, key=len, reverse=True):
+        if base.startswith(wrapper + "-") or base.startswith(wrapper + "_"):
+            return wrapper
+    return base
 
 
 def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
@@ -611,12 +1227,184 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     found_ips, found_domains = extract_targets(command)
 
     decoded_early = _decode_for_extract(command)
+    # Fail-closed: leading ``ALL_PROXY=…`` / ``DOCKER_HOST=…`` / ``GIT_SSH_COMMAND=…``
+    # pivots that hide real egress (RH-10 / RH-14 / RH-15).
+    for tok in decoded_early.split():
+        if "=" not in tok or tok.startswith("-"):
+            continue
+        key, sep, _val = tok.partition("=")
+        if not sep or not key:
+            continue
+        key_u = key.upper()
+        if key_u in _SCOPE_PROXY_ENV_NAMES or key_u.endswith("_PROXY"):
+            raise PermissionDeniedError(
+                f"Proxy environment assignment {key}= is not allowed under authorized "
+                f"scope (authorized scope: {scope_display})"
+            )
+        if key_u in _SCOPE_TRANSPORT_ENV_NAMES:
+            raise PermissionDeniedError(
+                f"Transport environment assignment {key}= is not allowed under "
+                f"authorized scope (authorized scope: {scope_display})"
+            )
+    # Fail-closed: SOCKS/proxy wrappers and public tunnels hide real egress (RH-06).
+    for tok in decoded_early.split():
+        if "=" in tok and not tok.startswith("-"):
+            # ``ALL_PROXY=…`` is not a tool name.
+            continue
+        base = _normalize_tool_basename(tok)
+        if base in _SCOPE_BLOCKED_WRAPPERS:
+            raise PermissionDeniedError(
+                f"Proxy/tunnel tool {base!r} is not allowed under authorized scope "
+                f"(authorized scope: {scope_display})"
+            )
+    # RH-44/51: ``rclone`` remotes are opaque egress pivots under engagement scope.
+    if re.search(r"\brclone\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)(?:mount|copy|sync|move|bisync|copyto|moveto)(?:\s|$)",
+        decoded_early,
+        re.IGNORECASE,
+    ):
+        raise PermissionDeniedError(
+            f"rclone remote transfer/mount is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-51: megatools / cloud object sync without an extractable in-scope host.
+    if re.search(r"\bmegatools?\b", decoded_early, re.IGNORECASE):
+        raise PermissionDeniedError(
+            f"megatools cloud transfer is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    if re.search(r"\baws\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)s3(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"aws s3 transfer is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    if re.search(r"\baz\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)storage(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"az storage transfer is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-54: Azure VM run-command is opaque remote execution outside engagement host checks.
+    if re.search(r"\baz\b", decoded_early, re.IGNORECASE) and re.search(
+        r"\brun-command\b", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"az vm run-command is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-54: podman-remote talks to an opaque remote engine (like DOCKER_HOST pivots).
+    if re.search(r"\bpodman-remote\b", decoded_early, re.IGNORECASE):
+        raise PermissionDeniedError(
+            f"podman-remote is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-54: screen/tmux key injection can drive out-of-engagement interactive tools.
+    if re.search(r"\bscreen\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)(?:-X|stuff)(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"screen -X/stuff injection is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    if re.search(r"\btmux\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)send-keys(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"tmux send-keys injection is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-45: ``ip tuntap`` / ``ip tunnel`` create out-of-engagement L3 pivots.
+    if re.search(r"\bip\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)(?:tuntap|tunnel)(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"ip tuntap/tunnel is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-47: NetworkManager VPN activate (opaque peer in connection profile).
+    if re.search(r"\bnmcli\b", decoded_early, re.IGNORECASE) and re.search(
+        r"\bconnection\b[\s\S]{0,40}\bup\b", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"nmcli connection up is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-46/47: cloud CLIs rewriting kubeconfig (not in _HOST_TOOL_NAMES).
+    _early_tokens = decoded_early.split()
+    if _early_tokens:
+        _early_base = _normalize_tool_basename(_early_tokens[0])
+        _rest = [t.lower().strip().strip("'\"") for t in _early_tokens[1:]]
+        if _early_base in _CLOUD_KUBECONFIG_TOOLS:
+            for j, low in enumerate(_rest):
+                if low in _CLOUD_KUBECONFIG_VERBS or low == "create-kubeconfig":
+                    raise PermissionDeniedError(
+                        f"{_early_base} kubeconfig rewrite ({low}) is not allowed under "
+                        f"authorized scope (authorized scope: {scope_display}); "
+                        f"pass an explicit in-scope --server / API host instead"
+                    )
+                # ``microk8s config`` dumps/writes kubeconfig (RH-47).
+                if _early_base == "microk8s" and low == "config":
+                    raise PermissionDeniedError(
+                        f"microk8s config is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+        # RH-47: opaque AWS SSM / ECS interactive shells.
+        if _early_base == "aws":
+            if "start-session" in _rest or "execute-command" in _rest:
+                raise PermissionDeniedError(
+                    f"aws SSM/ECS interactive session is not allowed under "
+                    f"authorized scope (authorized scope: {scope_display})"
+                )
+    # Fail-closed: ``psql service=…`` hides the remote host in a service file.
+    if re.search(r"\bpsql\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:\bservice\s*=|--service(?:=|\s))\s*\S+",
+        decoded_early,
+        re.IGNORECASE,
+    ):
+        raise PermissionDeniedError(
+            f"psql service= targets are not allowed under authorized scope "
+            f"(authorized scope: {scope_display}); pass an explicit -h/--host instead"
+        )
     # Unwrap ``bash -c 'nmap evil'`` / ``sh -c "ssh bastion"`` — re-check payload.
     _shell_c = _SHELL_C_PAYLOAD_RE.search(decoded_early)
     if _shell_c:
         payload = next((g for g in _shell_c.groups() if g), "")
         if payload.strip():
             assert_command_in_scope(payload.strip(), scope_env=scope_env)
+    # RH-48/49: GNU parallel ``cmd ::: hosts`` / ``:::+`` / ``::::`` hide operands.
+    # RH-55: remote login ``-S`` / ``--sshlogin`` / ``--sshloginfile``.
+    if re.search(r"(?:^|\s)parallel(?:\s|$)", decoded_early, re.IGNORECASE):
+        _par_parts = re.split(r"\s:::[+:]*\s+", decoded_early, maxsplit=1)
+        if len(_par_parts) == 2:
+            _par_left = re.sub(
+                r"^.*\bparallel\b\s*", "", _par_parts[0], count=1, flags=re.IGNORECASE
+            ).strip()
+            for _op in _par_parts[1].split():
+                if not _op or _op.startswith("-"):
+                    continue
+                assert_command_in_scope(
+                    f"{_par_left} {_op}".strip(), scope_env=scope_env
+                )
+        for _ssh_m in re.finditer(
+            r"(?:(?:^|\s)(?:-S|--sshlogin)(?:=|\s+)|(?:^|\s)--sshloginfile(?:=|\s+))"
+            r"([^\s\"']+)",
+            decoded_early,
+            re.IGNORECASE,
+        ):
+            _sshlogin = _ssh_m.group(1).strip().strip("'\"")
+            # ``--sshloginfile`` points at a file of logins — fail closed under scope.
+            if "--sshloginfile" in _ssh_m.group(0).lower() or _sshlogin.startswith("/"):
+                raise PermissionDeniedError(
+                    f"parallel sshloginfile is not allowed under authorized scope "
+                    f"(authorized scope: {scope_display})"
+                )
+            # ``user@host`` / ``n/user@host`` / bare host.
+            _hop = _sshlogin.split("/")[-1].split("@")[-1].split(":")[0].strip()
+            if _hop:
+                _assert_host_token_in_scope(_hop, allowed_items, scope_display)
 
     for url in _NON_HTTP_URL_RE.findall(decoded_early):
         raise PermissionDeniedError(
@@ -662,7 +1450,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             )
     for i, tok in enumerate(tokens):
         # Basename path-qualified tools: ``/usr/bin/curl``, ``./curl``, ``\curl``.
-        base = tok.lstrip("\\").rstrip("/").rsplit("/", 1)[-1].lower()
+        base = _normalize_tool_basename(tok)
         if base not in _HOST_TOOL_NAMES:
             continue
         # Fail-closed: URL-from-file / curl config hides the real target.
@@ -685,7 +1473,19 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 or flag.startswith("--input-file")
                 or re.match(r"^-i/", flag) is not None
             )
-            if curl_cfg or wget_cfg or aria_in:
+            # Opaque kube API endpoint via config file (RH-21 / RH-26).
+            kube_cfg = base in {"kubectl", "oc", "helm", "kustomize"} and (
+                flag in {"--kubeconfig", "--kube-config"}
+                or flag.startswith("--kubeconfig")
+                or flag.startswith("--kube-config")
+            )
+            # nerdctl/docker-compatible remote host (RH-26).
+            nerd_host = base == "nerdctl" and (
+                flag in {"--host", "-H", "--address"}
+                or flag.startswith("--host")
+                or flag.startswith("-H")
+            )
+            if curl_cfg or wget_cfg or aria_in or kube_cfg or nerd_host:
                 raise PermissionDeniedError(
                     f"URL/config-from-file is not allowed under authorized scope "
                     f"(authorized scope: {scope_display})"
@@ -695,6 +1495,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             {
                 "-x",
                 "--proxy",
+                "--proxies",  # nmap multi-proxy (RH-09)
                 "--preproxy",
                 "--socks5",
                 "--socks5-hostname",
@@ -707,6 +1508,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
 
         def _proxy_host_from_val(raw: str) -> str:
             proxy_host = raw.strip().strip("'\"")
+            # ``host=tcp://evil:2375`` from docker context --docker (RH-49).
+            if proxy_host.lower().startswith("host="):
+                proxy_host = proxy_host.split("=", 1)[1].strip()
             if "://" in proxy_host:
                 parsed = urllib.parse.urlparse(proxy_host)
                 return (parsed.hostname or "").strip()
@@ -741,11 +1545,28 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             if glued_o is not None:
                 key = glued_o.group("key").lower()
                 val = glued_o.group("val").strip().strip("'\"")
-                if key == "proxycommand":
+                if key in {"proxycommand", "dynamicforward", "tunnel"}:
                     raise PermissionDeniedError(
-                        f"ProxyCommand is not allowed under authorized scope "
+                        f"ssh {key} is not allowed under authorized scope "
                         f"(authorized scope: {scope_display})"
                     )
+                if key in {"localforward", "remoteforward"}:
+                    parts = val.split(":")
+                    if len(parts) >= 3:
+                        fwd_host = parts[-2].strip().strip("[]")
+                        if fwd_host:
+                            _assert_host_token_in_scope(
+                                fwd_host, allowed_items, scope_display
+                            )
+                    continue
+                # RH-55: ``HostName=`` is the real peer (argv user@IP can be decoy).
+                if key == "hostname":
+                    _assert_host_token_in_scope(
+                        val.split("@")[-1].split(":")[0].strip(),
+                        allowed_items,
+                        scope_display,
+                    )
+                    continue
                 _check_proxyjump_val(val)
                 continue
             # Glued ``-x11.1.1.1:8080`` / ``-Jbastion`` / ``-Jevil,other``.
@@ -804,7 +1625,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     skip_proxy_arg = True
                     skip_proxy_is_jump = is_jump
                 continue
-        # ``-o ProxyJump=bastion`` as two tokens (value may be quoted).
+        # ``-o ProxyJump=bastion`` / ``-o HostName=evil`` as two tokens.
         for j, tok2 in enumerate(tokens[i + 1 :]):
             if tok2 in {"-o", "--option"} and j + 1 < len(tokens[i + 1 :]):
                 val = tokens[i + 1 :][j + 1].strip().strip("'\"")
@@ -816,8 +1637,14 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                 if low.startswith("proxyjump="):
                     _check_proxyjump_val(val.split("=", 1)[-1])
-        # scp/sftp/rsync: ``[user@]host:path`` / ``host::module``; sftp also bare host.
-        if base in {"scp", "sftp", "rsync"}:
+                if low.startswith("hostname="):
+                    _assert_host_token_in_scope(
+                        val.split("=", 1)[-1].split("@")[-1].split(":")[0].strip(),
+                        allowed_items,
+                        scope_display,
+                    )
+        # scp/sftp/rsync/pscp: ``[user@]host:path`` / ``host::module``; sftp/psftp also bare host.
+        if base in {"scp", "sftp", "rsync", "sshfs", "pscp", "psftp"}:
             skip_jump = False
             for nxt in tokens[i + 1 :]:
                 if skip_jump:
@@ -834,9 +1661,9 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     candidate = nxt.split("::", 1)[0].split("@")[-1]
                 elif scp_m is not None:
                     candidate = (scp_m.group("host") or "").strip("[]")
-                elif base == "sftp":
+                elif base in {"sftp", "psftp"}:
                     # Bare ``sftp bastion`` / ``sftp user@bastion``.
-                    candidate = nxt.split("@")[-1].split("/")[0]
+                    candidate = nxt.split("@")[-1].split("/")[0].split(":")[0]
                 else:
                     continue
                 if not candidate:
@@ -891,8 +1718,28 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     scope_display,
                 )
             continue
-        # docker/podman daemon endpoints: ``-H tcp://host``, ``--url``.
+        # docker/podman daemon endpoints: ``-H tcp://host``, ``--url``, ``context use``.
         if base in {"docker", "podman"}:
+            # ``docker context use`` / ``podman system connection use`` hide the daemon
+            # (RH-34 / RH-41).
+            rest_lower = [t.lower() for t in tokens[i + 1 :]]
+            for j in range(len(rest_lower) - 1):
+                if rest_lower[j] == "context" and rest_lower[j + 1] == "use":
+                    raise PermissionDeniedError(
+                        f"{base} context use is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display}); pass an explicit -H/--host"
+                    )
+                if (
+                    j + 2 < len(rest_lower)
+                    and rest_lower[j] == "system"
+                    and rest_lower[j + 1] == "connection"
+                    and rest_lower[j + 2] in {"use", "default", "remove"}
+                ):
+                    raise PermissionDeniedError(
+                        f"{base} system connection {rest_lower[j + 2]} is not allowed "
+                        f"under authorized scope (authorized scope: {scope_display}); "
+                        f"pass an explicit -H/--host/--connection"
+                    )
             skip_daemon = False
             for nxt in tokens[i + 1 :]:
                 if skip_daemon:
@@ -901,12 +1748,22 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     skip_daemon = False
                     continue
+                raw = nxt.strip().strip("'\"")
+                low = raw.lower()
+                # RH-49: ``host=tcp://evil:2375`` / bare ``tcp://evil:2375`` in context create.
+                if "host=" in low or "://" in low:
+                    val = raw
+                    if "host=" in low:
+                        val = raw.split("=", 1)[-1]
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(val), allowed_items, scope_display
+                    )
                 if not nxt.startswith("-"):
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
                     short=frozenset({"-H"}),
-                    long=frozenset({"--host", "--url"}),
+                    long=frozenset({"--host", "--url", "--connection", "--docker"}),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -914,7 +1771,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     continue
                 flag = nxt.split("=", 1)[0]
-                if flag in {"-H", "--host", "--url"}:
+                if flag in {"-H", "--host", "--url", "--connection", "--docker"}:
                     if "=" in nxt:
                         _assert_host_token_in_scope(
                             _proxy_host_from_val(nxt.split("=", 1)[1]),
@@ -924,13 +1781,123 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     else:
                         skip_daemon = True
             continue
+        # skopeo/buildah: ``docker://registry/image`` hosts (RH-42). Do not treat
+        # verbs (``copy``/``push``) as hosts.
+        if base in {"skopeo", "buildah"}:
+            for nxt in tokens[i + 1 :]:
+                raw = nxt.strip().strip("'\"")
+                low = raw.lower()
+                if "://" in low:
+                    # docker://host/path | docker-daemon:… | oci:…
+                    parsed = urllib.parse.urlparse(
+                        raw if "://" in raw else f"docker://{raw}"
+                    )
+                    host = (parsed.hostname or "").strip()
+                    if not host and low.startswith("docker://"):
+                        host = raw.split("://", 1)[1].split("/")[0].split(":")[0]
+                    if host:
+                        _assert_host_token_in_scope(host, allowed_items, scope_display)
+            continue
+        # kubectl/oc/helm/kustomize: API host via kubeconfig already blocked above.
+        # Do not treat verbs (``get``/``list``) as hosts — that false-positives
+        # in-engagement cluster work. Opaque ``--context`` / ``use-context`` hide
+        # the real API server (RH-40).
+        if base in {"kubectl", "oc", "helm", "kustomize"}:
+            rest = tokens[i + 1 :]
+            rest_lower = [t.lower().strip().strip("'\"") for t in rest]
+            for j, low in enumerate(rest_lower):
+                # Local API/port pivots hide the real cluster egress (RH-42).
+                if low in {"proxy", "port-forward", "port_forward", "cp"}:
+                    raise PermissionDeniedError(
+                        f"{base} {low} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+                if low in {"use-context", "set-context", "rename-context"}:
+                    raise PermissionDeniedError(
+                        f"{base} {low} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display}); pass an explicit "
+                        f"--server with an in-scope API host"
+                    )
+                if low == "config" and j + 1 < len(rest_lower):
+                    nxt_cmd = rest_lower[j + 1]
+                    if nxt_cmd in {
+                        "use-context",
+                        "set-context",
+                        "rename-context",
+                        "set-cluster",
+                    }:
+                        raise PermissionDeniedError(
+                            f"{base} config {nxt_cmd} is not allowed under "
+                            f"authorized scope (authorized scope: {scope_display})"
+                        )
+            skip_server = False
+            for nxt in rest:
+                if skip_server:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(nxt), allowed_items, scope_display
+                    )
+                    skip_server = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset(),
+                    long=frozenset({"--server", "--host"}),
+                )
+                if glued:
+                    _assert_host_token_in_scope(
+                        _proxy_host_from_val(glued), allowed_items, scope_display
+                    )
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"--context", "--kube-context", "--cluster"} or (
+                    flag.startswith("--context")
+                    or flag.startswith("--kube-context")
+                    or flag.startswith("--cluster")
+                ):
+                    raise PermissionDeniedError(
+                        f"{base} {flag} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display}); pass an explicit "
+                        f"--server with an in-scope API host"
+                    )
+                if flag in {"--server", "--host"}:
+                    if "=" in nxt:
+                        _assert_host_token_in_scope(
+                            _proxy_host_from_val(nxt.split("=", 1)[1]),
+                            allowed_items,
+                            scope_display,
+                        )
+                    else:
+                        skip_server = True
+            continue
         # DB / RDP / WinRM host flags (``mysql -h``, ``xfreerdp /v:``).
         if base in {
             "mysql",
+            "mariadb",
+            "mycli",
             "psql",
+            "pgcli",
             "redis-cli",
+            "redis-benchmark",
             "mongosh",
             "mongo",
+            "valkey-cli",
+            "valkey-benchmark",
+            "keydb-cli",
+            "keydb-benchmark",
+            "clickhouse-client",
+            "clickhouse",
+            "cqlsh",
+            "cypher-shell",
+            "cockroach",
+            "sqlplus",
+            "kcat",
+            "kafkacat",
+            "mosquitto_sub",
+            "mosquitto_pub",
+            "nats",
+            "rabbitmqadmin",
             "evil-winrm",
             "xfreerdp",
             "impacket-psexec",
@@ -947,6 +1914,15 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             "mssql-cli",
             "osql",
             "smbmap",
+            "pssh",
+            "parallel-ssh",
+            "pdsh",
+            "vncviewer",
+            "remmina",
+            "plink",
+            "dbclient",
+            # putty/pscp/psftp: handled via _HOST_TOOL_NAMES / scp remote matcher
+            # (avoid treating ``putty -ssh`` as glued ``-s`` + host).
         }:
             skip_db = False
             for nxt in tokens[i + 1 :]:
@@ -964,16 +1940,30 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         scope_display,
                     )
                     continue
+                # RH-50: ``sqlplus u/p@evilhost/orcl``.
+                if base == "sqlplus" and "@" in nxt and not nxt.startswith("-"):
+                    host = nxt.split("@", 1)[1].split("/")[0].strip().strip("'\"")
+                    if host:
+                        _assert_host_token_in_scope(host, allowed_items, scope_display)
+                    continue
                 if not nxt.startswith("-"):
                     # Positional host (impacket-psexec / bare redis-cli target).
-                    cand = nxt.split("@")[-1].split("/")[0].strip().strip("'\"")
+                    cand = (
+                        nxt.split("@")[-1]
+                        .split("/")[0]
+                        .split(":")[0]
+                        .strip()
+                        .strip("'\"")
+                    )
                     if cand and not cand.startswith("/"):
                         _assert_host_token_in_scope(cand, allowed_items, scope_display)
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
-                    short=frozenset({"-h", "-H", "-i", "-S"}),
-                    long=frozenset({"--host", "--ip", "--server"}),
+                    short=frozenset({"-h", "-H", "-i", "-S", "-w", "-a", "-b", "-s"}),
+                    long=frozenset(
+                        {"--host", "--ip", "--server", "--address", "--broker", "-c"}
+                    ),
                 )
                 if glued:
                     _assert_host_token_in_scope(
@@ -981,7 +1971,22 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     continue
                 flag = nxt.split("=", 1)[0]
-                if flag in {"-h", "--host", "-H", "-i", "--ip", "-S", "--server"}:
+                if flag in {
+                    "-h",
+                    "--host",
+                    "-H",
+                    "-i",
+                    "--ip",
+                    "-S",
+                    "--server",
+                    "-w",
+                    "-a",
+                    "--address",
+                    "-b",
+                    "--broker",
+                    "-c",
+                    "-s",
+                }:
                     if "=" in nxt:
                         _assert_host_token_in_scope(
                             _proxy_host_from_val(nxt.split("=", 1)[1]),
@@ -1114,6 +2119,13 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     )
                     skip_r = False
                     continue
+                # ``0/0`` / ``0.0.0.0/0`` / ``::/0`` = full-tunnel egress pivot (RH-30).
+                bare = nxt.strip().strip("'\"")
+                if bare in {"0/0", "0.0.0.0/0", "::/0", "0::/0"}:
+                    raise PermissionDeniedError(
+                        f"sshuttle full-tunnel {bare} is not allowed under authorized "
+                        f"scope (authorized scope: {scope_display})"
+                    )
                 if not nxt.startswith("-"):
                     continue
                 flag = nxt.split("=", 1)[0]
@@ -1129,11 +2141,29 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
             continue
         # chisel ``client host:port …`` / crackmapexec|nxc ``smb host``.
         if base in {"chisel", "crackmapexec", "cme", "nxc", "netexec"}:
+            # Reverse SOCKS / R:socks via an in-scope hop still pivots out (RH-29).
+            # Scan *all* remotes first — host validation below breaks after the
+            # first hop and must not skip a trailing ``R:socks``.
+            if base == "chisel":
+                for nxt in tokens[i + 1 :]:
+                    low = nxt.lower().strip().strip("'\"")
+                    # Client remotes + server ``--socks5`` listener (RH-29 / RH-41).
+                    if (
+                        low in {"r:socks", "socks", "socks5", "socks4", "--socks5", "--socks4", "--socks"}
+                        or low.startswith("r:socks")
+                        or low.startswith("--socks5")
+                        or low.startswith("--socks4")
+                        or ":socks" in low
+                    ):
+                        raise PermissionDeniedError(
+                            f"chisel SOCKS reverse pivot is not allowed under "
+                            f"authorized scope (authorized scope: {scope_display})"
+                        )
             skip_sub = base == "chisel"
             for nxt in tokens[i + 1 :]:
+                low = nxt.lower().strip().strip("'\"")
                 if nxt.startswith("-"):
                     continue
-                low = nxt.lower()
                 if skip_sub and low in {"client", "server"}:
                     skip_sub = False
                     continue
@@ -1186,9 +2216,41 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     else:
                         skip_h = True
             continue
-        # ansible ``-i host,`` inventory (engagement-bound when scope set).
+        # ansible ``-i host,`` inventory + ad-hoc ``ansible HOST -m …`` (RH-55).
         if base in {"ansible", "ansible-playbook", "ansible-inventory"}:
             skip_inv = False
+            skip_flag_arg = False
+            seen_pattern = False
+            _ansible_value_flags = frozenset(
+                {
+                    "-m",
+                    "--module-name",
+                    "-a",
+                    "--args",
+                    "-e",
+                    "--extra-vars",
+                    "-l",
+                    "--limit",
+                    "-t",
+                    "--tags",
+                    "--skip-tags",
+                    "-u",
+                    "--user",
+                    "-b",
+                    "--become-user",
+                    "--private-key",
+                    "--key-file",
+                    "-c",
+                    "--connection",
+                    "-f",
+                    "--forks",
+                    "-T",
+                    "--timeout",
+                    "-i",
+                    "--inventory",
+                    "--inventory-file",
+                }
+            )
             for nxt in tokens[i + 1 :]:
                 if skip_inv:
                     # ``host,`` / ``host1,host2`` / path — check host-like tokens only.
@@ -1199,8 +2261,50 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                         _assert_host_token_in_scope(part, allowed_items, scope_display)
                     skip_inv = False
                     continue
+                if skip_flag_arg:
+                    # ``-l`` / ``--limit`` host patterns are engagement-bound.
+                    if skip_flag_arg == "limit":
+                        for part in re.split(r"[:&!,\[\]]+", nxt):
+                            part = part.strip().strip("'\"")
+                            if (
+                                not part
+                                or part.lower() in _ANSIBLE_NON_HOST_PATTERNS
+                                or "/" in part
+                            ):
+                                continue
+                            if (
+                                _SINGLE_LABEL_RE.match(part)
+                                or "." in part
+                                or part.isdigit()
+                            ):
+                                _assert_host_token_in_scope(
+                                    part, allowed_items, scope_display
+                                )
+                    skip_flag_arg = False
+                    continue
                 if not nxt.startswith("-"):
-                    # Positional pattern host limit (``ansible all`` is not a target host).
+                    # Ad-hoc: only the first positional is the host pattern.
+                    # Playbooks: positionals are paths — skip.
+                    if base != "ansible" or seen_pattern:
+                        continue
+                    seen_pattern = True
+                    for part in re.split(r"[:&!,\[\]]+", nxt):
+                        part = part.strip().strip("'\"")
+                        if (
+                            not part
+                            or part.lower() in _ANSIBLE_NON_HOST_PATTERNS
+                            or "/" in part
+                            or part.endswith((".yml", ".yaml", ".ini"))
+                        ):
+                            continue
+                        if (
+                            _SINGLE_LABEL_RE.match(part)
+                            or "." in part
+                            or part.isdigit()
+                        ):
+                            _assert_host_token_in_scope(
+                                part, allowed_items, scope_display
+                            )
                     continue
                 flag = nxt.split("=", 1)[0]
                 if flag in {"-i", "--inventory", "--inventory-file"}:
@@ -1214,6 +2318,162 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                             _assert_host_token_in_scope(part, allowed_items, scope_display)
                     else:
                         skip_inv = True
+                    continue
+                if flag in {"-l", "--limit"}:
+                    if "=" in nxt:
+                        for part in re.split(
+                            r"[:&!,\[\]]+", nxt.split("=", 1)[1]
+                        ):
+                            part = part.strip().strip("'\"")
+                            if (
+                                not part
+                                or part.lower() in _ANSIBLE_NON_HOST_PATTERNS
+                                or "/" in part
+                            ):
+                                continue
+                            if (
+                                _SINGLE_LABEL_RE.match(part)
+                                or "." in part
+                                or part.isdigit()
+                            ):
+                                _assert_host_token_in_scope(
+                                    part, allowed_items, scope_display
+                                )
+                    else:
+                        skip_flag_arg = "limit"
+                    continue
+                if flag in _ansible_value_flags and "=" not in nxt:
+                    skip_flag_arg = True
+            continue
+        # RH-55/56: Fabric ``fab -H host`` / ``--hosts=`` (exact flag before glued).
+        if base in {"fab", "fabric"}:
+            skip_fab_h = False
+
+            def _fab_hosts(raw: str) -> None:
+                for part in raw.replace(",", " ").split():
+                    part = part.strip().strip("'\"")
+                    if part:
+                        _assert_host_token_in_scope(
+                            part.split("@")[-1].split(":")[0],
+                            allowed_items,
+                            scope_display,
+                        )
+
+            for nxt in tokens[i + 1 :]:
+                if skip_fab_h:
+                    _fab_hosts(nxt)
+                    skip_fab_h = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-H", "--hosts", "--host"}:
+                    if "=" in nxt:
+                        _fab_hosts(nxt.split("=", 1)[1])
+                    else:
+                        skip_fab_h = True
+                    continue
+                glued = _glued_host_flag_value(
+                    nxt,
+                    short=frozenset({"-H"}),
+                    long=frozenset({"--hosts", "--host"}),
+                )
+                if glued:
+                    _fab_hosts(glued)
+            continue
+        # RH-55: LXC/Incus ``exec``/``shell`` container name + ``remote add``.
+        if base in {"lxc", "lxd", "incus"}:
+            skip_remote_url = False
+            _lxc_host_verbs = frozenset(
+                {"exec", "shell", "console", "copy", "move", "launch", "delete", "rm"}
+            )
+            toks = tokens[i + 1 :]
+            j = 0
+            while j < len(toks):
+                nxt = toks[j]
+                if skip_remote_url:
+                    # ``lxc remote add name URL`` — URL may be opaque; check host form.
+                    if "://" in nxt:
+                        parsed = urllib.parse.urlparse(nxt.strip().strip("'\""))
+                        if parsed.hostname:
+                            _assert_host_token_in_scope(
+                                parsed.hostname, allowed_items, scope_display
+                            )
+                    else:
+                        _assert_host_token_in_scope(
+                            nxt.split("@")[-1].split(":")[0].strip().strip("'\""),
+                            allowed_items,
+                            scope_display,
+                        )
+                    skip_remote_url = False
+                    j += 1
+                    continue
+                low = nxt.lower().strip().strip("'\"")
+                if low == "remote" and j + 1 < len(toks) and toks[j + 1].lower() == "add":
+                    # remote add <name> <url> — skip name, check url.
+                    j += 2
+                    if j < len(toks):
+                        skip_remote_url = True
+                    continue
+                if low in _lxc_host_verbs and j + 1 < len(toks):
+                    name = toks[j + 1].strip().strip("'\"")
+                    if name and not name.startswith("-"):
+                        # ``remote:container`` — check remote alias as host-like.
+                        peer = name.split(":", 1)[0] if ":" in name else name
+                        if peer and peer.lower() not in {"local"}:
+                            _assert_host_token_in_scope(
+                                peer, allowed_items, scope_display
+                            )
+                    j += 2
+                    continue
+                j += 1
+            continue
+        # RH-55: libvirt ``virsh -c qemu+tcp://host/system``.
+        if base == "virsh":
+            skip_conn = False
+            for nxt in tokens[i + 1 :]:
+                if skip_conn:
+                    conn = nxt.strip().strip("'\"")
+                    if "://" in conn:
+                        # Covered by ``_NON_HTTP_URL_RE`` for qemu+*; also extract host.
+                        parsed = urllib.parse.urlparse(conn)
+                        if parsed.hostname:
+                            _assert_host_token_in_scope(
+                                parsed.hostname, allowed_items, scope_display
+                            )
+                        elif conn.lower().startswith("qemu"):
+                            raise PermissionDeniedError(
+                                f"virsh connect URI is not allowed under authorized scope "
+                                f"(authorized scope: {scope_display})"
+                            )
+                    else:
+                        _assert_host_token_in_scope(
+                            conn.split("@")[-1].split(":")[0],
+                            allowed_items,
+                            scope_display,
+                        )
+                    skip_conn = False
+                    continue
+                if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-c", "--connect"}:
+                    if "=" in nxt:
+                        conn = nxt.split("=", 1)[1].strip().strip("'\"")
+                        if "://" in conn:
+                            parsed = urllib.parse.urlparse(conn)
+                            if parsed.hostname:
+                                _assert_host_token_in_scope(
+                                    parsed.hostname, allowed_items, scope_display
+                                )
+                        else:
+                            _assert_host_token_in_scope(
+                                conn.split("@")[-1].split(":")[0],
+                                allowed_items,
+                                scope_display,
+                            )
+                    else:
+                        skip_conn = True
             continue
 
         def _check_ssh_forward_spec(spec: str) -> None:
@@ -1228,9 +2488,33 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
         _ssh_forward_flags = frozenset({"-L", "-R", "-D"})
         _cred_flags = frozenset({"-U", "--user", "--username"})
         skip_next_port = False
+        skip_ssh_o_val = False
         skip_forward_spec = False
         skip_cred_arg = False
         for nxt in tokens[i + 1 :]:
+            if skip_ssh_o_val:
+                # Spaced ``-o DynamicForward=9050`` / ``-o ProxyJump=evil`` (RH-08).
+                # RH-55: ``-o HostName=evil`` selects the real peer.
+                opt = nxt.strip().strip("'\"")
+                opt_key, sep, opt_val = opt.partition("=")
+                key_l = opt_key.lower()
+                if key_l in {"proxycommand", "dynamicforward", "tunnel"}:
+                    raise PermissionDeniedError(
+                        f"ssh {key_l} is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+                if key_l == "proxyjump" and sep:
+                    _check_proxyjump_val(opt_val)
+                elif key_l == "hostname" and sep:
+                    _assert_host_token_in_scope(
+                        opt_val.split("@")[-1].split(":")[0].strip(),
+                        allowed_items,
+                        scope_display,
+                    )
+                elif key_l in {"localforward", "remoteforward"} and sep:
+                    _check_ssh_forward_spec(opt_val)
+                skip_ssh_o_val = False
+                continue
             if skip_next_port:
                 skip_next_port = False
                 continue
@@ -1243,22 +2527,45 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 continue
             if nxt.startswith("-"):
                 flag = nxt.split("=", 1)[0]
-                ssh_opt = base in {"ssh", "scp", "sftp"} and (
+                ssh_opt = base in {"ssh", "autossh", "scp", "sftp"} and (
                     flag in _ssh_opt_flags
                     or flag.startswith("-o")
                     or flag.startswith("--option")
                 )
                 jump_opt = flag in {"-J", "--jump"}
-                forward_opt = base == "ssh" and flag in _ssh_forward_flags
+                # TUN/TAP device forwarding ``-w`` / ``-w0:0`` (RH-19).
+                if base in {"ssh", "autossh"} and (flag == "-w" or re.match(r"^-w[\d:]", flag)):
+                    raise PermissionDeniedError(
+                        f"ssh -w TUN/TAP tunnel is not allowed under authorized scope "
+                        f"(authorized scope: {scope_display})"
+                    )
+                # autossh ``-M 0`` monitor port — skip so ``0`` is not treated as a host.
+                if base == "autossh" and flag in {"-M", "--monitor"}:
+                    if "=" not in nxt:
+                        skip_next_port = True
+                    continue
+                # Spaced ``-D 9050`` and glued ``-D9050`` / ``-L8080:h:80`` (RH-08).
+                glued_dyn = bool(re.match(r"^-D\d", flag))
+                glued_lr = bool(re.match(r"^-[LR]\d", flag))
+                forward_opt = base in {"ssh", "autossh"} and (
+                    flag in _ssh_forward_flags or glued_dyn or glued_lr
+                )
                 if forward_opt:
+                    if flag == "-D" or glued_dyn:
+                        # DynamicForward creates a local SOCKS pivot — blocked under scope.
+                        raise PermissionDeniedError(
+                            f"ssh -D DynamicForward is not allowed under authorized scope "
+                            f"(authorized scope: {scope_display})"
+                        )
+                    if glued_lr:
+                        # ``-L8080:host:80`` / ``-R8080:host:80`` — host is after first port.
+                        _check_ssh_forward_spec(flag[2:])
+                        continue
                     if "=" in nxt:
                         if flag in {"-L", "-R"}:
                             _check_ssh_forward_spec(nxt.split("=", 1)[1])
                     else:
-                        # ``-D`` is dynamic (no remote host); still consume the arg.
                         skip_forward_spec = flag in {"-L", "-R"}
-                        if flag == "-D":
-                            skip_next_port = True
                     continue
                 if (
                     flag in _port_flags
@@ -1267,8 +2574,10 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     or jump_opt
                 ):
                     # ``-o Key=val``, ``-J bastion``, ``-p 22``.
-                    if "=" not in nxt and (
-                        flag in _ssh_opt_flags | _port_flags | {"-J", "--jump"}
+                    if "=" not in nxt and flag in _ssh_opt_flags:
+                        skip_ssh_o_val = True
+                    elif "=" not in nxt and (
+                        flag in _port_flags | {"-J", "--jump"}
                     ):
                         skip_next_port = True
                     elif "=" not in nxt and flag.lower().startswith("-p") and len(flag) <= 2:

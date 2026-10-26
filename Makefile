@@ -50,7 +50,7 @@ security: ## Run security checks (Bandit + pip-audit)
 	-pip-audit --format json --output pip-audit.json
 
 coverage: ## Run tests with coverage report
-	python -m pytest tests/ -v --tb=short --cov=siyarix --cov-report=term-missing --cov-fail-under=50
+	python -m pytest tests/ -v --tb=short --cov=siyarix --cov-report=term-missing --cov-fail-under=70
 
 benchmark: ## Run performance benchmarks
 	python -m pytest tests/ -v --tb=short -m "benchmark" --benchmark-only 2>/dev/null || echo "pytest-benchmark not installed; install with: pip install pytest-benchmark"

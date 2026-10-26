@@ -209,11 +209,11 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                 _SAFE_SDKS = {
                     "openai",
                     "anthropic",
-                    "google-genai",
                     "mistralai",
                     "cohere",
                     "together",
                 }
+                # Gemini uses httpx REST — empty sdk_dependency; do not require google-genai.
                 if profile.sdk_dependency not in _SAFE_SDKS:
                     logger.warning(
                         "Unknown SDK dependency '%s' for provider '%s'",
@@ -1017,7 +1017,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
 
         # Instantiate SplitPane and display
-        pane = SplitPane(theme=self._settings.get("color_theme") or "dark-neon")
+        pane = SplitPane(theme=self._settings.get("color_theme") or "cyber-noir")
         layout = pane.generate_layout(
             left_renderable=left_content,
             right_type=self._split_pane_type,
@@ -1155,7 +1155,6 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
                     _SAFE_SDKS = {
                         "openai",
                         "anthropic",
-                        "google-genai",
                         "mistralai",
                         "cohere",
                         "together",

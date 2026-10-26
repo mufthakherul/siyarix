@@ -34,11 +34,16 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+        with:
+          enable-cache: true
+
       - name: Check outdated
         run: |
-          pip install -e .
+          uv pip install --system -e .
           echo "## Outdated Dependencies" >> $GITHUB_STEP_SUMMARY
-          pip list --outdated --format=columns >> $GITHUB_STEP_SUMMARY || echo "None"
+          uv pip list --system --outdated >> $GITHUB_STEP_SUMMARY || echo "None"
 
   monthly-audit:
     name: Monthly Audit
@@ -52,10 +57,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3
+        with:
+          enable-cache: true
+
       - name: Run full test suite
         run: |
-          pip install -e .[dev]
-          pytest -v --tb=short -x || true
+          uv pip install --system -e ".[dev]"
+          pytest -v --tb=short -x -m "not e2e and not stress and not chaos" || true
 
   cleanup:
     name: Repository Cleanup

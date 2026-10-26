@@ -420,8 +420,11 @@ class ThreatIntelFeed:
         {
             "name": "CISA Known Exploited Vulnerabilities (KEV)",
             "type": "catalog",
-            "description": "Catalog of vulnerabilities that have been exploited in the wild",
-            "status": "integrated",
+            "description": (
+                "Catalog of vulnerabilities exploited in the wild "
+                "(planned — not fetched yet; use offline KNOWN_CVES cache only)"
+            ),
+            "status": "planned",
         },
         {
             "name": "MITRE ATT&CK Enterprise",

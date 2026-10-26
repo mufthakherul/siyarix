@@ -33,8 +33,7 @@ services:
       - siyarix_config:/home/siyarix/.siyarix
       - siyarix_output:/home/siyarix/output
       - ${SIYARIX_CUSTOM_DIR:-./custom}:/home/siyarix/custom:ro
-    ports:
-      - "${SIYARIX_API_PORT:-8000}:8000"
+    # No published API port — FastAPI surface is not shipped in-tree yet.
     networks:
       - siyarix_net
     healthcheck:
@@ -76,8 +75,7 @@ services:
       - siyarix_kali_config:/home/siyarix/.siyarix
       - siyarix_output:/home/siyarix/output
       - ${SIYARIX_CUSTOM_DIR:-./custom}:/home/siyarix/custom:ro
-    ports:
-      - "${SIYARIX_KALI_API_PORT:-8001}:8000"
+    # No published API port — FastAPI surface is not shipped in-tree yet.
     networks:
       - siyarix_net
     healthcheck:
@@ -144,7 +142,7 @@ services:
     volumes:
       - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
     ports:
-      - "${OTEL_PORT:-4318}:4318"
+      - "127.0.0.1:${OTEL_PORT:-4318}:4318"
     networks:
       - siyarix_net
     profiles:

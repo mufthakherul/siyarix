@@ -166,6 +166,36 @@ class TestAsyncWorkerPoolSubmitAfterClose:
             pass
 
     @pytest.mark.asyncio
+    async def test_cancel_before_start_releases_queue_sema(self) -> None:
+        """Cancelled tasks must not permanently consume queue capacity."""
+        pool = AsyncWorkerPool(max_workers=1, max_queue=1)
+
+        async def blocker():
+            await asyncio.sleep(30.0)
+            return "blocked"
+
+        async def quick():
+            return "ok"
+
+        blocker_task = asyncio.create_task(pool.submit(blocker))
+        await asyncio.sleep(0.02)
+        # Fill the single queue slot while worker is busy.
+        queued = asyncio.create_task(pool.submit(quick))
+        await asyncio.sleep(0.02)
+        queued.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await queued
+        await asyncio.sleep(0.02)
+        # Queue capacity must be free again for a new submit.
+        result_task = asyncio.create_task(pool.submit(quick))
+        # Unblock the worker so the new submit can finish.
+        blocker_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await blocker_task
+        assert await asyncio.wait_for(result_task, timeout=2.0) == "ok"
+        await pool.close(timeout=1.0)
+
+    @pytest.mark.asyncio
     async def test_submit_backpressure_releases_sema(self) -> None:
         pool = AsyncWorkerPool(max_workers=1, max_queue=2)
 
@@ -268,7 +298,7 @@ class TestPlatformUtils:
         mock_dir = MagicMock()
         mock_dir.__truediv__.return_value = env_path
         mock_get_config_dir.return_value = mock_dir
-        with patch("siyarix.chat.platform_utils.logger") as mock_log:
+        with patch("siyarix.dotenv_guard.logger") as mock_log:
             load_env_file()
             assert os.environ.get("VALID_KEY") == "ok"
             assert "OPENAI_API_KEY" not in os.environ
@@ -280,7 +310,7 @@ class TestPlatformUtils:
             assert "DATABASE_URL" not in os.environ
             assert "API_KEY" not in os.environ
             mock_log.debug.assert_any_call(
-                "Skipping %s from .env (use /key command instead)", "OPENAI_API_KEY"
+                "Skipping blocked/sensitive env var %s from .env", "OPENAI_API_KEY"
             )
 
     def test_get_security_commands_windows(self):

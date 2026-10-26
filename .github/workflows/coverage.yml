@@ -50,7 +50,7 @@ jobs:
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-branch \
-            --cov-fail-under=40 \
+            --cov-fail-under=70 \
             -v \
             --junitxml=pytest.xml \
             -m "not integration"
@@ -91,7 +91,7 @@ jobs:
               const branchMatch = xml.match(/branch-rate="([0-9.]+)"/);
               const lineRate = lineMatch ? (parseFloat(lineMatch[1]) * 100).toFixed(1) : 'N/A';
               const branchRate = branchMatch ? (parseFloat(branchMatch[1]) * 100).toFixed(1) : 'N/A';
-              const icon = parseFloat(lineRate) >= 80 ? ':green_circle:' : parseFloat(lineRate) >= 50 ? ':yellow_circle:' : ':red_circle:';
+              const icon = parseFloat(lineRate) >= 80 ? ':green_circle:' : parseFloat(lineRate) >= 70 ? ':yellow_circle:' : ':red_circle:';
 
               const body = `## Coverage Report
 
@@ -100,7 +100,7 @@ jobs:
               | Line Coverage | ${lineRate}% |
               | Branch Coverage | ${branchRate}% |
 
-              ${icon} **${parseFloat(lineRate) >= 50 ? 'Passing' : 'Below threshold'}** (50% minimum)
+              ${icon} **${parseFloat(lineRate) >= 70 ? 'Passing' : 'Below threshold'}** (70% minimum)
 
               *Reported for Python 3.12*`;
 
@@ -150,4 +150,4 @@ jobs:
           echo "| 3.12 | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 3.13 | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "*Coverage threshold: 50% line rate (enforced via --cov-fail-under)*" >> $GITHUB_STEP_SUMMARY
+          echo "*Coverage threshold: 70% line rate (enforced via --cov-fail-under)*" >> $GITHUB_STEP_SUMMARY

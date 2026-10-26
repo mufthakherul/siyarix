@@ -23,11 +23,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "SIYARIX_COMMAND_REVIEW=false",
                 "SIYARIX_ALLOWED_SCOPE=0.0.0.0/0",
                 "PERL5OPT=-d:Foo",
+                "PERLLIB=/tmp/evil",
                 "RUBYOPT=-rfoo",
                 "JAVA_TOOL_OPTIONS=-javaagent:x",
                 "_JAVA_OPTIONS=-javaagent:x",
                 "JDK_JAVA_OPTIONS=-javaagent:x",
                 "JAVA_OPTS=-Xbootclasspath/a:/tmp/evil",
+                "IBM_JAVA_OPTIONS=-javaagent:x",
+                "OPENJ9_JAVA_OPTIONS=-javaagent:x",
+                "CATALINA_OPTS=-javaagent:x",
                 "PERL5DB=system('id')",
                 "SOCKS5_PROXY=socks5://evil",
                 "OPENSSL_MODULES=/tmp/evil",
@@ -35,7 +39,23 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "WGETRC=/tmp/wgetrc",
                 "KUBE_CONFIG=/tmp/evil.kube",
                 "DOTNET_STARTUP_HOOKS=/tmp/evil",
+                "DOTNET_AdditionalDeps=/tmp/evil",
                 "CORECLR_PROFILER_PATH=/tmp/evil",
+                "CORECLR_PROFILER_PATH_64=/tmp/evil",
+                "CORECLR_ENABLE_PROFILING=1",
+                "CORECLR_PROFILER={11111111-1111-1111-1111-111111111111}",
+                "GOCACHEPROG=/tmp/evil",
+                "BASH_FUNC_foo%%=() { id; }",
+                "EDITOR=/tmp/pwn-editor",
+                "SUDO_EDITOR=/tmp/pwn-editor",
+                "ANSIBLE_ACTION_PLUGINS=/tmp/evil",
+                "ANSIBLE_LIBRARY=/tmp/evil",
+                "PYTHONEXECUTABLE=/tmp/pwn-python",
+                "LUA_PATH=/tmp/evil/?.lua",
+                "BUILDKIT_HOST=tcp://evil:1234",
+                "RES_OPTIONS=attempts:1",
+                "BOTO_CONFIG=/tmp/evil.boto",
+                "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE=/tmp/evil.pem",
                 "HOSTFILE=/tmp/hosts",
                 "CVS_RSH=ssh -o ProxyCommand=evil",
                 "ZDOTDIR=/tmp/zdot",
@@ -133,7 +153,38 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
                 "RSYNC_RSH=ssh -o ProxyCommand=evil",
                 "RSYNC_CONNECT_PROG=/tmp/pwn",
                 "RSYNC_PROXY=evil:8080",
-                "SIYARIX_HARMLESS=ok",
+                "SIYARIX_TRUST_PLUGINS=1",
+                "SIYARIX_PLUGIN_AUTO_PIP=1",
+                "SIYARIX_EXPERIMENTAL_SWARM=1",
+                "SIYARIX_PERMISSION_GATE=0",
+                "QT_PLUGIN_PATH=/tmp/evil",
+                "GST_PLUGIN_PATH=/tmp/evil",
+                "GIO_MODULE_DIR=/tmp/evil",
+                "PYTHONUSERBASE=/tmp/evil",
+                "NUGET_PLUGIN_PATHS=/tmp/evil",
+                "GOPROXY=http://evil",
+                "PACKER_PLUGIN_PATH=/tmp/evil",
+                "GST_PLUGIN_SYSTEM_PATH_1_0=/tmp/evil",
+                "CARGO_BUILD_RUSTC_WRAPPER=/tmp/evil",
+                "LIBRARY_PATH=/tmp/evil",
+                "KUBE_EDITOR=/tmp/evil",
+                # RH-36
+                "BROWSER=/tmp/evil",
+                "GUILE_LOAD_PATH=/tmp/evil",
+                "GUILE_LOAD_COMPILED_PATH=/tmp/evil",
+                "PIP_FIND_LINKS=/tmp/evil",
+                "PIP_EXTRA_INDEX_URL=http://evil/simple",
+                "PIP_INDEX_URL=http://evil/simple",
+                "GRPC_PROXY=http://evil:8080",
+                "VAULT_ADDR=http://evil:8200",
+                "VAULT_AGENT_ADDR=http://evil:8200",
+                "GDK_PIXBUF_MODULEDIR=/tmp/evil",
+                "GDK_PIXBUF_MODULE_FILE=/tmp/evil",
+                "NSS_WRAPPER_PASSWD=/tmp/evil",
+                "NSS_WRAPPER_GROUP=/tmp/evil",
+                "ELECTRON_RUN_AS_NODE=1",
+                "ELECTRON_NO_ASAR=1",
+                "APP_HARMLESS=ok",
             ]
         ),
         encoding="utf-8",
@@ -144,11 +195,15 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "SIYARIX_COMMAND_REVIEW",
         "SIYARIX_ALLOWED_SCOPE",
         "PERL5OPT",
+        "PERLLIB",
         "RUBYOPT",
         "JAVA_TOOL_OPTIONS",
         "_JAVA_OPTIONS",
         "JDK_JAVA_OPTIONS",
         "JAVA_OPTS",
+        "IBM_JAVA_OPTIONS",
+        "OPENJ9_JAVA_OPTIONS",
+        "CATALINA_OPTS",
         "PERL5DB",
         "SOCKS5_PROXY",
         "OPENSSL_MODULES",
@@ -156,7 +211,23 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "WGETRC",
         "KUBE_CONFIG",
         "DOTNET_STARTUP_HOOKS",
+        "DOTNET_AdditionalDeps",
         "CORECLR_PROFILER_PATH",
+        "CORECLR_PROFILER_PATH_64",
+        "CORECLR_ENABLE_PROFILING",
+        "CORECLR_PROFILER",
+        "GOCACHEPROG",
+        "BASH_FUNC_foo%%",
+        "EDITOR",
+        "SUDO_EDITOR",
+        "ANSIBLE_ACTION_PLUGINS",
+        "ANSIBLE_LIBRARY",
+        "PYTHONEXECUTABLE",
+        "LUA_PATH",
+        "BUILDKIT_HOST",
+        "RES_OPTIONS",
+        "BOTO_CONFIG",
+        "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE",
         "HOSTFILE",
         "CVS_RSH",
         "ZDOTDIR",
@@ -254,7 +325,37 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
         "RSYNC_RSH",
         "RSYNC_CONNECT_PROG",
         "RSYNC_PROXY",
-        "SIYARIX_HARMLESS",
+        "SIYARIX_TRUST_PLUGINS",
+        "SIYARIX_PLUGIN_AUTO_PIP",
+        "SIYARIX_EXPERIMENTAL_SWARM",
+        "SIYARIX_PERMISSION_GATE",
+        "QT_PLUGIN_PATH",
+        "GST_PLUGIN_PATH",
+        "GIO_MODULE_DIR",
+        "PYTHONUSERBASE",
+        "NUGET_PLUGIN_PATHS",
+        "GOPROXY",
+        "PACKER_PLUGIN_PATH",
+        "GST_PLUGIN_SYSTEM_PATH_1_0",
+        "CARGO_BUILD_RUSTC_WRAPPER",
+        "LIBRARY_PATH",
+        "KUBE_EDITOR",
+        "BROWSER",
+        "GUILE_LOAD_PATH",
+        "GUILE_LOAD_COMPILED_PATH",
+        "PIP_FIND_LINKS",
+        "PIP_EXTRA_INDEX_URL",
+        "PIP_INDEX_URL",
+        "GRPC_PROXY",
+        "VAULT_ADDR",
+        "VAULT_AGENT_ADDR",
+        "GDK_PIXBUF_MODULEDIR",
+        "GDK_PIXBUF_MODULE_FILE",
+        "NSS_WRAPPER_PASSWD",
+        "NSS_WRAPPER_GROUP",
+        "ELECTRON_RUN_AS_NODE",
+        "ELECTRON_NO_ASAR",
+        "APP_HARMLESS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -265,12 +366,31 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "SIYARIX_PREAUTHORIZED" not in os.environ
     assert "SIYARIX_COMMAND_REVIEW" not in os.environ
     assert "SIYARIX_ALLOWED_SCOPE" not in os.environ
+    assert "SIYARIX_TRUST_PLUGINS" not in os.environ
+    assert "SIYARIX_PLUGIN_AUTO_PIP" not in os.environ
+    assert "SIYARIX_EXPERIMENTAL_SWARM" not in os.environ
+    assert "SIYARIX_PERMISSION_GATE" not in os.environ
+    assert "QT_PLUGIN_PATH" not in os.environ
+    assert "GST_PLUGIN_PATH" not in os.environ
+    assert "GIO_MODULE_DIR" not in os.environ
+    assert "PYTHONUSERBASE" not in os.environ
+    assert "NUGET_PLUGIN_PATHS" not in os.environ
+    assert "GOPROXY" not in os.environ
+    assert "PACKER_PLUGIN_PATH" not in os.environ
+    assert "GST_PLUGIN_SYSTEM_PATH_1_0" not in os.environ
+    assert "CARGO_BUILD_RUSTC_WRAPPER" not in os.environ
+    assert "LIBRARY_PATH" not in os.environ
+    assert "KUBE_EDITOR" not in os.environ
     assert "PERL5OPT" not in os.environ
+    assert "PERLLIB" not in os.environ
     assert "RUBYOPT" not in os.environ
     assert "JAVA_TOOL_OPTIONS" not in os.environ
     assert "_JAVA_OPTIONS" not in os.environ
     assert "JDK_JAVA_OPTIONS" not in os.environ
     assert "JAVA_OPTS" not in os.environ
+    assert "IBM_JAVA_OPTIONS" not in os.environ
+    assert "OPENJ9_JAVA_OPTIONS" not in os.environ
+    assert "CATALINA_OPTS" not in os.environ
     assert "PERL5DB" not in os.environ
     assert "SOCKS5_PROXY" not in os.environ
     assert "OPENSSL_MODULES" not in os.environ
@@ -278,7 +398,23 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "WGETRC" not in os.environ
     assert "KUBE_CONFIG" not in os.environ
     assert "DOTNET_STARTUP_HOOKS" not in os.environ
+    assert "DOTNET_AdditionalDeps" not in os.environ
     assert "CORECLR_PROFILER_PATH" not in os.environ
+    assert "CORECLR_PROFILER_PATH_64" not in os.environ
+    assert "CORECLR_ENABLE_PROFILING" not in os.environ
+    assert "CORECLR_PROFILER" not in os.environ
+    assert "GOCACHEPROG" not in os.environ
+    assert "BASH_FUNC_foo%%" not in os.environ
+    assert "EDITOR" not in os.environ
+    assert "SUDO_EDITOR" not in os.environ
+    assert "ANSIBLE_ACTION_PLUGINS" not in os.environ
+    assert "ANSIBLE_LIBRARY" not in os.environ
+    assert "PYTHONEXECUTABLE" not in os.environ
+    assert "LUA_PATH" not in os.environ
+    assert "BUILDKIT_HOST" not in os.environ
+    assert "RES_OPTIONS" not in os.environ
+    assert "BOTO_CONFIG" not in os.environ
+    assert "CLOUDSDK_CORE_CUSTOM_CA_CERTS_FILE" not in os.environ
     assert "HOSTFILE" not in os.environ
     assert "CVS_RSH" not in os.environ
     assert "ZDOTDIR" not in os.environ
@@ -376,4 +512,220 @@ def test_load_dotenv_skips_security_posture_and_inject_vars(
     assert "RSYNC_RSH" not in os.environ
     assert "RSYNC_CONNECT_PROG" not in os.environ
     assert "RSYNC_PROXY" not in os.environ
-    assert os.environ.get("SIYARIX_HARMLESS") == "ok"
+    # RH-36 browser / language / package / vault pivots
+    assert "BROWSER" not in os.environ
+    assert "GUILE_LOAD_PATH" not in os.environ
+    assert "GUILE_LOAD_COMPILED_PATH" not in os.environ
+    assert "PIP_FIND_LINKS" not in os.environ
+    assert "PIP_EXTRA_INDEX_URL" not in os.environ
+    assert "PIP_INDEX_URL" not in os.environ
+    assert "GRPC_PROXY" not in os.environ
+    assert "VAULT_ADDR" not in os.environ
+    assert "VAULT_AGENT_ADDR" not in os.environ
+    assert "GDK_PIXBUF_MODULEDIR" not in os.environ
+    assert "GDK_PIXBUF_MODULE_FILE" not in os.environ
+    assert "NSS_WRAPPER_PASSWD" not in os.environ
+    assert "NSS_WRAPPER_GROUP" not in os.environ
+    assert "ELECTRON_RUN_AS_NODE" not in os.environ
+    assert "ELECTRON_NO_ASAR" not in os.environ
+    # All SIYARIX_* keys are blocked from .env; non-security APP_* still loads.
+    assert os.environ.get("APP_HARMLESS") == "ok"
+
+
+def test_should_skip_rh46_db_proxy_crypto_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "DB_HOST",
+        "DATABASE_HOST",
+        "MYSQLHOST",
+        "AZURE_MYSQL_HOST",
+        "HTTPX_PROXY",
+        "REQUESTS_PROXY",
+        "AIOHTTP_PROXY",
+        "TOR_SOCKS_HOST",
+        "KUBERNETES_SERVICE_HOST",
+        "CRICTL_RUNTIME_ENDPOINT",
+        "AWS_ENDPOINT",
+        "S3_ENDPOINT",
+        "MINIO_ENDPOINT",
+        "PODMAN_CONNECTION",
+        "CONTAINERS_CONF",
+        "GNUPGHOME",
+        "SOPS_AGE_KEY_FILE",
+        "CLOUDSDK_CONFIG",
+        "XDG_CONFIG_HOME",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh47_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "TORSOCKS_TOR_ADDRESS",
+        "AZURE_CONFIG_DIR",
+        "NERDCTL_HOST",
+        "MSSQL_HOST",
+        "OVPN_CONFIG",
+        "DYNAMODB_ENDPOINT",
+        "XDG_DATA_HOME",
+        "HELM_CONFIG_HOME",
+        "OCI_CONFIG_FILE",
+        "BOUNDARY_ADDR",
+        "V2RAY_LOCATION_CONFIG",
+        "SHADOWSOCKS_CONFIG",
+        "R2_ENDPOINT",
+        "ELASTICSEARCH_HOST",
+        "KAFKA_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh48_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "TMATE_SERVER",
+        "ARGOCD_SERVER",
+        "OPENVPN3_CONFIG",
+        "TELEPORT_HOME",
+        "RCLONE_CONFIG",
+        "KUBE_API_SERVER",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh49_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "ZROK_API_ENDPOINT",
+        "TUNNELTO_HOST",
+        "ET_HOST",
+        "GRAFTCP_CONF",
+        "AWG_QUICK_CONFIG",
+        "CROC_RELAY",
+        "N2N_SUPERNODE",
+        "PROXYTUNNEL_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh50_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "MC_HOST_evil",
+        "FRPC_CONFIG",
+        "NPS_SERVER",
+        "VALKEY_HOST",
+        "OPENCONNECT_SERVER",
+        "HBBS_RELAY",
+        "CHISEL_SERVER",
+        "WORMHOLE_TRANSIT_HELPER",
+        "INLETS_UPSTREAM",
+        "NEO4J_HOST",
+        "KAFKA_BOOTSTRAP_SERVERS",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh51_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "FRPC_SERVER_ADDR",
+        "FRPC_SERVER_PORT",
+        "FRP_SERVER",
+        "NPS_HOST",
+        "NPS_VKEY",
+        "SSH_CONFIG",
+        "OPENSSH_CONFIG",
+        "ANSIBLE_HOST",
+        "FABRIC_HOST",
+        "PSCP_HOST",
+        "CLOUDFLARED_TUNNEL",
+        "LOCALTUNNEL_HOST",
+        "AWS_EXECUTION_ENV",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh52_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "RABBITMQ_HOST",
+        "NATS_HOST",
+        "MEMCACHED_HOST",
+        "COUCHDB_HOST",
+        "OPENSEARCH_HOST",
+        "ELASTICSEARCH_ENDPOINT",
+        "KAFKA_HOST",
+        "MQTT_HOST",
+        "CASSANDRA_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh53_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "PS4",
+        "PS1",
+        "PAGER",
+        "MANPAGER",
+        "GIT_PAGER",
+        "LESSCLOSE",
+        "LESSOPEN",
+        "MARIADB_HOST",
+        "POSTGRES_HOST",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh54_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "FISH_CONFIG",
+        "XONSHRC",
+        "ZDOTDIR",
+        "JUMP_HOST",
+        "BASTION_HOST",
+        "PROXY_HOST",
+        "LDAP_HOST",
+        "ORACLE_HOST",
+        "SQLSERVER_HOST",
+        "ELASTIC_HOST",
+        "OTLP_ENDPOINT",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh55_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "KRB5_CONFIG",
+        "KRB5_KDC_PROFILE",
+        "SSSD_CONF",
+        "LDAPCONF",
+        "LDAPRC",
+        "MEMCACHED_SERVER",
+        "SSH_PROXYCOMMAND",
+        "SSH_HOSTNAME",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh56_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "PARALLEL_SSHLOGIN",
+        "PARALLEL_SSHLOGINFILE",
+    ):
+        assert should_skip_dotenv_key(key), key

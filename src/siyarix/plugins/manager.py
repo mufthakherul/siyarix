@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Enterprise Plugin Manager for Siyarix.
 
-Provides dynamic discovery, sandboxed loading, lifecycle hooks, configuration
-management, remote registry search, and installation.
+Provides dynamic discovery, path-contained (not OS-sandboxed) loading, lifecycle
+hooks, configuration management, remote registry search, and installation.
+Treat installed plugins as fully trusted in-process code.
 """
 
 from __future__ import annotations
@@ -11,9 +12,10 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import shutil
-import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -30,6 +32,7 @@ from siyarix.plugins.models import (
 )
 from siyarix.providers.manager import ProviderManager
 from siyarix.registry import ToolRegistry
+from siyarix.subprocess_utils import safe_run_sync
 from siyarix.tool_models import ToolCategory
 
 logger = logging.getLogger(__name__)
@@ -46,6 +49,35 @@ def _safe_plugin_name(name: str) -> str:
     if cleaned in {".", ".."} or "/" in cleaned or "\\" in cleaned or ".." in cleaned:
         raise ValueError(f"Invalid plugin name (path traversal rejected): {name!r}")
     return cleaned
+
+
+def _env_flag_on(*names: str) -> bool:
+    for name in names:
+        if os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+    return False
+
+
+def plugin_trust_mode() -> str:
+    """Return ``off`` | ``trusted`` | ``force`` for in-process plugin loads (SX-A01).
+
+    Plugins still execute in-process (OS isolation is not available yet). Production
+    / require-master-password deployments must set ``SIYARIX_TRUST_PLUGINS=force``
+    so accidental ``=1`` from a lab shell cannot enable third-party code.
+    """
+    raw = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower()
+    if raw in {"force", "forced", "unsafe-force"}:
+        return "force"
+    if raw in {"1", "true", "yes", "on"}:
+        if _env_flag_on("SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"):
+            return "off"
+        return "trusted"
+    return "off"
+
+
+def plugins_trusted_for_load() -> bool:
+    """True when in-process plugin execution is explicitly authorized."""
+    return plugin_trust_mode() in {"trusted", "force"}
 
 
 def _assert_under_dir(path: Path, root: Path, *, what: str) -> Path:
@@ -115,10 +147,41 @@ def _validate_git_clone_url(url: str) -> str:
     return _validate_plugin_fetch_url(cleaned)
 
 
+# PEP 508 name + optional extras + version specifier only (no paths/URLs/VCS).
+_SAFE_REQ_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[A-Za-z0-9,._-]+\])?"
+    r"(?:\s*(?:===|==|!=|<=|>=|~=|<|>)\s*[A-Za-z0-9jJ.*+!_~-]+)?$"
+)
+
+
+def _assert_safe_requirement_line(line: str, *, plugin: str) -> None:
+    """Reject pip abuse (switches, paths, VCS/URLs) in plugin requirements.txt."""
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return
+    lower = stripped.lower()
+    if lower.startswith("-"):
+        raise RuntimeError(f"Refusing unsafe requirements line in {plugin}: {stripped!r}")
+    if any(
+        tok in lower
+        for tok in ("://", "git+", "svn+", "hg+", "bzr+", "file:", "ssh:")
+    ):
+        raise RuntimeError(f"Refusing unsafe requirements line in {plugin}: {stripped!r}")
+    if any(c in stripped for c in ("/", "\\", "@")):
+        raise RuntimeError(
+            f"Refusing path/URL requirements line in {plugin}: {stripped!r}"
+        )
+    if not _SAFE_REQ_RE.match(stripped.split(";")[0].strip()):
+        raise RuntimeError(
+            f"Refusing non-PEP508 name/version requirements line in {plugin}: {stripped!r}"
+        )
+
+
 class PluginManager:
     """Enterprise manager for discovery, loading, lifecycle, and remote registry."""
 
     _instance: PluginManager | None = None
+    _instance_lock = threading.Lock()
 
     def __init__(
         self,
@@ -142,6 +205,7 @@ class PluginManager:
         self._loaded_modules: dict[str, Any] = {}
         self._plugin_tools_map: dict[str, list[str]] = {}  # plugin_name -> [tool_names]
         self._config_data: dict[str, Any] = self._load_config()
+        self._state_lock = threading.RLock()
 
     @classmethod
     def get_instance(
@@ -150,15 +214,16 @@ class PluginManager:
         provider_manager: ProviderManager | None = None,
         plugins_dir: Path | None = None,
     ) -> PluginManager:
-        if cls._instance is None:
-            cls._instance = cls(
-                registry=registry,
-                provider_manager=provider_manager,
-                plugins_dir=plugins_dir,
-            )
-        elif registry is not None:
-            cls._instance.registry = registry
-        return cls._instance
+        with cls._instance_lock:
+            if cls._instance is None:
+                cls._instance = cls(
+                    registry=registry,
+                    provider_manager=provider_manager,
+                    plugins_dir=plugins_dir,
+                )
+            elif registry is not None:
+                cls._instance.registry = registry
+            return cls._instance
 
     # -----------------------------------------------------------------------
     # Configuration & State Storage
@@ -175,10 +240,13 @@ class PluginManager:
         return {"disabled": [], "registry_mirrors": []}
 
     def _save_config(self) -> None:
-        try:
-            self.config_file.write_text(json.dumps(self._config_data, indent=2), encoding="utf-8")
-        except Exception as e:
-            logger.warning("Failed to save plugins_config.json: %s", e)
+        with self._state_lock:
+            try:
+                self.config_file.write_text(
+                    json.dumps(self._config_data, indent=2), encoding="utf-8"
+                )
+            except Exception as e:
+                logger.warning("Failed to save plugins_config.json: %s", e)
 
     def is_enabled(self, name: str) -> bool:
         disabled = self._config_data.get("disabled", [])
@@ -307,7 +375,11 @@ class PluginManager:
         return loaded_count
 
     def load_plugin(self, name: str) -> bool:
-        """Load a single discovered plugin into the runtime."""
+        """Load a single discovered plugin into the runtime.
+
+        Plugins execute in-process (not OS-isolated). Require explicit trust:
+        set ``SIYARIX_TRUST_PLUGINS=1`` (lab) or ``=force`` under production flags (SX-A01).
+        """
         meta = self._installed_plugins.get(name)
         if not meta:
             self.discover()
@@ -319,6 +391,30 @@ class PluginManager:
 
         if not self.is_enabled(name):
             meta.status = PluginStatus.DISABLED
+            return False
+
+        if not plugins_trusted_for_load():
+            production = _env_flag_on(
+                "SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"
+            )
+            meta.status = PluginStatus.DISABLED
+            if production:
+                meta.error_message = (
+                    "Plugin load blocked under production flags: set "
+                    "SIYARIX_TRUST_PLUGINS=force to allow in-process plugin "
+                    "execution (plugins are fully trusted code; OS isolation "
+                    "is not available yet)"
+                )
+            else:
+                meta.error_message = (
+                    "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
+                    "in-process plugin execution (plugins are fully trusted code)"
+                )
+            logger.warning(
+                "Refusing to load plugin %s without trusted plugin mode (got %s)",
+                name,
+                plugin_trust_mode(),
+            )
             return False
 
         if meta.plugin_type == PluginType.SINGLE_FILE:
@@ -344,6 +440,17 @@ class PluginManager:
             meta.status = PluginStatus.ERROR
             meta.error_message = f"Entrypoint not found: {entry_path}"
             logger.error(meta.error_message)
+            return False
+
+        # SX-A01: host AST + optional scrubbed-subprocess compile before in-process load.
+        try:
+            from siyarix.plugins.isolation import preflight_plugin_entrypoint
+
+            preflight_plugin_entrypoint(entry_path)
+        except ValueError as exc:
+            meta.status = PluginStatus.ERROR
+            meta.error_message = str(exc)
+            logger.error("Plugin %s preflight failed: %s", name, exc)
             return False
 
         module_name = f"siyarix_plugin_{name}"
@@ -482,21 +589,17 @@ class PluginManager:
         """Fetch remote registry index of available plugins."""
         cache_file = self.config_dir / "registry_cache.json"
 
-        # 1. First priority: Check local repo clone if present
-        local_repo_index = self.plugins_dir.parent / "siyarix-plugins" / "index.json"
-        # Also check workspace path e:\Documents\siyarix\siyarix-plugins\index.json
-        workspace_repo_index = Path.cwd() / "siyarix-plugins" / "index.json"
-
-        for p in (local_repo_index, workspace_repo_index):
-            if p.exists():
-                try:
-                    data = json.loads(p.read_text(encoding="utf-8"))
-                    if isinstance(data, list):
-                        return data
-                    if isinstance(data, dict) and "plugins" in data:
-                        return list(data["plugins"])
-                except Exception as e:
-                    logger.debug("Failed reading local registry %s: %s", p, e)
+        # 1. Trust only config-dir local index (never CWD — SX-A11).
+        local_repo_index = self.config_dir / "siyarix-plugins" / "index.json"
+        if local_repo_index.exists():
+            try:
+                data = json.loads(local_repo_index.read_text(encoding="utf-8"))
+                if isinstance(data, list):
+                    return data
+                if isinstance(data, dict) and "plugins" in data:
+                    return list(data["plugins"])
+            except Exception as e:
+                logger.debug("Failed reading local registry %s: %s", local_repo_index, e)
 
         # 2. Check disk cache if recent (< 1 hour) and not forced refresh
         if not refresh and cache_file.exists():
@@ -638,8 +741,8 @@ class PluginManager:
                 shutil.rmtree(dest)
 
             cmd = ["git", "clone", "--depth", "1", repo_url, str(dest)]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            if res.returncode != 0:
+            res = safe_run_sync(cmd, timeout=120)
+            if res.exit_code != 0:
                 raise RuntimeError(f"Git clone failed: {res.stderr}")
 
             self._install_dependencies(dest)
@@ -652,8 +755,8 @@ class PluginManager:
         catalog = self.fetch_registry_index()
         entry = next((i for i in catalog if i.get("name") == target_name), None)
 
-        # Check local plugins repo first
-        local_plugins_repo = Path.cwd() / "siyarix-plugins" / "plugins" / target_name
+        # Local plugins only from config-dir tree (never CWD — SX-A11).
+        local_plugins_repo = self.config_dir / "siyarix-plugins" / "plugins" / target_name
         dest = _assert_under_dir(
             self.plugins_dir / target_name, self.plugins_dir, what="plugin install dest"
         )
@@ -704,27 +807,37 @@ class PluginManager:
         return self._installed_plugins[target_name]
 
     def _install_dependencies(self, plugin_dir: Path) -> None:
-        """Safely resolve plugin python dependencies."""
+        """Optionally resolve plugin python dependencies.
+
+        Auto-pip is **off by default** (SX-A02). Set
+        ``SIYARIX_PLUGIN_AUTO_PIP=1`` to allow a constrained install with
+        ``--no-deps`` after requirements-line abuse checks.
+        """
         req_file = plugin_dir / "requirements.txt"
         if not req_file.exists():
             return
-        # Block common pip abuse switches / VCS URLs in requirements files.
+        auto = os.getenv("SIYARIX_PLUGIN_AUTO_PIP", "0").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+        if not auto:
+            logger.info(
+                "Skipping pip install for %s (set SIYARIX_PLUGIN_AUTO_PIP=1 to enable)",
+                plugin_dir.name,
+            )
+            return
+        # Block pip abuse switches / paths / VCS / URL refs in requirements.
         try:
             req_text = req_file.read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
             logger.warning("Could not read requirements for %s: %s", plugin_dir.name, exc)
             return
         for line in req_text.splitlines():
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
-            lower = stripped.lower()
-            if lower.startswith("-") or "://" in lower or lower.startswith("git+"):
-                raise RuntimeError(
-                    f"Refusing unsafe requirements line in {plugin_dir.name}: {stripped!r}"
-                )
+            _assert_safe_requirement_line(line, plugin=plugin_dir.name)
         try:
-            res = subprocess.run(
+            res = safe_run_sync(
                 [
                     sys.executable,
                     "-m",
@@ -732,17 +845,16 @@ class PluginManager:
                     "install",
                     "-q",
                     "--disable-pip-version-check",
+                    "--no-deps",
                     "-r",
                     str(req_file),
                 ],
-                capture_output=True,
-                text=True,
                 timeout=60,
-                check=False,
             )
-            if res.returncode != 0:
+            if res.exit_code != 0:
                 raise RuntimeError(
-                    f"pip install failed for {plugin_dir.name}: {res.stderr.strip() or res.stdout.strip()}"
+                    f"pip install failed for {plugin_dir.name}: "
+                    f"{(res.stderr or res.stdout or '').strip()}"
                 )
         except Exception as e:
             logger.warning("Dependency installation failed for %s: %s", plugin_dir.name, e)
@@ -778,12 +890,28 @@ class PluginManager:
             # Check if git-controlled
             git_dir = meta.path / ".git"
             if git_dir.exists():
-                res = subprocess.run(
-                    ["git", "-C", str(meta.path), "pull", "--ff-only"],
-                    capture_output=True,
-                    text=True,
+                # Re-validate remote URL before pull (SX-A10).
+                remote = safe_run_sync(
+                    ["git", "-C", str(meta.path), "remote", "get-url", "origin"],
+                    timeout=30,
                 )
-                if res.returncode == 0:
+                if remote.exit_code != 0:
+                    logger.warning("Plugin %s has no origin remote; skipping update", t)
+                    continue
+                try:
+                    _validate_git_clone_url(remote.stdout.strip())
+                except Exception as exc:
+                    logger.warning(
+                        "Refusing plugin %s update: origin URL failed validation (%s)",
+                        t,
+                        exc,
+                    )
+                    continue
+                res = safe_run_sync(
+                    ["git", "-C", str(meta.path), "pull", "--ff-only"],
+                    timeout=120,
+                )
+                if res.exit_code == 0:
                     self.reload_plugin(t)
                     updated.append(t)
             else:
@@ -878,12 +1006,16 @@ logger = logging.getLogger(__name__)
 
 
 async def run_{slug}(**kwargs: Any) -> dict[str, Any]:
-    """Execute the {slug} operation."""
+    """Scaffold entrypoint — replace with real logic before enabling."""
     target = kwargs.get("target", "unknown")
-    logger.info("Executing {slug} on %s", target)
+    logger.warning("Scaffold plugin {slug} invoked for %s — not_implemented", target)
     return {{
-        "status": "success",
-        "output": f"[{slug.upper()}] Successfully executed against {{target}}.",
+        "status": "not_implemented",
+        "implemented": False,
+        "output": (
+            f"[{slug.upper()}] Scaffold only — implement run_{slug} before use "
+            f"(target={{target}})."
+        ),
         "findings": [],
     }}
 

@@ -606,10 +606,11 @@ class TestOPSECWorkflow:
 
     def test_isolate_disable(self):
         mgr = OPSECManager()
+        # Tor is not implemented — soft isolate still applies memory_only.
         result = mgr.isolate("10.0.0.5", use_tor=True, memory_only=True)
-        assert result.success is True
-        assert mgr.is_active is True
+        assert result.success is False
         assert mgr.status.memory_only is True
+        assert mgr.is_active is True
         disable_result = mgr.disable()
         assert disable_result.success is True
         assert mgr.is_active is False

@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -337,10 +338,94 @@ def _validate_cmd_list(cmd: list[str]) -> None:
             return
 
 
+# Secrets / posture that must never ride into child tool processes (SX-A03).
+_SCRUB_ENV_EXACT: frozenset[str] = frozenset(
+    {
+        "SIYARIX_SUDO_PASSWORD",
+        "SIYARIX_MASTER_PASSWORD",
+        "SIYARIX_MASTER_KEY",
+        "SIYARIX_VAULT_PASSWORD",
+        "SIYARIX_PREAUTHORIZED",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_ACCESS_KEY_ID",  # RH-31
+        "AWS_SESSION_TOKEN",
+        "AZURE_CLIENT_SECRET",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+        "PGPASSWORD",
+        "MYSQL_PWD",
+        "REDIS_PASSWORD",
+        # Connection DSNs / URLs often embed credentials (RH-13).
+        "DATABASE_URL",
+        "REDIS_URL",
+        "MONGO_URL",
+        "MONGODB_URI",
+        "CONNECTION_STRING",
+        "DSN",
+        "AMQP_URL",
+        "BROKER_URL",
+        "CELERY_BROKER_URL",
+        # Provider short keys / framework secrets (RH-31).
+        "OPENAI_KEY",
+        "ANTHROPIC_KEY",
+        "XAI_KEY",
+        "GROQ_KEY",
+        "DJANGO_SECRET_KEY",
+        "FLASK_SECRET_KEY",
+        "SECRET_KEY",
+    }
+)
+_SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
+    "_API_KEY",
+    "_SECRET",
+    "_SECRET_KEY",
+    "_PASSWORD",
+    "_TOKEN",
+    "_PRIVATE_KEY",
+    "_ACCESS_KEY",
+    "_ACCESS_KEY_ID",
+    "_MASTER_PASSWORD",
+    "_MASTER_KEY",
+    "_PASSPHRASE",
+    "_BEARER",
+    "_CONNECTION_STRING",
+    "_DATABASE_URL",
+    "_DSN",
+)
+# Bare ``FOO_KEY`` provider shorthand (OPENAI_KEY, etc.).
+_SCRUB_BARE_KEY_RE = re.compile(r"^(?:[A-Z][A-Z0-9_]*)_KEY$")
+
+
+def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
+    """Drop credential / vault secrets from the child process environment."""
+    cleaned: dict[str, str] = {}
+    for key, val in exec_env.items():
+        upper = key.upper()
+        if upper in _SCRUB_ENV_EXACT or key in _SCRUB_ENV_EXACT:
+            continue
+        if any(upper.endswith(suf) for suf in _SCRUB_ENV_SUFFIXES):
+            continue
+        if upper.startswith("SIYARIX_") and upper.endswith("_KEY"):
+            continue
+        # Bare provider ``*_KEY`` (OPENAI_KEY) — RH-31.
+        if _SCRUB_BARE_KEY_RE.match(upper):
+            continue
+        # Any *URL / *URI that looks like a DSN with userinfo (RH-13).
+        if (upper.endswith("_URL") or upper.endswith("_URI")) and "://" in val:
+            try:
+                parsed = urllib.parse.urlparse(val)
+                if parsed.username is not None or parsed.password is not None:
+                    continue
+            except Exception:
+                continue
+        cleaned[key] = val
+    return cleaned
+
+
 def _prepare_env(env: dict[str, str] | None = None) -> dict[str, str]:
-    exec_env = os.environ.copy()
+    exec_env = _scrub_secret_env(dict(os.environ))
     if env:
-        exec_env.update(env)
+        # Caller-supplied overrides are scrubbed too (no secret laundering).
+        exec_env.update(_scrub_secret_env(dict(env)))
     try:
         from siyarix.stealth import stealth_engine
 

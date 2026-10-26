@@ -26,6 +26,8 @@ import pytest
 logger = logging.getLogger(__name__)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+pytestmark = [pytest.mark.stress, pytest.mark.chaos]
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # CHAOS SIMULATION

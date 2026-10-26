@@ -283,7 +283,14 @@ def severity_label(theme: str, severity: str) -> str:
 
 
 def resolve_version() -> str:
-    """Resolve the installed Siyarix version via importlib.metadata with fallback."""
+    """Resolve Siyarix version: package ``__version__``, then metadata, then fallback."""
+    try:
+        from siyarix import __version__ as _mod_version
+
+        if _mod_version:
+            return str(_mod_version)
+    except Exception as exc:
+        logger.debug("Failed to resolve module version: %s", exc)
     try:
         from importlib.metadata import version as _pkg_version
 

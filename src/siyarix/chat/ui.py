@@ -837,18 +837,17 @@ def render_welcome_banner(
 
     stats_row = Columns([session_panel, telemetry_panel, quick_panel, llm_panel], expand=True)
 
-    # ── Footer: tips ──
+    # ── Footer: tips (plain text — Text.assemble does not parse markup) ──
     mode_tips = {
-        "redteam": "[red]Red Team mode — offensive operations. Tab for autocomplete | /help | /scan <target> | /stealth for evasion[/red]",
-        "blueteam": "[blue]Blue Team mode — defensive posture. Tab for autocomplete | /help | /audit for compliance | /review on for safety[/blue]",
-        "stealth": "[red]Stealth mode active — /stealth status to check | /opsec for operational security controls[/red]",
-        "offline": "[yellow]Offline mode — no LLM needed. /queue for queued commands | /scan <target> for local scans[/yellow]",
-        "autonomous": (
-            f"[{primary}]Autonomous mode — AI-driven operations. "
-            f"/model to configure LLM | /agent run <goal> for sub-agents[/{primary}]"
-        ),
+        "redteam": "Red Team mode — Tab for autocomplete | /help | /scan <target> | /stealth",
+        "blueteam": "Blue Team mode — Tab for autocomplete | /help | /audit | /review on",
+        "stealth": "Stealth mode active — /stealth status | /opsec for operational security",
+        "offline": "Offline mode — /queue for queued commands | /scan <target> for local scans",
+        "autonomous": "Autonomous mode — /model to configure LLM | /agent run <goal>",
     }
-    tip = mode_tips.get(mode, f"[dim]Press Tab for autocomplete | ? or /help for all commands[/dim]")
+    tip = mode_tips.get(
+        mode, "Press Tab for autocomplete | ? or /help for all commands"
+    )
 
     footer_content = Text.assemble(
         ("Type natural language ", f"bold {accent}"),
@@ -860,7 +859,7 @@ def render_welcome_banner(
         ("  ", ""),
         ("/theme cyber-noir", success),
         ("\n", ""),
-        (tip, "white"),
+        (tip, muted),
     )
 
     footer_panel = Panel(

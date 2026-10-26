@@ -8,7 +8,7 @@ Welcome to the heart of Siyarix! This document outlines our multi-layered memory
 
 At a high level, the system comprises several specialized components:
 - **KnowledgeGraph**: Connects the dots on infrastructure relationships.
-- **MemoryManager**: Powers our semantic memory using embeddings.
+- **MemoryManager**: Layered SQLite + in-session store with keyword / BM25-style relevance ranking (not vector embeddings).
 - **ChatSession**: Handles conversational history with powerful branching capabilities.
 - **SessionKernel**: Persists state across sessions using JSON/JSONL.
 - **CacheManager**: Keeps things snappy with LRU (Least Recently Used) and TTL (Time-To-Live) caching.
@@ -30,9 +30,9 @@ Siyarix categorizes memory into three distinct, robust layers.
 │                                                            │
 │  ┌──────────────┐  ┌──────────────────┐  ┌──────────────┐ │
 │  │ Knowledge    │  │ MemoryManager    │  │ Context      │ │
-│  │ Graph        │  │ (semantic memory │  │ Manager      │ │
-│  │ (entities,   │  │  + embeddings)   │  │ (window      │ │
-│  │  relations)  │  │                  │  │  build/      │ │
+│  │ Graph        │  │ (keyword/BM25    │  │ Manager      │ │
+│  │ (entities,   │  │  relevance; no   │  │ (window      │ │
+│  │  relations)  │  │  embeddings)     │  │  build/      │ │
 │  │              │  │                  │  │  compress)   │ │
 │  └──────────────┘  └──────────────────┘  └──────────────┘ │
 │                                                           │
@@ -113,34 +113,40 @@ Located at `siyarix/knowledge_graph.py`, the **KnowledgeGraph** is a dynamic, in
 
 ## 🧠 2. MemoryManager
 
-Located at `siyarix/memory.py`, the **MemoryManager** handles our semantic, long-term memory utilizing vector embeddings.
+Located at `siyarix/memory.py`, the **MemoryManager** provides layered persistence (session RAM + SQLite) with **keyword / BM25-style** relevance scoring — substring and token matches with recency/frequency boosts. There are **no vector embeddings** in-tree today.
 
 !!! info
-    Semantic memory empowers Siyarix to recall past learnings contextually, rather than relying on exact keyword matches.
+    Recall is relevance-ranked text search over keys, values, and tags — useful across a session, not a semantic embedding index.
 
 ### 💡 Core Methods
 
 ```python
+from siyarix.memory import MemoryManager, MemoryLayer
+
 memory = MemoryManager()
 
-# Store a new memory with rich metadata
-await memory.store(
-    content="Host 10.0.0.1 has Apache 2.4.41 running on port 80",
-    metadata={"source": "nmap", "session_id": "sess-123"},
+# Store a new memory with tags / metadata
+memory.store(
+    key="host:10.0.0.1:apache",
+    value="Host 10.0.0.1 has Apache 2.4.41 running on port 80",
+    layer=MemoryLayer.PROJECT,
+    tags=["nmap", "apache"],
+    source="nmap",
+    session_id="sess-123",
 )
 
-# Search for related concepts
-similar = await memory.search_similar("Apache versions", top_k=5)
+# Keyword / BM25-style search
+hits = memory.search("Apache versions", limit=5)
 
-# Grab all relevant context for a specific target
-context = await memory.get_context(target="10.0.0.1")
+# List recent entries for a layer
+recent = memory.list_entries(layer=MemoryLayer.PROJECT, limit=20)
 ```
 
 | Method | Purpose |
 |--------|---------|
-| `store(content, metadata)` | Saves a new memory entry into the semantic vault. |
-| `search_similar(query, top_k)` | Uses embeddings to find the most conceptually similar memories. |
-| `get_context(target)` | Retrieves a consolidated background context for a given target. |
+| `store(key, value, layer, tags, …)` | Saves a memory entry (session or SQLite-backed layers). |
+| `search(query, layer, limit)` | LIKE + token scoring (BM25-style), not embedding similarity. |
+| `retrieve(key, layer)` / `list_entries(…)` | Exact key lookup or recent listing. |
 
 ---
 
@@ -338,7 +344,7 @@ Ever wonder what happens from the moment Siyarix boots up until it safely shuts 
     │
     ├── Load config from ~/.siyarix/settings.toml
     ├── Initialize KnowledgeGraph (empty or restore from JSON)
-    ├── Initialize MemoryManager (load persisted embeddings)
+    ├── Initialize MemoryManager (open SQLite memory store)
     ├── Initialize CacheManager (load disk cache)
     ├── Initialize Continuous Learning System (load skill library)
     ├── Open OfflineStore (SQLite WAL)
@@ -360,7 +366,7 @@ Ever wonder what happens from the moment Siyarix boots up until it safely shuts 
 🛑 Session End
     │
     ├── Save KnowledgeGraph to JSON (if configured)
-    ├── Persist MemoryManager embeddings safely to disk
+    ├── MemoryManager SQLite layers already durable (WAL)
     ├── Save comprehensive session via SessionKernel
     ├── Flush CacheManager memory to disk
     ├── Generate polished post-session reports
@@ -378,7 +384,7 @@ Here’s a quick-reference cheat sheet for how everything connects:
 | Component | Role |
 |-----------|------|
 | **Context Manager** | Curates and compresses the LLM context from the KG, memory, and history. |
-| **MemoryManager** | Manages vector-based semantic memory. |
+| **MemoryManager** | Layered keyword/BM25-style memory (no embeddings). |
 | **KnowledgeGraph** | Maps real-time entity relationships. |
 | **ChatSession** | Houses branching conversation trees in JSONL. |
 | **SessionKernel** | Masters JSON-based session persistence and restoration. |

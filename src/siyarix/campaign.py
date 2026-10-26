@@ -3,6 +3,10 @@
 
 Campaigns store engagement target lists under the config dir so ``/campaign``
 in the REPL and CLI tips can round-trip without inventing ephemeral state.
+
+``/campaign run`` (via :meth:`CampaignStore.mark_run`) only prepares the
+targets file and records run metadata — it does **not** orchestrate or execute
+scans. Operators run ``siyarix scan* @targets_file`` themselves (FEAT-10).
 """
 
 from __future__ import annotations
@@ -56,6 +60,8 @@ class Campaign:
     targets: list[str] = field(default_factory=list)
     created_at: str = ""
     updated_at: str = ""
+    # Status is operator metadata only. ``running`` after mark_run means
+    # "prepared / awaiting operator scan", not active orchestration (FEAT-10).
     status: str = "ready"  # ready | running | completed
     notes: str = ""
     last_run_at: str | None = None
@@ -161,6 +167,11 @@ class CampaignStore:
         return campaign
 
     def mark_run(self, name: str) -> Campaign | None:
+        """Record a prepare/run-intent (not scan orchestration).
+
+        Bumps ``run_count``, sets ``last_run_at``, and status ``running`` to
+        mean "targets prepared for operator scan" — no tools are executed.
+        """
         camp = self.get(name)
         if camp is None:
             return None

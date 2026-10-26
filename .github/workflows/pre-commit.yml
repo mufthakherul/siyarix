@@ -109,10 +109,14 @@ jobs:
         run: pip install pre-commit==4.6.0
 
       - name: Auto-fix fixable issues
+        # Soft-fail by design: exploratory autofix job; required gate is
+        # `pre-commit` (changed files) above and ci.yml lint pre-commit step.
         run: |
           pre-commit run --all-files || true
 
       - name: Commit fixes
+        # Soft-fail by design: push may be blocked by branch rules / permissions.
+        continue-on-error: true
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -122,7 +126,6 @@ jobs:
             git commit -m "style: auto-fix pre-commit issues" || echo "No changes to commit"
             git push || echo "Could not auto-push"
           fi
-        continue-on-error: true
 
   pre-commit-stats:
     name: Pre-Commit Statistics

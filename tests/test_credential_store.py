@@ -223,6 +223,18 @@ class TestShareAndExpiring:
         assert store.share(_c.cred_id, "user_a") is True
         assert "user_a" in store._credentials[_c.cred_id].shared_with
 
+    def test_share_is_metadata_only_not_acl(self, store, caplog):
+        """SEC-10: share() notes a user; retrieval is not gated on shared_with."""
+        import logging
+
+        _c = store.store(name="meta_share", value="secret-value")
+        with caplog.at_level(logging.WARNING, logger="siyarix.credential_store"):
+            assert store.note_shared_with(_c.cred_id, "alice") is True
+        assert "metadata-only" in caplog.text.lower() or "no ACL" in caplog.text
+        # Still retrievable by any vault holder — no identity check.
+        assert store.get_by_name("meta_share") == "secret-value"
+        assert store.note_shared_with.__func__ is store.share.__func__
+
     def test_share_not_found(self, store):
         assert store.share("nonexistent", "user_a") is False
 

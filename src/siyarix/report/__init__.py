@@ -7,6 +7,8 @@ Backward-compatible re-exports from ``siyarix.report.models``.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import logging
 from datetime import UTC, datetime
@@ -17,6 +19,12 @@ from ..cvss_scorer import CVSSScorer
 from .models import Report, ReportConfig, ReportFormat, ReportSection
 
 logger = logging.getLogger(__name__)
+
+
+def _csp_sha256(content: str) -> str:
+    """CSP2 sha256 source expression for a constant inline script/style body."""
+    digest = hashlib.sha256(content.encode("utf-8")).digest()
+    return "sha256-" + base64.b64encode(digest).decode("ascii")
 
 __all__ = [
     "Report",
@@ -326,26 +334,21 @@ class ReportEngine:
         "info": "info",
     }
 
+    # SEC-11: ``css|safe`` / ``js|safe`` / ``csp|safe`` are *engine constants*
+    # only (never finding/metadata — those stay Jinja-autoescaped). CSP uses
+    # sha256 hashes of the CSS/JS bodies; ``script-src`` has no ``'unsafe-inline'``.
     _HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'{% if not offline %} https://fonts.googleapis.com{% endif %};{% if not offline %} font-src https://fonts.gstatic.com;{% endif %} script-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="{{ csp|safe }}">
 <title>{{ title }}</title>
 {% if not offline %}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&amp;family=Fira+Code&amp;display=swap" rel="stylesheet">
 {% endif %}
-<style>
-{% if offline %}
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
-code,pre{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace}
-{% endif %}
-{{ css|safe }}
-</style>
-<script>
-{{ js|safe }}
-</script>
+<style>{{ css|safe }}</style>
+<script>{{ js|safe }}</script>
 </head>
 <body>
 <div class="dashboard">
@@ -393,7 +396,7 @@ code,pre{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace
   {% endfor %}
   </div>
 
-  <h2 style="margin-top: 4rem; margin-bottom: 1rem;">Raw Data Table</h2>
+  <h2 class="raw-table-heading">Raw Data Table</h2>
   <table>
     <thead><tr><th>Severity</th><th>Title</th><th>Tool</th><th>Target</th></tr></thead>
     <tbody>
@@ -411,6 +414,11 @@ code,pre{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace
 </body>
 </html>
 """
+
+    _HTML_OFFLINE_FONT_CSS = (
+        "body{font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}"
+        "code,pre{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace}"
+    )
 
     _HTML_CSS = """
 :root {
@@ -489,26 +497,49 @@ pre { padding: 1rem; overflow-x: auto; border: 1px solid rgba(255,255,255,0.05);
 table { width: 100%; border-collapse: collapse; margin: 2rem 0; background: var(--bg-card); border-radius: 8px; overflow: hidden; }
 th, td { padding: 1rem; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
 th { background: rgba(0,0,0,0.3); color: var(--text-muted); font-weight: 500; }
+.raw-table-heading { margin-top: 4rem; margin-bottom: 1rem; }
 """
 
-    _HTML_JS = """
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.filter-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var sev = btn.getAttribute('data-sev') || 'all';
-      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      document.querySelectorAll('.finding-card').forEach(function (card) {
-        if (sev === 'all' || card.classList.contains(sev)) {
-          card.style.display = 'block';
-        } else {
-          card.style.display = 'none';
-        }
-      });
-    });
-  });
-});
-"""
+    _HTML_JS = (
+        "document.addEventListener('DOMContentLoaded', function () {"
+        "  document.querySelectorAll('.filter-btn').forEach(function (btn) {"
+        "    btn.addEventListener('click', function () {"
+        "      var sev = btn.getAttribute('data-sev') || 'all';"
+        "      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });"
+        "      btn.classList.add('active');"
+        "      document.querySelectorAll('.finding-card').forEach(function (card) {"
+        "        if (sev === 'all' || card.classList.contains(sev)) {"
+        "          card.style.display = 'block';"
+        "        } else {"
+        "          card.style.display = 'none';"
+        "        }"
+        "      });"
+        "    });"
+        "  });"
+        "});"
+    )
+
+    def _build_html_csp(self, *, offline: bool, css: str, js: str) -> str:
+        """Build CSP with sha256 hashes of constant CSS/JS (no script unsafe-inline)."""
+        style_src = f"style-src '{_csp_sha256(css)}'"
+        if not offline:
+            style_src += " https://fonts.googleapis.com"
+        parts = [
+            "default-src 'none'",
+            style_src,
+        ]
+        if not offline:
+            parts.append("font-src https://fonts.gstatic.com")
+        parts.extend(
+            [
+                f"script-src '{_csp_sha256(js)}'",
+                "img-src data:",
+                "base-uri 'none'",
+                "form-action 'none'",
+                "frame-ancestors 'none'",
+            ]
+        )
+        return "; ".join(parts)
 
     def _render_html(self, report: Report) -> str:
         """Render an HTML dashboard with autoescaped finding/metadata fields."""
@@ -547,6 +578,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             )
 
+        offline = bool(getattr(report.config, "offline", True))
+        # Constant CSS/JS only — hashed into CSP; |safe must never carry findings.
+        css = self._HTML_CSS
+        if offline:
+            css = self._HTML_OFFLINE_FONT_CSS + css
+        js = self._HTML_JS
+        csp = self._build_html_csp(offline=offline, css=css, js=js)
+
         env = Environment(autoescape=True)
         template = env.from_string(self._HTML_TEMPLATE)
         return template.render(
@@ -557,9 +596,10 @@ document.addEventListener('DOMContentLoaded', function () {
             total=len(report.findings),
             counts=counts,
             findings=findings_ctx,
-            offline=bool(getattr(report.config, "offline", True)),
-            css=self._HTML_CSS,
-            js=self._HTML_JS,
+            offline=offline,
+            csp=csp,
+            css=css,
+            js=js,
         )
 
     def _render_json(self, report: Report) -> str:

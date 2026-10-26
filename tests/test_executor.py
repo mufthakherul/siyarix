@@ -642,16 +642,17 @@ class TestExecutorRegistryPlanExecution:
         result = await executor._try_execute(step, mock_fn)
         assert result["status"] == "success"
 
-    @pytest.mark.skip(reason="Requires complex mock setup")
     async def test_try_execute_permission_denied_raised(self):
+        """PermissionDeniedError from _check_permissions must propagate (TEST-01)."""
         executor = RegistryExecutor()
+        executor._registry = MagicMock()
         with (
             patch.object(
                 executor,
                 "_check_permissions",
                 AsyncMock(side_effect=PermissionDeniedError("denied")),
             ),
-            pytest.raises(PermissionDeniedError),
+            pytest.raises(PermissionDeniedError, match="denied"),
         ):
             await executor._try_execute(PlanStep(tool="nmap"), None)
 
@@ -682,16 +683,18 @@ class TestExecutorRegistryPlanExecution:
         final = await executor._try_alternatives(step, result)
         assert final is result
 
-    @pytest.mark.skip(reason="Requires complex mock setup")
     async def test_try_alternatives_fails_returns_original(self):
+        """When every TOOL_ALTERNATIVE also errors, return the original result (TEST-01)."""
         executor = RegistryExecutor()
         mock_reg = MagicMock()
         mock_reg.graph.get_tool.return_value = MagicMock()
+        mock_reg.execute = AsyncMock(return_value={"status": "error", "error": "alt fail"})
         executor._registry = mock_reg
         step = PlanStep(tool="nmap", args={"target": "x"})
         result = {"status": "error", "error": "fail"}
         final = await executor._try_alternatives(step, result)
         assert final is result
+        assert mock_reg.execute.await_count >= 1
 
 
 # ═══════════════════════════════════════════════════════════════════

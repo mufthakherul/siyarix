@@ -648,35 +648,127 @@ def list_queries(
         conn.close()
 
 
+def _collect_local_mitre_refs(conn: Any) -> dict[str, set[str]]:
+    """Collect technique IDs referenced by local hunt queries / mapped findings.
+
+    Returns a map of technique_id -> source labels (e.g. hunt query, finding).
+    This is reference mapping only — not defensive coverage measurement.
+    """
+    from .threat_intel import MITREAttackDB
+
+    db = MITREAttackDB()
+    refs: dict[str, set[str]] = {}
+
+    def _add(tid: str, source: str) -> None:
+        tid_n = (tid or "").strip().upper().split(".")[0]
+        if not tid_n.startswith("T"):
+            return
+        refs.setdefault(tid_n, set()).add(source)
+
+    for row in conn.execute(
+        "SELECT id, name, technique FROM hunt_queries WHERE technique IS NOT NULL AND technique != ''"
+    ).fetchall():
+        _add(str(row.get("technique", "")), f"hunt:{row.get('id', '?')}")
+
+    for row in conn.execute("SELECT id, title, description FROM incidents").fetchall():
+        text = f"{row.get('title', '')} {row.get('description', '')}"
+        for tech in db.map_finding(text):
+            _add(str(tech.get("id", "")), f"incident:{row.get('id', '?')}")
+
+    for row in conn.execute("SELECT id, title, description FROM vulnerabilities").fetchall():
+        text = f"{row.get('title', '')} {row.get('description', '')}"
+        for tech in db.map_finding(text):
+            _add(str(tech.get("id", "")), f"vuln:{row.get('id', '?')}")
+
+    return refs
+
+
 @security_app.command(name="mitre-coverage")
 def mitre_coverage() -> None:
-    """Show MITRE ATT&CK technique coverage."""
-    table = Table(
-        title="MITRE ATT&CK Coverage",
-        show_header=True,
-        header_style="bold red",
+    """Show offline MITRE ATT&CK catalog with local reference mapping.
+
+    Lists techniques from the offline MITREAttackDB and marks which ones are
+    referenced by local hunt queries or keyword-mapped findings. This is NOT a
+    measured defensive-coverage report — never treats references as 'Covered'.
+    """
+    from .threat_intel import MITREAttackDB
+
+    attack_db = MITREAttackDB()
+    catalog = {t["id"]: t for t in attack_db.list_techniques()}
+
+    conn = _get_security_db()
+    try:
+        local_refs = _collect_local_mitre_refs(conn)
+    finally:
+        conn.close()
+
+    # Include hunt/finding technique IDs missing from the curated offline catalog.
+    for tid in local_refs:
+        if tid not in catalog:
+            tech = attack_db.query_technique(tid)
+            catalog[tid] = {
+                "id": tid,
+                "name": str(tech.get("name") or "(not in offline catalog)"),
+                "tactic": str(tech.get("tactic") or "—"),
+                "description": str(tech.get("description") or ""),
+            }
+
+    referenced = sorted(tid for tid in catalog if tid in local_refs)
+    catalog_only = sorted(tid for tid in catalog if tid not in local_refs)
+
+    console.print(
+        Panel.fit(
+            "[bold]Offline MITRE ATT&CK catalog + local references[/bold]\n"
+            "[dim]Not a measured defensive-coverage report. "
+            "'Referenced' means a hunt query or mapped finding mentions the technique — "
+            "not that detections or controls are deployed.[/dim]",
+            title="MITRE reference map",
+            border_style="yellow",
+        )
     )
-    table.add_column("ID", style="cyan", width=10)
+
+    table = Table(
+        title=(
+            f"MITRE ATT&CK offline catalog "
+            f"({len(referenced)} referenced / {len(catalog)} techniques)"
+        ),
+        show_header=True,
+        header_style="bold cyan",
+    )
+    table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Technique", style="white")
     table.add_column("Tactic", style="yellow")
-    table.add_column("Coverage", justify="center")
+    table.add_column("Local status", justify="center", no_wrap=True)
+    table.add_column("Sources", style="dim", overflow="fold")
 
-    techniques = [
-        ("T1059", "Command and Scripting Interpreter", "Execution", "✓ Covered"),
-        ("T1566", "Phishing", "Initial Access", "✓ Covered"),
-        ("T1547", "Boot or Logon Autostart Execution", "Persistence", "✓ Covered"),
-        ("T1486", "Data Encrypted for Impact", "Impact", "✓ Covered"),
-        ("T1055", "Process Injection", "Defense Evasion", "⚠ Partial"),
-        ("T1003", "OS Credential Dumping", "Credential Access", "✓ Covered"),
-        ("T1021", "Remote Services", "Lateral Movement", "⚠ Partial"),
-        ("T1071", "Application Layer Protocol", "C&C", "✗ Gap"),
-    ]
+    def _rows(tids: list[str]) -> None:
+        for tid in tids:
+            info = catalog[tid]
+            if tid in local_refs:
+                status = "[cyan]Referenced[/cyan]"
+                sources = ", ".join(sorted(local_refs[tid]))
+            else:
+                status = "[dim]Catalog only[/dim]"
+                sources = "—"
+            table.add_row(
+                tid,
+                str(info.get("name", "—")),
+                str(info.get("tactic", "—")),
+                status,
+                sources,
+            )
 
-    for tid, name, tactic, cov in techniques:
-        color = "green" if "✓" in cov else "yellow" if "⚠" in cov else "red"
-        table.add_row(str(tid), str(name), str(tactic), f"[{color}]{cov}[/{color}]")
-
-    console.print(table)
+    _rows(referenced)
+    _rows(catalog_only)
+    console.print(table, width=120)
+    if referenced:
+        console.print("[bold]Referenced technique sources[/bold]")
+        for tid in referenced:
+            console.print(f"  {tid}: {', '.join(sorted(local_refs[tid]))}")
+    console.print(
+        "[dim]Tip: add hunt queries with technique IDs, or store findings whose "
+        "text maps via MITREAttackDB.map_finding — coverage % is not computed.[/dim]"
+    )
 
 
 # ---------------------------------------------------------------------------

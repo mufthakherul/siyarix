@@ -31,6 +31,13 @@ from .config import get_config_dir
 
 logger = logging.getLogger(__name__)
 
+# SEC-05: memory_only intentionally drops persistent audit — operators must see this.
+MEMORY_ONLY_ACCOUNTABILITY_WARNING = (
+    "LOUD WARNING: memory_only suppresses persistent audit/cache logging. "
+    "Tamper-evident accountability for this session is LOST — do not enable "
+    "when attestability or compliance evidence is required."
+)
+
 
 @dataclass
 class OPSECStatus:
@@ -170,6 +177,7 @@ class OPSECManager:
         ]
         if memory_only:
             details.append("Persistent logging/cache suppressed for this session")
+            details.append(MEMORY_ONLY_ACCOUNTABILITY_WARNING)
 
         # Fail closed unless an *implemented* control was applied. Soft session
         # labels alone must not report success (OS netns remains unimplemented).
@@ -183,10 +191,11 @@ class OPSECManager:
             )
         elif memory_only:
             success = True
-            logger.info(
-                "OPSEC soft isolate (memory_only=True) for target=%s label=%s",
+            logger.warning(
+                "OPSEC memory_only enabled for target=%s label=%s — %s",
                 target or "unknown",
                 namespace,
+                MEMORY_ONLY_ACCOUNTABILITY_WARNING,
             )
         else:
             success = False
@@ -202,18 +211,24 @@ class OPSECManager:
         return OPSECActionResult(action="isolate", success=success, detail="\n".join(details))
 
     def burn(self, session_id: str = "") -> OPSECActionResult:
-        """Securely destroy all traces of a session (or all sessions).
+        """Shred local session files under the config log directory.
 
         When *session_id* is given, **only** that session's directory is
         shredded and the method returns early.  When omitted or empty,
         every session under the sessions directory is destroyed.
+
+        OS-level wipe (memory zeroization, swap/pagefile, disk cache,
+        network traces) is **not implemented**. Results are always
+        *partial*: ``success=True`` only means the local file-shred path
+        finished; detail lines marked ``not_implemented`` must not be
+        read as completed OS wipe.
 
         Args:
             session_id: Optional session identifier.  If empty, all
                 sessions are destroyed.
 
         Returns:
-            ``OPSECActionResult`` with destruction summary.
+            ``OPSECActionResult`` with honest partial destruction summary.
 
         Example::
 
@@ -232,9 +247,17 @@ class OPSECManager:
                     if f.is_file():
                         self._secure_delete(f)
                         items_destroyed += 1
-            details.append(f"Session {session_id}: {items_destroyed} files shredded")
+            details.append(
+                f"Session {session_id}: {items_destroyed} files shredded "
+                "(3-pass random overwrite)"
+            )
             details.extend(self._trace_cleanup_messages())
-            logger.info("OPSEC burn completed for session=%s items=%d", session_id, items_destroyed)
+            details.append(self._burn_partial_status_line(items_destroyed))
+            logger.info(
+                "OPSEC burn partial for session=%s items=%d (OS wipe not_implemented)",
+                session_id,
+                items_destroyed,
+            )
             return OPSECActionResult(
                 action="burn",
                 success=True,
@@ -257,10 +280,16 @@ class OPSECManager:
 
         # H-02: Accurate description — this is a 3-pass random overwrite,
         # NOT the full 35-pass Gutmann method.
-        details.append(f"Log files: {items_destroyed} files shredded (3-pass random overwrite)")
+        details.append(
+            f"Log files: {items_destroyed} files shredded (3-pass random overwrite)"
+        )
         details.extend(self._trace_cleanup_messages())
+        details.append(self._burn_partial_status_line(items_destroyed))
 
-        logger.info("OPSEC burn completed for session=all items=%d", items_destroyed)
+        logger.info(
+            "OPSEC burn partial for session=all items=%d (OS wipe not_implemented)",
+            items_destroyed,
+        )
         self._status = OPSECStatus()
         return OPSECActionResult(
             action="burn", success=True, detail="\n".join(details), items_destroyed=items_destroyed
@@ -271,21 +300,30 @@ class OPSECManager:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _trace_cleanup_messages() -> list[str]:
-        """Build user-facing messages about OS-level trace cleanup.
+    def _burn_partial_status_line(items_destroyed: int) -> str:
+        """Honest summary: file shred may have run; OS wipe did not."""
+        return (
+            f"Burn status: partial — {items_destroyed} local session file(s) shredded; "
+            "OS memory/swap/pagefile/disk-cache/network wipe is not_implemented "
+            "(no success claimed for those steps)"
+        )
 
-        M-34: We cannot actually clear swap / pagefile / network state,
-        so messages honestly say *requested* rather than *clearing*.
+    @staticmethod
+    def _trace_cleanup_messages() -> list[str]:
+        """Build user-facing messages for OS-level wipe (all not_implemented).
+
+        SEC-14: We cannot clear swap / pagefile / network state. Messages must
+        say ``not_implemented`` — never imply those steps succeeded.
         """
-        msgs: list[str] = []
+        msgs: list[str] = [
+            "not_implemented: OS memory secure zeroization",
+        ]
         if os.name == "posix":
-            msgs.append("Memory: Secure zeroization requested")
-            msgs.append("Swap: Clearing swap partition requested")
+            msgs.append("not_implemented: swap partition wipe")
         else:
-            msgs.append("Memory: Secure zeroization requested")
-            msgs.append("Page file: System page file clearing requested (requires reboot)")
-        msgs.append("Disk cache: Flush and overwrite requested")
-        msgs.append("Network traces: Clearing requested")
+            msgs.append("not_implemented: pagefile wipe (would require reboot)")
+        msgs.append("not_implemented: disk cache flush/overwrite")
+        msgs.append("not_implemented: network trace clearing")
         return msgs
 
     def _secure_delete(self, path: Path, passes: int = 3) -> None:
@@ -387,6 +425,7 @@ opsec_manager = OPSECManager()
 
 
 __all__ = [
+    "MEMORY_ONLY_ACCOUNTABILITY_WARNING",
     "OPSECActionResult",
     "OPSECManager",
     "OPSECStatus",

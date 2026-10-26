@@ -99,6 +99,13 @@
 
 ---
 
+> **Status (Beta):** Siyarix is a capable CLI orchestrator under active hardening — not every marketed surface is finished.
+> Real today: Typer CLI, multi-provider routing, parsers/playbooks, PermissionGate (on by default), destructive/scope guards, encrypted vault, and audit logging.
+> Honest gaps: OPSEC Tor/DoH/MAC/netns isolation is **not implemented** (in-process `memory_only` only); `siyarix[api]` is reserved (no in-tree HTTP server; omitted from `[all]`); plugins stay in-process (SX-A01); swarm is experimental; coverage gate is 70%.
+> See [Production Readiness](docs/PRODUCTION_READINESS.md) for the live Partial/Closed matrix.
+
+---
+
 ## 👋 Welcome to Siyarix!
 
 Hello there! Welcome to **Siyarix**. What started as a personal project has steadily grown into a capable AI-driven Cybersecurity Orchestration Platform, built to help streamline security operations.
@@ -136,7 +143,7 @@ Siyarix adapts to your comfort level and operational needs through four distinct
 
 - **Multiple AI Providers Supported:** We integrate with the best in the business. Whether you prefer **OpenAI**, **Anthropic (Claude)**, **Groq**, or running **Local models** (like Ollama or LM Studio) completely offline, Siyarix supports it out of the box.
 - **Resilient Failover:** API down? No problem. Siyarix features an automatic "circuit breaker." If your primary AI provider fails, the system automatically falls back to your secondary providers, ensuring your scan continues.
-- **Semantic Memory:** Siyarix learns as it goes, building an in-memory "Knowledge Graph" of your infrastructure across sessions. If it finds an open port early on, it remembers to target it later.
+- **Layered memory:** A Knowledge Graph plus keyword/BM25-style SQLite recall across sessions (not vector embeddings). Open ports and findings stay available for later steps in the engagement.
 
 ### 🛠️ Security Tool Integration
 
@@ -147,10 +154,10 @@ Siyarix adapts to your comfort level and operational needs through four distinct
 ### 🛡️ Safety & Ethical Operations
 
 We know that combining AI with security tools can be daunting. We take safety seriously:
-- **The Permission Gate:** Siyarix never runs commands blindly. It features a two-stage danger analysis before execution. If it looks dangerous, it halts and asks for your permission.
+- **The Permission Gate:** Dangerous commands are reviewed before execution (PermissionGate on by default; set `SIYARIX_SAFE_MODE=0` only for labs). Hybrid/interactive modes pause for explicit approval on higher-risk steps.
 - **Encrypted Credential Vault:** Never hardcode API keys or passwords. Store your sensitive credentials securely using our AES-256-GCM encrypted vault.
-- **Stealth Manager:** OPSEC manager handles request jitter, pacing, and User-Agent rotation to keep your operations quiet.
-- **Tamper-Evident Logs:** Every single action, AI prompt, and tool execution is recorded in a cryptographically chained (SHA-256) audit log for total accountability. By default, saving session logs is deactivated for security and privacy. You can enable it in the config if you want to keep a record of your operations.
+- **Stealth helpers:** Request jitter, pacing, and User-Agent rotation are available. Full OPSEC isolation (Tor, DoH, MAC, network namespaces) is **not implemented** — see Production Readiness.
+- **Tamper-Evident Logs:** Actions, prompts, and tool runs can be recorded in a cryptographically chained (SHA-256) audit log. Session log persistence is off by default for privacy; enable it in config when you need a retained record.
 
 ### 💻 A Clean CLI Overview
 

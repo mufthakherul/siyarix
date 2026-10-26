@@ -1,8 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Threat Intelligence Integration for Siyarix.
 
-This module provides real-time lookups to threat intelligence feeds
-such as AlienVault OTX, Shodan, and NVD CVE database.
+Implemented:
+- AlienVault OTX — live IPv4 reputation lookup (optional ``ALIENVAULT_API_KEY``)
+- NVD — live CVE lookup via NVD API 2.0
+- ``MITREAttackDB`` — offline curated Enterprise tactics/techniques +
+  keyword finding-to-technique mapping
+- ``ThreatIntelFeed`` — offline curated CVE cache (``KNOWN_CVES``); lists
+  CISA KEV as **planned** (not fetched over the network)
+
+Not implemented here: Shodan lookups, STIX/OpenIOC import, MISP ingestion,
+or a live CISA KEV download.
 """
 
 from __future__ import annotations

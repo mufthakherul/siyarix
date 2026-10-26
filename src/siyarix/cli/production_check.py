@@ -22,6 +22,20 @@ from siyarix.health import get_health
 
 _DEFAULT_CONSOLE = Console()
 
+
+def _env_flag_on(*names: str) -> bool:
+    """Return True if any named env var is a truthy flag (1/true/yes/on)."""
+    for name in names:
+        if os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+    return False
+
+
+def _production_posture() -> bool:
+    """True when SIYARIX_PRODUCTION or SIYARIX_REQUIRE_MASTER_PASSWORD is set."""
+    return _env_flag_on("SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD")
+
+
 # Operator-safety probes exercised by production-check (keep in sync with
 # residual-hunter regressions when adding new hard-blocks).
 _DESTRUCTIVE_PROBES: tuple[str, ...] = (
@@ -188,19 +202,42 @@ def build_production_payload(
     _add(
         "redis",
         "info" if not redis_url else "pass",
-        "not configured (compose profile optional)" if not redis_url else "REDIS_URL set",
+        "not configured (optional worker queue)" if not redis_url else "REDIS_URL set",
     )
 
+    # SEC-03: lab default remains unrestricted. Scope fail is tied to
+    # SIYARIX_PRODUCTION / --strict only — not vault-only
+    # SIYARIX_REQUIRE_MASTER_PASSWORD (labs may harden the vault without an
+    # engagement boundary).
     scope = (os.environ.get("SIYARIX_ALLOWED_SCOPE") or "").strip()
-    _add(
-        "allowed_scope",
-        "pass",
-        (
-            f"engagement scope active ({scope[:60]}{'…' if len(scope) > 60 else ''})"
-            if scope
-            else "unset — research tooling unrestricted; set for engagement-bound automation"
-        ),
-    )
+    allow_unscoped = _env_flag_on("SIYARIX_ALLOW_UNSCOPED")
+    require_scope = _env_flag_on("SIYARIX_PRODUCTION") or strict
+    if scope:
+        _add(
+            "allowed_scope",
+            "pass",
+            f"engagement scope active ({scope[:60]}{'…' if len(scope) > 60 else ''})",
+        )
+    elif allow_unscoped:
+        _add(
+            "allowed_scope",
+            "warn",
+            "SIYARIX_ALLOW_UNSCOPED=1 — engagement scope intentionally unset "
+            "(research tooling unrestricted)",
+        )
+    elif require_scope:
+        _add(
+            "allowed_scope",
+            "fail",
+            "SIYARIX_ALLOWED_SCOPE unset under SIYARIX_PRODUCTION/--strict — set an "
+            "engagement CIDR/domain list, or SIYARIX_ALLOW_UNSCOPED=1 to opt out",
+        )
+    else:
+        _add(
+            "allowed_scope",
+            "pass",
+            "unset — research tooling unrestricted; set for engagement-bound automation",
+        )
 
     cmd_review = bool(settings.get("command_review", True))
     _add(
@@ -246,24 +283,16 @@ def build_production_payload(
         store = CredentialStore()
         backend = type(store).__name__
         mode = getattr(store, "_vault_mode", "unknown")
-        require_pw = os.getenv("SIYARIX_REQUIRE_MASTER_PASSWORD", "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        } or os.getenv("SIYARIX_PRODUCTION", "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
+        require_pw = _production_posture()
         if mode == "file_key":
-            # SX-A06: warn by default; fail under production / require-master-password.
+            # SX-A06 / SEC-09: warn by default; fail under production / --strict.
             _add(
                 "credentials",
                 "fail" if (require_pw or strict) else "warn",
-                f"store={backend} mode=file_key — set SIYARIX_MASTER_PASSWORD "
-                "for production (key file on disk)",
+                f"store={backend} mode=file_key — vault key at .cred_store_key "
+                "(0o600); anyone with config-dir filesystem access unlocks "
+                "secrets. Set SIYARIX_MASTER_PASSWORD for production "
+                "(refused when SIYARIX_PRODUCTION / SIYARIX_REQUIRE_MASTER_PASSWORD)",
             )
         else:
             _add("credentials", "pass", f"store={backend} mode={mode}")
@@ -275,17 +304,7 @@ def build_production_payload(
         from siyarix.plugins.manager import plugin_trust_mode
 
         trust = plugin_trust_mode()
-        production = os.getenv("SIYARIX_PRODUCTION", "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        } or os.getenv("SIYARIX_REQUIRE_MASTER_PASSWORD", "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }
+        production = _production_posture()
         import shutil
 
         from siyarix.plugins.isolation import (
@@ -350,9 +369,10 @@ def build_production_payload(
     remediations: list[str] = []
     _hints = {
         "allowed_scope": (
-            "optional engagement boundary for authorized tests — "
-            "export SIYARIX_ALLOWED_SCOPE='10.0.0.0/8,*.lab.example' "
-            "(unset = no scope restriction on research tooling)"
+            "export SIYARIX_ALLOWED_SCOPE='10.0.0.0/8,*.lab.example' for "
+            "engagement-bound automation; under production posture unset "
+            "scope fails unless SIYARIX_ALLOW_UNSCOPED=1 "
+            "(lab default remains unrestricted when production is off)"
         ),
         "permission_gate": "unset SIYARIX_SAFE_MODE (or set to 1) for production",
         "command_review": "enable command_review in settings / profile",

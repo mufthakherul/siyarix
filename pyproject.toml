@@ -48,6 +48,7 @@ classifiers = [
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Security",
   "Topic :: Software Development :: Libraries :: Application Frameworks",
   "Topic :: System :: Networking",
@@ -77,8 +78,10 @@ optional-dependencies.all = [
 optional-dependencies.anthropic = [
   "anthropic>=0.40",
 ]
-# Reserved for a future HTTP API (not implemented in-tree yet). Not pulled in by
-# ``siyarix[all]`` so install does not imply a runnable server (FEAT-02).
+# FEAT-02: reserved packaging stub only — installs FastAPI/Uvicorn/PyJWT deps but
+# there is no in-tree HTTP API module or server entrypoint. ``siyarix[all]``
+# deliberately omits this extra so ``pip install siyarix[all]`` never implies a
+# runnable API. Prefer documenting the gap over adding a fake server.
 optional-dependencies.api = [
   "fastapi>=0.110",
   "pyjwt>=2.8",

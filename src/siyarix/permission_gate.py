@@ -8,12 +8,14 @@ Syntax Check -> Danger Analysis
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from ._platform import safe_chmod
 from .config import get_config_dir
 from .security_hardening import DangerAnalyzer
 
@@ -42,6 +44,66 @@ class GateResult:
                 self.stage = GateStage(stage_val)
             except ValueError:
                 raise ValueError(f"Invalid stage: {self.stage}")
+
+
+def _production_posture() -> bool:
+    """True under SIYARIX_PRODUCTION / SIYARIX_REQUIRE_MASTER_PASSWORD."""
+    for name in ("SIYARIX_PRODUCTION", "SIYARIX_REQUIRE_MASTER_PASSWORD"):
+        if os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+    return False
+
+
+# Encoded / piped-shell delivery (SEC-08). Lab → requires_review; production → FORBIDDEN.
+# Intentionally soft in lab so legitimate research shells still work via shell_review.
+#
+# Shell token: path-qualified (/bin/bash), alt shells (zsh/dash/ksh/fish), busybox.
+_SHELL_BIN = (
+    r"(?:(?:[\w./+-]+/)?(?:bash|dash|zsh|ksh|fish|csh|tcsh|sh)|busybox)"
+)
+# Optional wrappers between ``|`` and the shell (sudo -E, env, busybox, multi-pipe tee).
+_SHELL_WRAPPER = (
+    rf"(?:(?:sudo|env|command|busybox)\s+(?:-[a-zA-Z0-9]+\s+)*)*{_SHELL_BIN}"
+)
+
+_PIPE_TO_SHELL = re.compile(
+    rf"\b(?:curl|wget|fetch)\b[\s\S]{{0,400}}\|(?:[^|\n]{{0,120}}\|)*\s*{_SHELL_WRAPPER}\b",
+    re.IGNORECASE,
+)
+# ``bash -c 'source /dev/stdin'`` / process-substitution fetch delivery.
+_STDIN_SHELL_SOURCE = re.compile(
+    rf"(?:<\s*<\(|\b(?:source|\.)\s+/dev/stdin\b|"
+    rf"\b{_SHELL_BIN}\b[^\n]{{0,120}}\b(?:source|\.)\s+/dev/stdin\b)",
+    re.IGNORECASE,
+)
+# Shell ``eval`` — not OpenSCAP ``… eval``, not hyphenated tool names (``eval-cli``).
+_SHELL_EVAL = re.compile(
+    r"(?:^|[;\n&|(`]|\$\()\s*(?<![\w-])eval(?![\w-])\b|"
+    r"(?<![\w-])eval(?![\w-])\s*[\"'`$({]",
+    re.IGNORECASE | re.MULTILINE,
+)
+# Bare ``base64 -d`` (not ``openssl base64`` / ``python -m base64`` alone).
+_BASE64_DECODE = re.compile(r"(?<![\w-])base64\s+(?:--decode|-d)\b", re.IGNORECASE)
+_BASE64_TOOL_FP = re.compile(
+    r"\b(?:openssl\s+base64|python\d*\s+-m\s+base64)\b",
+    re.IGNORECASE,
+)
+
+
+def encoded_shell_requires_review(command: str) -> bool:
+    """True when *command* matches base64 -d / eval / curl|sh / wget|sh style patterns."""
+    if not command or not command.strip():
+        return False
+    if _PIPE_TO_SHELL.search(command) or _STDIN_SHELL_SOURCE.search(command):
+        return True
+    if _SHELL_EVAL.search(command):
+        return True
+    if _BASE64_DECODE.search(command):
+        # Carve out openssl/python -m base64 unless also piped to a shell.
+        if _BASE64_TOOL_FP.search(command) and not _PIPE_TO_SHELL.search(command):
+            return False
+        return True
+    return False
 
 
 class PermissionGate:
@@ -99,6 +161,8 @@ class PermissionGate:
             return
         try:
             self._state_file.write_text(json.dumps(self._calls), encoding="utf-8")
+            # SEC-12: lock down rate_limit.json (best-effort; no-op on Windows).
+            safe_chmod(self._state_file, 0o600)
             self._dirty = False
         except Exception:
             pass
@@ -162,6 +226,16 @@ class PermissionGate:
             self._calls.append(now)
             self._save_state(force=(len(self._calls) % 50 == 0))
 
+        encoded = encoded_shell_requires_review(command)
+        if encoded and _production_posture():
+            return GateResult(
+                False,
+                GateStage.FORBIDDEN,
+                "Encoded or piped-shell execution blocked in production",
+                tool=tool,
+                command=command,
+            )
+
         report = self._danger_analyzer.analyze(command)
         if report.severity == "critical":
             return GateResult(
@@ -171,11 +245,12 @@ class PermissionGate:
                 tool=tool,
                 command=command,
             )
-        if report.severity in ("high", "medium"):
+        if report.severity in ("high", "medium") or encoded:
+            reason = "; ".join(report.reasons) if report.reasons else "encoded/piped shell pattern"
             return GateResult(
                 True,
                 GateStage.REVIEW,
-                f"Requires review: {'; '.join(report.reasons)}",
+                f"Requires review: {reason}",
                 tool=tool,
                 command=command,
                 requires_review=True,
@@ -186,4 +261,5 @@ class PermissionGate:
 __all__ = [
     "GateResult",
     "PermissionGate",
+    "encoded_shell_requires_review",
 ]

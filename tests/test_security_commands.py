@@ -216,9 +216,15 @@ class TestQueriesCommand:
 class TestMitreCore:
     def test_mitre_coverage(self, cli: Typer, runner: CliRunner) -> None:
         output = invoke_security(cli, runner, ["mitre-coverage"])
+        # Offline catalog + local hunt/finding refs — never fabricate Covered/Gap.
         assert "T1059" in output
-        assert "Covered" in output
-        assert "Gap" in output
+        assert "Referenced" in output
+        assert "Catalog only" in output
+        assert "Covered" not in output
+        assert "Gap" not in output
+        assert "not a measured" in output.lower() or "reference" in output.lower()
+        # Seeded hunt query q_ps_exec references T1059 (sources listed below table)
+        assert "q_ps_exec" in output
 
 
 class TestDashboard:

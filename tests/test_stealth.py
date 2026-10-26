@@ -7,7 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-from siyarix.stealth import StealthConfig, StealthEngine
+from siyarix.stealth import (
+    ASSUMED_LOCAL_TOR_PROXIES,
+    PROXY_CHAINS,
+    StealthConfig,
+    StealthEngine,
+)
 
 pytestmark = pytest.mark.stealth
 
@@ -20,12 +25,17 @@ class TestStealthEngine:
     def test_initial_disabled(self, engine):
         assert engine.config.enabled is False
         assert engine.config.evasion_level == "none"
+        assert engine.config.proxy_list == []
+        assert PROXY_CHAINS == []
 
     def test_enable_medium(self, engine):
         engine.enable("medium")
         assert engine.config.enabled is True
         assert engine.config.rotate_user_agents is True
         assert engine.config.use_proxy_chain is True
+        # SEC-13: medium enables the flag only — no hardcoded Tor/Privoxy injection.
+        assert engine.config.proxy_list == []
+        assert engine.get_current_proxy() is None
 
     def test_enable_paranoid(self, engine):
         engine.enable("paranoid")
@@ -58,11 +68,26 @@ class TestStealthEngine:
     def test_get_proxy_disabled(self, engine):
         assert engine.get_current_proxy() is None
 
-    def test_get_proxy_enabled(self, engine):
+    def test_get_proxy_requires_explicit_list(self, engine):
         engine.enable("medium")
+        assert engine.get_current_proxy() is None
+        accepted = engine.configure_proxies(
+            ["socks5://127.0.0.1:19050"],
+            health_check=False,
+        )
+        assert accepted == ["socks5://127.0.0.1:19050"]
         proxy = engine.get_current_proxy()
-        assert proxy is not None
-        assert proxy.startswith(("socks5://", "socks4://", "http://"))
+        assert proxy == "socks5://127.0.0.1:19050"
+
+    def test_assumed_local_tor_opt_in_health_check(self, engine, monkeypatch):
+        monkeypatch.setattr(
+            "siyarix.stealth.proxy_listener_healthy",
+            lambda url, timeout=0.5: url.endswith(":9050"),
+        )
+        kept = engine.use_assumed_local_tor_proxies(health_check=True)
+        assert kept
+        assert all(p in ASSUMED_LOCAL_TOR_PROXIES for p in kept)
+        assert all(p.endswith(":9050") for p in kept)
 
     def test_decoy_requests_disabled(self, engine):
         assert engine.get_decoy_requests("http://example.com") == []
@@ -77,6 +102,7 @@ class TestStealthEngine:
 
     def test_stealth_score(self, engine):
         engine.enable("paranoid")
+        engine.configure_proxies(["socks5://127.0.0.1:9050"], health_check=False)
         score = engine.config.score()
         assert 0.0 <= score <= 10.0
 
@@ -86,6 +112,7 @@ class TestStealthEngine:
         assert summary["enabled"] is True
         assert summary["level"] == "medium"
         assert "stealth_score" in summary
+        assert summary["require_proxy_health_check"] is True
 
     def test_stealth_config_apply_level(self):
         config = StealthConfig()
@@ -124,16 +151,25 @@ class TestStealthConfigScore:
         config.jitter_percentage = 80
         config.rotate_user_agents = True
         config.use_proxy_chain = True
+        config.proxy_list = ["socks5://127.0.0.1:9050"]
         config.use_decoy_traffic = True
         score = config.score()
         # 3.0 + 2.0 + 2.5 + 1.5 + 1.0 = 10.0
         assert score == 10.0
+
+    def test_score_proxy_flag_without_list_no_bonus(self) -> None:
+        config = StealthConfig()
+        config.apply_level("medium")
+        # use_proxy_chain True but empty list — no proxy score credit
+        assert config.proxy_list == []
+        assert config.score() == 5.0  # jitter 3.0 + rotate 2.0
 
     def test_score_all_features_enabled(self) -> None:
         config = StealthConfig()
         config.jitter_percentage = 50
         config.rotate_user_agents = True
         config.use_proxy_chain = True
+        config.proxy_list = ["http://127.0.0.1:8080"]
         config.use_decoy_traffic = True
         config.evasion_level = "heavy"
         score = config.score()
@@ -152,6 +188,8 @@ class TestStealthEngineProxyRotation:
     def test_proxy_rotation_triggers(self) -> None:
         engine = StealthEngine()
         engine.config.use_proxy_chain = True
+        engine.config.require_proxy_health_check = False
+        engine.config.proxy_list = ["http://127.0.0.1:18080", "socks5://127.0.0.1:19050"]
         engine.config.proxy_rotation_interval = 0  # rotate on every call
         engine._last_proxy_rotation = -1.0  # force immediate rotation
         proxy = engine.get_current_proxy()
@@ -236,6 +274,7 @@ class TestStealthEngineProxyRotation:
     def test_proxy_index_increments_circular(self) -> None:
         engine = StealthEngine()
         engine.config.use_proxy_chain = True
+        engine.config.require_proxy_health_check = False
         engine.config.proxy_list = ["p1", "p2"]
         engine._proxy_index = -1  # will become 0 after first increment
         p1 = engine.get_current_proxy()
@@ -243,3 +282,11 @@ class TestStealthEngineProxyRotation:
         p3 = engine.get_current_proxy()
         assert p1 != p2 or p2 != p3  # circular
         assert p1 in ("p1", "p2")
+
+    def test_unhealthy_configured_proxy_not_injected(self, monkeypatch) -> None:
+        engine = StealthEngine()
+        engine.config.use_proxy_chain = True
+        engine.config.require_proxy_health_check = True
+        engine.config.proxy_list = ["socks5://127.0.0.1:9050"]
+        monkeypatch.setattr("siyarix.stealth.proxy_listener_healthy", lambda *a, **k: False)
+        assert engine.get_current_proxy() is None

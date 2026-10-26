@@ -37,12 +37,12 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_STABLE }}
 
-      - name: Install dependencies
+      - name: Install dependencies (locked)
         run: |
-          uv pip install --system -e ".[dev]"
+          uv sync --locked --extra dev
           # Pin ruff: 0.17+ enables nearly all rule families by default and
           # breaks large PRs that previously linted clean under 0.15 defaults.
-          uv pip install --system "ruff==0.15.20" mypy
+          uv pip install "ruff==0.15.20"
 
       - name: Determine changed Python files
         id: changes
@@ -65,22 +65,21 @@ jobs:
 
       - name: Ruff lint
         if: steps.changes.outputs.changed != ''
-        run: ruff check ${{ steps.changes.outputs.changed }} --output-format=github
+        run: uv run ruff check ${{ steps.changes.outputs.changed }} --output-format=github
 
       - name: Ruff format
         if: steps.changes.outputs.changed != ''
-        run: ruff format --check --diff ${{ steps.changes.outputs.changed }}
+        run: uv run ruff format --check --diff ${{ steps.changes.outputs.changed }}
 
       - name: MyPy
         if: steps.changes.outputs.changed != ''
-        run: mypy src/siyarix
+        run: uv run mypy src/siyarix
 
       - name: Pre-commit hooks
         env:
           BASE_REF: ${{ steps.changes.outputs.base }}
           HEAD_REF: ${{ steps.changes.outputs.head }}
-        run: |
-          pipx run pre-commit run --from-ref "$BASE_REF" --to-ref "$HEAD_REF" || true
+        run: uv run pre-commit run --from-ref "$BASE_REF" --to-ref "$HEAD_REF"
 
   test:
     name: Tests (${{ matrix.os }}, py${{ matrix.python-version }})
@@ -103,19 +102,28 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies (locked)
         run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system pytest pytest-asyncio pytest-cov pytest-timeout pytest-xdist click openai respx
+          uv sync --locked --extra dev
+          # Not in uv.lock / [dev]; keep matrix fast without editing pyproject.
+          uv pip install pytest-timeout pytest-xdist
 
       - name: Run tests
         shell: bash
         run: |
-          pytest tests/ \
+          # Fail-under matches pyproject [tool.coverage.report] fail_under=70.
+          # Enforce only on Linux so OS-specific skips on Windows/macOS cannot
+          # flake the primary coverage gate.
+          FAIL_UNDER_ARGS=()
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            FAIL_UNDER_ARGS=(--cov-fail-under=70)
+          fi
+          uv run pytest tests/ \
             --cov=src \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-branch \
+            "${FAIL_UNDER_ARGS[@]}" \
             -n auto \
             -v \
             --tb=short \
@@ -156,18 +164,18 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_STABLE }}
 
-      - name: Install package
-        run: uv pip install --system -e .
+      - name: Install package (locked)
+        run: uv sync --locked
 
       - name: Run siyarix production-check
         env:
           # CI has no vault password / providers — warn is expected; fail on hard fails.
           SIYARIX_SAFE_MODE: "1"
         run: |
-          siyarix production-check
+          uv run siyarix production-check
           # Exit 0 with needs-attention is OK; --strict would fail on warns (file_key).
           # Gate hard failures only: re-run and parse readiness grade.
-          out="$(siyarix production-check 2>&1 || true)"
+          out="$(uv run siyarix production-check 2>&1 || true)"
           echo "$out"
           if echo "$out" | grep -q "not-ready"; then
             echo "production-check reported not-ready"
@@ -197,27 +205,25 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_STABLE }}
 
-      - name: Install dependencies
-        run: uv pip install --system -e .
+      - name: Install dependencies (locked)
+        run: uv sync --locked --extra security
 
       - name: Bandit
         run: |
-          uv pip install --system bandit
           set +e
-          bandit -r src/ -f json -o bandit-report.json -ll
+          uv run bandit -r src/ -f json -o bandit-report.json -ll
           bandit_rc=$?
           set -e
-          python scripts/ci_security_gate.py bandit bandit-report.json
+          uv run python scripts/ci_security_gate.py bandit bandit-report.json
           if [ "$bandit_rc" -gt 1 ]; then exit "$bandit_rc"; fi
 
       - name: pip-audit
         run: |
-          uv pip install --system pip-audit
           set +e
-          pip-audit --format json --output pip-audit.json
+          uv run pip-audit --format json --output pip-audit.json
           audit_rc=$?
           set -e
-          python scripts/ci_security_gate.py pip-audit pip-audit.json
+          uv run python scripts/ci_security_gate.py pip-audit pip-audit.json
           if [ "$audit_rc" -gt 1 ]; then exit "$audit_rc"; fi
 
       - name: Upload security reports
@@ -245,28 +251,34 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_STABLE }}
 
-      - name: Install build tools
+      - name: Install build tools (locked + wheel checker)
         run: |
-          uv pip install --system build twine check-wheel-contents
+          uv sync --locked --extra dev
+          # check-wheel-contents is packaging tooling, not in [dev]/uv.lock.
+          uv pip install check-wheel-contents
 
       - name: Build sdist & wheel
-        run: python -m build
+        run: uv run python -m build
 
       - name: Check wheel
-        run: check-wheel-contents --ignore W002 dist/ || true
+        run: uv run check-wheel-contents --ignore W002 dist/
 
       - name: Twine check
-        run: twine check dist/*
+        run: uv run twine check dist/*
 
       - name: Verify entry points
         run: |
-          uv pip install --system dist/*.whl
-          python -c "from siyarix import main; print('CLI entry point OK')"
-          python -c "import siyarix; print('Package import OK:', siyarix.__version__)"
+          # Isolate from the editable project env so we exercise the built wheel.
+          uv venv .wheel-check
+          uv pip install --python .wheel-check dist/*.whl
+          .wheel-check/bin/python -c "from siyarix import main; print('CLI entry point OK')"
+          .wheel-check/bin/python -c "import siyarix; print('Package import OK:', siyarix.__version__)"
 
-  full-lint:
-    name: Full Repository Lint
+  full-lint-advisory:
+    name: Full Repository Lint (Advisory)
     runs-on: ubuntu-latest
+    # Push-to-main only: full-tree lint debt is reported but must not block merges.
+    # The PR `lint` job above remains the hard gate for changed files.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -281,29 +293,31 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_STABLE }}
 
-      - name: Install linters
+      - name: Install linters (locked)
         run: |
-          uv pip install --system "ruff==0.15.20" mypy -e ".[dev]"
+          uv sync --locked --extra dev
+          uv pip install "ruff==0.15.20"
 
       - name: Full lint scan
+        # Soft-fail by design: exploratory full-repo scan on main (not a required PR gate).
         continue-on-error: true
         run: |
           echo "::group::Ruff Lint"
-          ruff check src tests --output-format=github
+          uv run ruff check src tests --output-format=github
           echo "::endgroup::"
 
           echo "::group::Ruff Format"
-          ruff format --check src tests || true
+          uv run ruff format --check src tests
           echo "::endgroup::"
 
           echo "::group::MyPy"
-          mypy src/siyarix
+          uv run mypy src/siyarix
           echo "::endgroup::"
 
   notify:
     name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [lint, test, security-audit, compatibility]
+    needs: [lint, test, production-check, security-audit, compatibility]
     if: failure() && github.event_name == 'push'
     permissions:
       issues: write

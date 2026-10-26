@@ -351,7 +351,60 @@ def _validate_cmd_list(cmd: list[str]) -> None:
             return
 
 
-# Secrets / posture that must never ride into child tool processes (SX-A03).
+# Secrets / posture that must never ride into child tool processes (SX-A03 / SEC-07).
+# Prefer shared names from dotenv_guard so planted-.env and child-env stay aligned.
+from siyarix.dotenv_guard import API_KEY_PATTERNS as _DOTENV_API_KEY_PATTERNS
+from siyarix.dotenv_guard import BLOCKED_EXACT as _DOTENV_BLOCKED_EXACT
+from siyarix.dotenv_guard import BLOCKED_VARS as _DOTENV_BLOCKED_VARS
+
+# Exact names dotenv already refuses (BLOCKED_EXACT / BLOCKED_VARS / API_KEY_PATTERNS).
+_DOTENV_DENY_EXACT: frozenset[str] = (
+    _DOTENV_BLOCKED_EXACT
+    | _DOTENV_BLOCKED_VARS
+    | frozenset(p for p in _DOTENV_API_KEY_PATTERNS if p.isidentifier() and p == p.upper())
+)
+
+# Session / TLS / cloud config pivots dotenv already refuses from cwd .env.
+_SCRUB_DOTENV_SHARED_EXACT: frozenset[str] = frozenset(
+    name
+    for name in (
+        "SSLKEYLOGFILE",
+        "NETRC",
+        "AWS_CONFIG_FILE",
+        "AWS_SHARED_CREDENTIALS_FILE",
+        "KUBECONFIG",
+        "KUBE_CONFIG",
+        "KUBE_CONFIG_PATH",
+        "PGPASSFILE",
+        "DOCKER_CERT_PATH",
+        "GIT_ASKPASS",
+        "SSH_ASKPASS",
+        "CURL_HOME",
+        "OPENSSL_CONF",
+        "GNUPGHOME",
+        "BOTO_CONFIG",
+        "GOOGLE_APPLICATION_CREDENTIALS",
+    )
+    if name in _DOTENV_DENY_EXACT
+)
+# Always drop (profile / webhook / TLS & netrc pivots) even if dotenv lists drift.
+_SCRUB_ENV_ALWAYS: frozenset[str] = frozenset(
+    {
+        "SSLKEYLOGFILE",
+        "NETRC",
+        "SIYARIX_WEBHOOK_URL",
+        "AWS_PROFILE",
+        "AWS_DEFAULT_PROFILE",
+    }
+)
+# Infix from dotenv API_KEY_PATTERNS (covers DISCORD_WEBHOOK_URL, etc.).
+_SCRUB_WEBHOOK_INFIX = "_WEBHOOK" if "_WEBHOOK" in _DOTENV_API_KEY_PATTERNS else "_WEBHOOK"
+# Suffixes shared with dotenv credential fragments (suffix-only to avoid
+# over-matching names like XDG_SESSION_TYPE).
+_SCRUB_DOTENV_SUFFIXES: tuple[str, ...] = tuple(
+    p for p in ("_COOKIE", "_SESSION", "_AUTH") if p in _DOTENV_API_KEY_PATTERNS
+)
+
 _SCRUB_ENV_EXACT: frozenset[str] = frozenset(
     {
         "SIYARIX_SUDO_PASSWORD",
@@ -386,7 +439,7 @@ _SCRUB_ENV_EXACT: frozenset[str] = frozenset(
         "FLASK_SECRET_KEY",
         "SECRET_KEY",
     }
-)
+) | _SCRUB_DOTENV_SHARED_EXACT | _SCRUB_ENV_ALWAYS
 _SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
     "_API_KEY",
     "_SECRET",
@@ -403,7 +456,8 @@ _SCRUB_ENV_SUFFIXES: tuple[str, ...] = (
     "_CONNECTION_STRING",
     "_DATABASE_URL",
     "_DSN",
-)
+    "_COOKIES",
+) + _SCRUB_DOTENV_SUFFIXES
 # Bare ``FOO_KEY`` provider shorthand (OPENAI_KEY, etc.).
 _SCRUB_BARE_KEY_RE = re.compile(r"^(?:[A-Z][A-Z0-9_]*)_KEY$")
 
@@ -414,6 +468,9 @@ def _scrub_secret_env(exec_env: dict[str, str]) -> dict[str, str]:
     for key, val in exec_env.items():
         upper = key.upper()
         if upper in _SCRUB_ENV_EXACT or key in _SCRUB_ENV_EXACT:
+            continue
+        # Common *_WEBHOOK* names (DISCORD_WEBHOOK_URL, …) — SEC-07.
+        if _SCRUB_WEBHOOK_INFIX in upper:
             continue
         if any(upper.endswith(suf) for suf in _SCRUB_ENV_SUFFIXES):
             continue

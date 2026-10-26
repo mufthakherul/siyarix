@@ -17,12 +17,34 @@ INSTALL_METHOD="${SIYARIX_METHOD:-}"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
 SILENT="${SIYARIX_SILENT:-0}"
 WITH_TOOLS="${SIYARIX_WITH_TOOLS:-0}"
+# Python extras ([all]) — separate from host OS tools. Windows/Termux installers
+# historically fold extras into --with-tools; this script keeps them distinct so
+# the default install stays minimal (PKG-03).
+WITH_EXTRAS="${SIYARIX_WITH_EXTRAS:-0}"
 NO_MODIFY_PATH="${SIYARIX_NO_MODIFY_PATH:-0}"
 TARGET_DIR="${SIYARIX_TARGET_DIR:-}"
 OS_ID=""
 OS_LIKE=""
 PYTHON=""
 ARCH=""
+
+# Package spec for pip/uv/pipx. Default: bare siyarix==VERSION.
+# WITH_EXTRAS=1 → siyarix[all]==VERSION (api extra still excluded by pyproject).
+pkg_spec() {
+  local base="siyarix"
+  if [ "$WITH_EXTRAS" = "1" ]; then
+    base="siyarix[all]"
+  fi
+  echo "${base}==${SIYARIX_VERSION}"
+}
+
+pkg_unpinned() {
+  if [ "$WITH_EXTRAS" = "1" ]; then
+    echo "siyarix[all]"
+  else
+    echo "siyarix"
+  fi
+}
 
 banner() {
   if [ "$SILENT" = "1" ]; then
@@ -290,7 +312,7 @@ install_via_uv() {
   if command -v uv &>/dev/null; then
     local uv_flags=""
     [ -n "$TARGET_DIR" ] && uv_flags="--directory $TARGET_DIR"
-    if run uv tool install --force $uv_flags "siyarix==${SIYARIX_VERSION}" 2>/dev/null || run uv tool install --force $uv_flags siyarix 2>/dev/null; then
+    if run uv tool install --force $uv_flags "$(pkg_spec)" 2>/dev/null || run uv tool install --force $uv_flags "$(pkg_unpinned)" 2>/dev/null; then
       ok "Installed Siyarix via uv tool!"
       return 0
     fi
@@ -303,7 +325,7 @@ install_via_pipx() {
   INSTALL_METHOD="pipx"
   info "Installing Siyarix using pipx (isolated environment)..."
   if command -v pipx &>/dev/null; then
-    if run pipx install --force "siyarix==${SIYARIX_VERSION}" 2>/dev/null || run pipx install --force siyarix 2>/dev/null; then
+    if run pipx install --force "$(pkg_spec)" 2>/dev/null || run pipx install --force "$(pkg_unpinned)" 2>/dev/null; then
       ok "Installed Siyarix via pipx!"
       return 0
     fi
@@ -338,37 +360,40 @@ install_via_pip() {
   ensure_pip || true
 
   local pip_cmd="$PYTHON -m pip --no-input"
-  local pkg_spec="siyarix==${SIYARIX_VERSION}"
+  local pinned
+  local loose
+  pinned="$(pkg_spec)"
+  loose="$(pkg_unpinned)"
 
   # Check active virtual environment
   if [ -n "${VIRTUAL_ENV:-}" ]; then
     info "Active virtual environment detected ($VIRTUAL_ENV). Installing inside venv..."
-    if run $pip_cmd install --upgrade "$pkg_spec" 2>/dev/null || run $pip_cmd install --upgrade siyarix 2>/dev/null; then
+    if run $pip_cmd install --upgrade "$pinned" 2>/dev/null || run $pip_cmd install --upgrade "$loose" 2>/dev/null; then
       ok "Siyarix installed inside active virtual environment."
       return 0
     fi
   fi
 
   # Strategy A: pip with --user and --break-system-packages (for PEP 668 systems like Kali/Debian 12/Ubuntu 23+)
-  if run $pip_cmd install --upgrade --user --break-system-packages "$pkg_spec" 2>/dev/null || run $pip_cmd install --upgrade --user --break-system-packages siyarix 2>/dev/null; then
+  if run $pip_cmd install --upgrade --user --break-system-packages "$pinned" 2>/dev/null || run $pip_cmd install --upgrade --user --break-system-packages "$loose" 2>/dev/null; then
     ok "Installed Siyarix for current user."
     return 0
   fi
 
   # Strategy B: pip with standard --user
-  if run $pip_cmd install --upgrade --user "$pkg_spec" 2>/dev/null || run $pip_cmd install --upgrade --user siyarix 2>/dev/null; then
+  if run $pip_cmd install --upgrade --user "$pinned" 2>/dev/null || run $pip_cmd install --upgrade --user "$loose" 2>/dev/null; then
     ok "Installed Siyarix for current user."
     return 0
   fi
 
   # Strategy C: system pip with --break-system-packages (if running as root or container)
-  if run $pip_cmd install --upgrade --break-system-packages "$pkg_spec" 2>/dev/null || run $pip_cmd install --upgrade --break-system-packages siyarix 2>/dev/null; then
+  if run $pip_cmd install --upgrade --break-system-packages "$pinned" 2>/dev/null || run $pip_cmd install --upgrade --break-system-packages "$loose" 2>/dev/null; then
     ok "Installed Siyarix globally."
     return 0
   fi
 
   # Strategy D: bare pip install
-  if run $pip_cmd install "$pkg_spec" 2>/dev/null || run $pip_cmd install siyarix 2>/dev/null; then
+  if run $pip_cmd install "$pinned" 2>/dev/null || run $pip_cmd install "$loose" 2>/dev/null; then
     ok "Installed Siyarix."
     return 0
   fi
@@ -468,7 +493,8 @@ Options:
   -s, -y, --silent         Headless unattended mode for CI/CD & Docker
   --dry-run                Simulate execution without modifying the system
   --version <ver>          Install a specific Siyarix release (e.g. 1.2.0)
-  --with-tools             Automatically install core security utilities (nmap, curl, whois, dig)
+  --with-tools             Install host OS security utilities (nmap, curl, whois, dig)
+  --with-extras            Install Python extras siyarix[all] (not the reserved api extra)
   --no-modify-path         Do not append binary directories to shell profiles
   --target-dir <dir>       Specify custom directory destination
   --method <name>          Force install method: uv, pipx, brew, or pip
@@ -477,16 +503,25 @@ Environment Variables:
   SIYARIX_VERSION          Pinned Siyarix version (default: 1.2.0)
   SIYARIX_SILENT           Set to 1 for silent / unattended mode
   SIYARIX_DRY_RUN          Set to 1 to simulate actions
-  SIYARIX_WITH_TOOLS       Set to 1 to auto-install security tools
+  SIYARIX_WITH_TOOLS       Set to 1 to auto-install host OS security tools
+  SIYARIX_WITH_EXTRAS      Set to 1 to install siyarix[all] Python extras
   SIYARIX_NO_MODIFY_PATH   Set to 1 to skip shell profile modifications
   SIYARIX_METHOD           Override package manager method
+
+Notes:
+  Default install is minimal (bare siyarix). --with-tools and --with-extras are
+  independent. Windows/Termux installers currently map their --with-tools flag to
+  Python [all] extras; this Unix script keeps host tools vs extras as two flags.
 
 Examples:
   # Quick installation (Recommended)
   curl -fsSL https://siyarix.github.io/install.sh | bash
 
-  # Unattended CI/CD install with tools
+  # Unattended CI/CD install with host tools
   curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --silent --with-tools
+
+  # Match Windows-style "full" Python extras without host packages
+  curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --with-extras
 
   # High-speed installation via uv
   curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --method uv
@@ -511,6 +546,10 @@ main() {
         ;;
       --with-tools)
         WITH_TOOLS=1
+        shift
+        ;;
+      --with-extras)
+        WITH_EXTRAS=1
         shift
         ;;
       --no-modify-path)

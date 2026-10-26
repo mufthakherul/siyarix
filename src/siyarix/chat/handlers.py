@@ -2210,7 +2210,7 @@ class CommandHandlersMixin:
 
     async def _cmd_opsec(self, args: str) -> None:
         """Handle /opsec command for operational security."""
-        from ..opsec import opsec_manager
+        from ..opsec import MEMORY_ONLY_ACCOUNTABILITY_WARNING, opsec_manager
 
         tokens = args.split() if args else []
         if not tokens or tokens[0] not in ("isolate", "burn", "status", "disable"):
@@ -2223,16 +2223,24 @@ class CommandHandlersMixin:
             if "--target" in tokens:
                 idx = tokens.index("--target")
                 target = tokens[idx + 1] if idx + 1 < len(tokens) else ""
-            result = opsec_manager.isolate(target=target, use_tor=True, use_doh=True)
-            console.print(f"[green]{result.detail}[/green]")
+            # Only memory_only is implemented; do not request Tor/DoH by default.
+            result = opsec_manager.isolate(target=target, memory_only=True)
+            color = "green" if result.success else "yellow"
+            console.print(f"[{color}]{result.detail}[/{color}]")
+            if result.success and opsec_manager.status.memory_only:
+                console.print(f"[bold red]{MEMORY_ONLY_ACCOUNTABILITY_WARNING}[/bold red]")
         elif tokens[0] == "burn":
             session = tokens[1] if len(tokens) > 1 else ""
             result = opsec_manager.burn(session_id=session)
-            console.print(f"[red]{result.detail}[/red]")
+            color = "green" if result.success else "yellow"
+            console.print(f"[{color}]{result.detail}[/{color}]")
         elif tokens[0] == "status":
             s = opsec_manager.status
             console.print(
-                f"Isolated: {s.isolated} | TOR: {s.tor_enabled} | DoH: {s.doh_enabled} | Memory-only: {s.memory_only}"
+                f"Isolated: {s.isolated} (OS netns not implemented) | "
+                f"TOR: {s.tor_enabled} (not implemented) | "
+                f"DoH: {s.doh_enabled} (not implemented) | "
+                f"Memory-only: {s.memory_only}"
             )
         elif tokens[0] == "disable":
             opsec_manager.disable()
@@ -2936,9 +2944,11 @@ class CommandHandlersMixin:
             )
             console.print(f"[dim]Targets file: {tfile}[/dim]")
             console.print(
-                "[dim]Run: [/dim]"
-                f"[cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]  "
-                f"[dim]or[/dim] [cyan]/campaign run {camp.name}[/cyan]"
+                "[dim]Scan yourself with:[/dim] "
+                f"[cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]\n"
+                "[dim]Or prepare + print suggested commands:[/dim] "
+                f"[cyan]/campaign run {camp.name}[/cyan] "
+                "[dim](does not orchestrate scans)[/dim]"
             )
             return
 
@@ -2982,19 +2992,24 @@ class CommandHandlersMixin:
             if not run_camp.targets:
                 console.print("[yellow]Campaign has no targets.[/yellow]")
                 return
+            # FEAT-10: prepare targets + print suggested scan commands only —
+            # does not orchestrate or execute scans.
             store.mark_run(run_camp.name)
             tfile = store.write_targets_file(run_camp)
             console.print(
-                f"[green]✓ Campaign {run_camp.name} ready[/green] "
-                f"([cyan]{len(run_camp.targets)}[/cyan] targets)"
+                f"[green]✓ Campaign {run_camp.name} prepared[/green] "
+                f"([cyan]{len(run_camp.targets)}[/cyan] targets written)"
             )
             console.print(
-                f"[bold]Execute with:[/bold] [cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]"
+                "[yellow]Note:[/yellow] [dim]/campaign run[/dim] prepares the "
+                "targets file and records a run intent — it does "
+                "[bold]not[/bold] orchestrate or execute scans."
             )
             console.print(
-                "[dim]Or full/deep: [/dim]"
-                f"[cyan]siyarix scan @{tfile} --parallel 5[/cyan]  "
-                f"[cyan]siyarix scan-full @{tfile} --parallel 3[/cyan]"
+                f"[bold]Suggested scan commands:[/bold]\n"
+                f"  [cyan]siyarix scan-quick @{tfile} --parallel 5[/cyan]\n"
+                f"  [cyan]siyarix scan @{tfile} --parallel 5[/cyan]\n"
+                f"  [cyan]siyarix scan-full @{tfile} --parallel 3[/cyan]"
             )
             return
 
@@ -3012,7 +3027,9 @@ class CommandHandlersMixin:
         console.print(
             "[yellow]Usage: /campaign list|create|status|run|delete[/yellow]\n"
             "[dim]/campaign create eng1 --targets hosts.txt[/dim]\n"
-            "[dim]/campaign run eng1[/dim]"
+            "[dim]/campaign run eng1[/dim] "
+            "[dim]→ prepares targets + prints suggested scan commands "
+            "(does not orchestrate scans)[/dim]"
         )
 
     async def _cmd_kb(self, args: str) -> None:

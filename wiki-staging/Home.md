@@ -1,7 +1,7 @@
 > [!NOTE]
 > 👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
 
-# 📚 Siyarix Documentation (v1.1.0)
+# 📚 Siyarix Documentation (v1.2.0)
 
 Welcome to the official documentation for **Siyarix**! 👋
 

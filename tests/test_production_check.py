@@ -83,12 +83,66 @@ def test_production_check_require_master_password_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("SIYARIX_REQUIRE_MASTER_PASSWORD", "1")
+    monkeypatch.delenv("SIYARIX_PRODUCTION", raising=False)
     monkeypatch.delenv("SIYARIX_MASTER_PASSWORD", raising=False)
+    monkeypatch.delenv("SIYARIX_ALLOWED_SCOPE", raising=False)
+    monkeypatch.delenv("SIYARIX_ALLOW_UNSCOPED", raising=False)
     runner = CliRunner()
     result = runner.invoke(app, ["production-check", "-o", "json"])
-    # CredentialStore may refuse init → warn unavailable, or fail file_key row.
+    # Vault-only hardening must not force engagement-scope fail (residual #5).
     payload = json.loads(result.stdout)
     by_name = {c["name"]: c for c in payload["checks"]}
     cred = by_name["credentials"]
     assert cred["status"] in {"fail", "warn"}
+    assert by_name["allowed_scope"]["status"] == "pass"
     assert result.exit_code in {0, 1, 2}
+
+
+def test_production_check_scope_fail_under_production(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SEC-03: production posture without scope fails allowed_scope."""
+    monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
+    monkeypatch.delenv("SIYARIX_ALLOWED_SCOPE", raising=False)
+    monkeypatch.delenv("SIYARIX_ALLOW_UNSCOPED", raising=False)
+    monkeypatch.delenv("SIYARIX_MASTER_PASSWORD", raising=False)
+    runner = CliRunner()
+    result = runner.invoke(app, ["production-check", "-o", "json"])
+    payload = json.loads(result.stdout)
+    by_name = {c["name"]: c for c in payload["checks"]}
+    assert by_name["allowed_scope"]["status"] == "fail"
+    assert "ALLOW_UNSCOPED" in by_name["allowed_scope"]["detail"]
+    assert result.exit_code == 1
+
+
+def test_production_check_allow_unscoped_warns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SEC-03: SIYARIX_ALLOW_UNSCOPED=1 opts out with a warn, not a fail."""
+    monkeypatch.setenv("SIYARIX_PRODUCTION", "1")
+    monkeypatch.setenv("SIYARIX_ALLOW_UNSCOPED", "1")
+    monkeypatch.delenv("SIYARIX_ALLOWED_SCOPE", raising=False)
+    monkeypatch.setenv("SIYARIX_MASTER_PASSWORD", "test-master-password-for-prod-check")
+    runner = CliRunner()
+    result = runner.invoke(app, ["production-check", "-o", "json"])
+    payload = json.loads(result.stdout)
+    by_name = {c["name"]: c for c in payload["checks"]}
+    assert by_name["allowed_scope"]["status"] == "warn"
+    assert "ALLOW_UNSCOPED" in by_name["allowed_scope"]["detail"]
+
+
+def test_production_check_lab_scope_unset_pass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """SEC-03: lab default (production off) keeps unset scope as pass."""
+    monkeypatch.delenv("SIYARIX_PRODUCTION", raising=False)
+    monkeypatch.delenv("SIYARIX_REQUIRE_MASTER_PASSWORD", raising=False)
+    monkeypatch.delenv("SIYARIX_ALLOWED_SCOPE", raising=False)
+    monkeypatch.delenv("SIYARIX_ALLOW_UNSCOPED", raising=False)
+    runner = CliRunner()
+    result = runner.invoke(app, ["production-check", "-o", "json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    by_name = {c["name"]: c for c in payload["checks"]}
+    assert by_name["allowed_scope"]["status"] == "pass"
+    assert "research tooling" in by_name["allowed_scope"]["detail"]

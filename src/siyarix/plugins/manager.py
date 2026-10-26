@@ -3,7 +3,11 @@
 
 Provides dynamic discovery, path-contained (not OS-sandboxed) loading, lifecycle
 hooks, configuration management, remote registry search, and installation.
-Treat installed plugins as fully trusted in-process code.
+
+Treat installed plugins as fully trusted **in-process** code: ``register_tools``
+runs in the host interpreter. Host AST + optional scrubbed-subprocess / bwrap
+preflight can reject trivially hostile entrypoints, but **preflight ≠ sandbox**
+— it does not OS-isolate plugin execution after load.
 """
 
 from __future__ import annotations
@@ -61,9 +65,10 @@ def _env_flag_on(*names: str) -> bool:
 def plugin_trust_mode() -> str:
     """Return ``off`` | ``trusted`` | ``force`` for in-process plugin loads (SX-A01).
 
-    Plugins still execute in-process (OS isolation is not available yet). Production
-    / require-master-password deployments must set ``SIYARIX_TRUST_PLUGINS=force``
-    so accidental ``=1`` from a lab shell cannot enable third-party code.
+    Plugins still execute in-process (``register_tools`` is not OS-isolated;
+    preflight is a compile gate only). Production / require-master-password
+    deployments must set ``SIYARIX_TRUST_PLUGINS=force`` so accidental ``=1``
+    from a lab shell cannot enable third-party code.
     """
     raw = os.getenv("SIYARIX_TRUST_PLUGINS", "0").strip().lower()
     if raw in {"force", "forced", "unsafe-force"}:
@@ -372,7 +377,8 @@ class PluginManager:
     def load_plugin(self, name: str) -> bool:
         """Load a single discovered plugin into the runtime.
 
-        Plugins execute in-process (not OS-isolated). Require explicit trust:
+        Plugins execute in-process (``register_tools`` is not OS-isolated;
+        AST/subprocess preflight ≠ sandbox). Require explicit trust:
         set ``SIYARIX_TRUST_PLUGINS=1`` (lab) or ``=force`` under production flags (SX-A01).
         """
         meta = self._installed_plugins.get(name)
@@ -395,13 +401,14 @@ class PluginManager:
                 meta.error_message = (
                     "Plugin load blocked under production flags: set "
                     "SIYARIX_TRUST_PLUGINS=force to allow in-process plugin "
-                    "execution (plugins are fully trusted code; OS isolation "
-                    "is not available yet)"
+                    "execution (register_tools is fully trusted host code; "
+                    "preflight ≠ OS sandbox)"
                 )
             else:
                 meta.error_message = (
                     "Plugin load blocked: set SIYARIX_TRUST_PLUGINS=1 to allow "
-                    "in-process plugin execution (plugins are fully trusted code)"
+                    "in-process plugin execution (register_tools is fully "
+                    "trusted host code; preflight ≠ OS sandbox)"
                 )
             logger.warning(
                 "Refusing to load plugin %s without trusted plugin mode (got %s)",
@@ -435,7 +442,9 @@ class PluginManager:
             logger.error(meta.error_message)
             return False
 
-        # SX-A01: host AST + optional scrubbed-subprocess compile before in-process load.
+        # SX-A01: host AST + optional scrubbed-subprocess compile before
+        # in-process load. Preflight rejects hostile patterns; it does not
+        # sandbox register_tools (still runs in this process).
         try:
             from siyarix.plugins.isolation import preflight_plugin_entrypoint
 

@@ -1083,7 +1083,12 @@ _BUILTIN_COMMANDS: list[CommandInfo] = [
         usage="/opsec isolate|burn|status|disable",
         handler="_cmd_opsec",
         examples=["/opsec status", "/opsec isolate", "/opsec burn", "/opsec disable"],
-        notes="Isolate: enables TOR + DoH. Burn: destroys session artifacts.",
+        notes=(
+            "Isolate: enables in-process memory_only (suppresses audit/cache persistence). "
+            "Tor/DoH/MAC/OS netns are not implemented. "
+            "Burn: 3-pass shred of local session files under the config dir; "
+            "OS memory/swap/pagefile/network wipe is not_implemented."
+        ),
     ),
     CommandInfo(
         name="/stealth",

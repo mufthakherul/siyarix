@@ -101,9 +101,10 @@ class SwarmRouter:
         """Execute a swarm campaign stub (requires SIYARIX_EXPERIMENTAL_SWARM=1)."""
         if not _swarm_enabled():
             msg = (
-                "SwarmRouter is experimental and disabled by default. "
-                "Set SIYARIX_EXPERIMENTAL_SWARM=1 to run the stub, or use "
-                "AgentCore / chat subagents for real multi-agent work."
+                "SwarmRouter is an experimental scaffold (no tool execution) "
+                "and is disabled by default. Set SIYARIX_EXPERIMENTAL_SWARM=1 "
+                "to exercise the stub, or use AgentCore / chat.subagents for "
+                "real multi-agent work (FEAT-05)."
             )
             logger.warning(msg)
             return {

@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   sync-wiki:
-    name: Sync docs/ to GitHub Wiki
+    name: Sync wiki-staging/ to GitHub Wiki
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'release' || !github.event.release.prerelease }}
     steps:
@@ -28,26 +28,30 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: wiki
 
-      - name: Sync documentation files
+      - name: Sync curated flat wiki pages
         run: |
+          set -euo pipefail
+          if [ ! -d "repo/wiki-staging" ]; then
+            echo "::error::repo/wiki-staging/ missing — cannot sync wiki"
+            exit 1
+          fi
+          if [ ! -d "wiki/.git" ]; then
+            echo "::error::Wiki clone missing .git — initialize the GitHub Wiki in the UI first"
+            exit 1
+          fi
+          # DOC-02: wiki-staging/ is the curated flat wiki (Home.md, _Sidebar.md,
+          # flat page names). Do not rsync nested docs/ — that breaks sidebar links.
           rsync -av --delete \
             --exclude='.git' \
             --exclude='node_modules' \
             --exclude='.venv' \
-            repo/docs/ \
+            repo/wiki-staging/ \
             wiki/
 
-          cp repo/docs/index.md wiki/Home.md
-          cp repo/docs/DOCS_MAP.md wiki/_Sidebar.md
-
       - name: Commit and push changes
-        continue-on-error: true
         run: |
-          cd wiki || exit 0
-          if [ ! -d ".git" ]; then
-            echo "::warning::Wiki not initialized"
-            exit 0
-          fi
+          set -euo pipefail
+          cd wiki
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -57,8 +61,8 @@ jobs:
           fi
 
           git add .
-          git commit -m "docs: sync documentation changes from main repo
+          git commit -m "docs: sync wiki-staging to GitHub Wiki
 
           Automated sync triggered by ${{ github.event_name }}
-          Commit: ${{ github.sha }}" || true
-          git push || echo "::warning::Failed to push to wiki. Ensure the Wiki is initialized in the GitHub UI and the token has push permissions."
+          Commit: ${{ github.sha }}"
+          git push

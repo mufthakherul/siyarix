@@ -20,7 +20,17 @@ Vault unlock modes
 * **File-key mode** — when no password is configured, a random 32-byte
   key is persisted at ``.cred_store_key`` (mode ``0o600``) and optionally
   mirrored to the OS keyring. Suitable for local/dev non-password vaults.
-  Anyone with filesystem access to the key file can unlock the vault.
+  **Anyone with filesystem access to the config directory can unlock the
+  vault** (SEC-09). Under ``SIYARIX_PRODUCTION`` /
+  ``SIYARIX_REQUIRE_MASTER_PASSWORD``, file-key mode is refused — set
+  ``SIYARIX_MASTER_PASSWORD`` instead.
+
+``shared_with`` / :meth:`CredentialStore.share`
+-----------------------------------------------
+These are **metadata-only notes** on a local single-operator store (SEC-10).
+They do **not** enforce multi-user ACLs: any process that can open the vault
+can retrieve any credential regardless of ``shared_with``. Prefer an external
+secrets manager for real sharing.
 """
 
 from __future__ import annotations
@@ -117,6 +127,7 @@ class Credential:
     usage_count: int = 0
     rotated: bool = False
     tags: list[str] = field(default_factory=list)
+    # Metadata-only operator notes (not an ACL — see module docstring / share()).
     shared_with: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -250,9 +261,14 @@ class CredentialStore:
                     "file_key vault refused: set SIYARIX_MASTER_PASSWORD "
                     "(SIYARIX_REQUIRE_MASTER_PASSWORD / SIYARIX_PRODUCTION is set)"
                 )
+            # SEC-09: loud honesty — file_key is lab/dev convenience, not production.
             logger.warning(
-                "CredentialStore using file_key mode (key on disk). "
-                "Set SIYARIX_MASTER_PASSWORD for production."
+                "CredentialStore using file_key mode: vault key persisted at %s "
+                "(mode 0o600). Anyone with filesystem access to the config "
+                "directory can decrypt all stored credentials. Set "
+                "SIYARIX_MASTER_PASSWORD for production; file_key is refused "
+                "when SIYARIX_PRODUCTION or SIYARIX_REQUIRE_MASTER_PASSWORD is set.",
+                self._key_file,
             )
             raw_key = self._load_or_create_file_key()
 
@@ -994,15 +1010,30 @@ class CredentialStore:
         return True
 
     def share(self, cred_id: str, user: str) -> bool:
-        """Share credential with team member"""
+        """Record a metadata-only share *note* (SEC-10 — not an ACL).
+
+        Appends ``user`` to ``Credential.shared_with`` for operator tracking.
+        Retrieval (:meth:`get` / :meth:`get_by_name`) never checks caller
+        identity against this list — this is a local single-operator vault.
+        Do not treat ``shared_with`` as multi-user access control.
+        """
         cred = self._credentials.get(cred_id)
         if not cred:
             return False
 
         if user not in cred.shared_with:
+            logger.warning(
+                "share(%s, %r): metadata-only note — no ACL enforcement; "
+                "any vault holder can still retrieve this credential",
+                cred_id,
+                user,
+            )
             cred.shared_with.append(user)
             self._save(cred)
         return True
+
+    # Honest alias — prefer this name in new call sites (SEC-10).
+    note_shared_with = share
 
     def check_expiring(self, days: int = 7) -> list[dict[str, Any]]:
         """Check for expiring credentials"""

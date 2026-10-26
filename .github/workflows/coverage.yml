@@ -38,14 +38,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install dependencies (locked)
         run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system pytest pytest-asyncio pytest-cov coverage lxml click openai respx
+          uv sync --locked --extra dev
+          # coverage/lxml used for report tooling; not all pinned via [dev].
+          uv pip install coverage lxml
 
       - name: Run pytest with coverage
         run: |
-          pytest tests/ \
+          # Markers aligned with ci.yml test job (not the unused `integration` marker).
+          uv run pytest tests/ \
             --cov=src \
             --cov-report=xml \
             --cov-report=term-missing \
@@ -53,7 +55,7 @@ jobs:
             --cov-fail-under=70 \
             -v \
             --junitxml=pytest.xml \
-            -m "not integration"
+            -m "not e2e and not stress and not chaos"
 
       - name: Upload coverage reports
         if: always()
@@ -150,4 +152,4 @@ jobs:
           echo "| 3.12 | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 3.13 | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "*Coverage threshold: 70% line rate (enforced via --cov-fail-under)*" >> $GITHUB_STEP_SUMMARY
+          echo "*Coverage threshold: 70% line rate (enforced via --cov-fail-under; primary gate is ci.yml Linux test jobs)*" >> $GITHUB_STEP_SUMMARY

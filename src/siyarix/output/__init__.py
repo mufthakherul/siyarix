@@ -5,7 +5,6 @@
 Features:
   • Multiple output formats: table, json, yaml, csv, html, xml
   • Rich console with themes, colors, animations
-  • Live dashboards with sparklines
   • Export to file with formatting
   • Progress bars with ETA, transfer speeds
   • Interactive prompts & confirmations

@@ -333,42 +333,49 @@ class TestExecutorAutonomousErrorHandling:
         result = await executor._execute_tool_step(step)
         assert result["status"] == "error"
 
-    @pytest.mark.skip(reason="Internal impl detail - fragile")
-    async def test_execute_batch_with_exception(self):
+    async def test_execute_batch_with_success(self):
+        """_execute_batch applies awaitable (step, result) tuples onto the plan (TEST-01)."""
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="echo test")
         plan = ExecutionPlan(goal="test", steps=[step])
-        exec_tasks = [(step, {"status": "success"})]
-        with patch("rich.live.Live") as mock_live:
-            result = await executor._execute_batch(plan, exec_tasks, [])
+
+        async def _done():
+            return (step, {"status": "success"})
+
+        result = await executor._execute_batch(plan, [_done()], [])
+        assert result is plan
+        assert step.result == {"status": "success"}
+
+    async def test_execute_batch_base_exception_result(self):
+        """_execute_batch logs BaseException from gather and continues (TEST-01)."""
+        executor = AutonomousExecutor()
+        step = PlanStep(id="s1", command="echo test")
+        plan = ExecutionPlan(goal="test", steps=[step])
+
+        async def _boom():
+            raise RuntimeError("fail")
+
+        with patch("siyarix.executor_autonomous.logger") as mock_log:
+            result = await executor._execute_batch(plan, [_boom()], [])
+            mock_log.error.assert_called()
             assert result is plan
 
-    @pytest.mark.skip(reason="Internal impl detail - fragile")
-    async def test_execute_batch_base_exception_result(self):
-        executor = AutonomousExecutor()
-        step = PlanStep(id="s1", command="echo test")
-        plan = ExecutionPlan(goal="test", steps=[step])
-        exec_tasks = [BaseException("fail")]
-        with patch("rich.live.Live"):
-            with patch("siyarix.executor_autonomous.logger") as mock_log:
-                result = await executor._execute_batch(plan, exec_tasks, [])
-                mock_log.error.assert_called()
-
-    @pytest.mark.skip(reason="Internal impl detail - fragile")
     async def test_execute_with_live_display(self):
+        """_execute_with_live_display runs dependency-aware path under Live (TEST-01)."""
         executor = AutonomousExecutor()
         step = PlanStep(id="s1", command="echo hello")
         plan = ExecutionPlan(goal="test", steps=[step])
-        state = CommandResult(label="$ echo hello", done=True)
-        exec_tasks = asyncio.gather(
-            asyncio.sleep(0.01, result=(step, {"status": "success", "output": "hello"}))
-        )
-        with patch("siyarix.executor_autonomous.os.environ") as mock_env:
-            mock_env.get.return_value = None
+        state = CommandResult(label="$ echo hello", done=True, exit_code=0)
+        state_by_id = {"s1": state}
+
+        async def _dep(p: ExecutionPlan, _states: dict) -> ExecutionPlan:
+            return p
+
+        with patch.object(executor, "_execute_dependency_aware", side_effect=_dep):
             with patch("rich.live.Live") as mock_live:
-                mock_live_instance = MagicMock()
-                mock_live.return_value.__enter__.return_value = mock_live_instance
-                result = await executor._execute_with_live_display(plan, [exec_tasks], [state])
+                mock_live.return_value.__enter__.return_value = MagicMock()
+                mock_live.return_value.__exit__.return_value = None
+                result = await executor._execute_with_live_display(plan, state_by_id)
                 assert result is plan
 
     def test_try_parse_output_empty_output(self):

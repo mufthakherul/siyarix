@@ -256,6 +256,38 @@ class TestPrepareEnv:
         assert result.get("SIYARIX_HARMLESS") == "ok"
         assert result.get("KEEP") == "yes"
 
+    @patch("siyarix.stealth.stealth_engine")
+    def test_scrubs_dotenv_aligned_posture_vars(
+        self, mock_stealth: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SEC-07: child scrub drops SSLKEYLOGFILE/NETRC/webhook/profile pivots."""
+        mock_stealth.config.enabled = False
+        monkeypatch.setenv("SSLKEYLOGFILE", "/tmp/ssl.log")
+        monkeypatch.setenv("NETRC", "/tmp/netrc")
+        monkeypatch.setenv("SIYARIX_WEBHOOK_URL", "https://hooks.example/x")
+        monkeypatch.setenv("DISCORD_WEBHOOK_URL", "https://discord.example/api")
+        monkeypatch.setenv("SLACK_WEBHOOK", "https://hooks.slack.example/x")
+        monkeypatch.setenv("AWS_PROFILE", "pentest-role")
+        monkeypatch.setenv("AWS_DEFAULT_PROFILE", "default")
+        monkeypatch.setenv("AWS_CONFIG_FILE", "/tmp/aws/config")
+        monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", "/tmp/aws/creds")
+        monkeypatch.setenv("KUBECONFIG", "/tmp/kube")
+        monkeypatch.setenv("KEEP_ME", "yes")
+        result = _prepare_env({"CUSTOM_WEBHOOK_TOKEN": "whsec", "OK": "1"})
+        assert "SSLKEYLOGFILE" not in result
+        assert "NETRC" not in result
+        assert "SIYARIX_WEBHOOK_URL" not in result
+        assert "DISCORD_WEBHOOK_URL" not in result
+        assert "SLACK_WEBHOOK" not in result
+        assert "CUSTOM_WEBHOOK_TOKEN" not in result
+        assert "AWS_PROFILE" not in result
+        assert "AWS_DEFAULT_PROFILE" not in result
+        assert "AWS_CONFIG_FILE" not in result
+        assert "AWS_SHARED_CREDENTIALS_FILE" not in result
+        assert "KUBECONFIG" not in result
+        assert result.get("KEEP_ME") == "yes"
+        assert result.get("OK") == "1"
+
 
 # ── _cleanup_orphans ─────────────────────────────────────────────────────
 

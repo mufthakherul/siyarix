@@ -3,7 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from siyarix.opsec import OPSECManager, OPSECStatus, opsec_manager, random_string
+from siyarix.opsec import (
+    MEMORY_ONLY_ACCOUNTABILITY_WARNING,
+    OPSECManager,
+    OPSECStatus,
+    opsec_manager,
+    random_string,
+)
 
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
@@ -79,6 +85,9 @@ class TestOPSECManager:
         result = mgr.isolate(memory_only=True)
         assert result.success is True
         assert "Persistent logging/cache suppressed" in result.detail
+        assert MEMORY_ONLY_ACCOUNTABILITY_WARNING in result.detail
+        assert "LOUD WARNING" in result.detail
+        assert "accountability" in result.detail.lower()
 
     def test_burn_with_session_id(self, tmp_path: Path) -> None:
         mgr = OPSECManager()
@@ -89,9 +98,11 @@ class TestOPSECManager:
         log_file.write_text("sensitive data")
 
         result = mgr.burn(session_id="test123")
-        assert result.success is True
+        assert result.success is True  # local shred path completed
         assert result.action == "burn"
         assert result.items_destroyed >= 1
+        assert "partial" in result.detail.lower()
+        assert "not_implemented" in result.detail
         assert mgr.status.isolated is False  # status reset
 
     def test_burn_no_session_id(self, tmp_path: Path) -> None:
@@ -100,6 +111,8 @@ class TestOPSECManager:
         result = mgr.burn()
         assert result.success is True
         assert result.detail is not None
+        assert "Burn status: partial" in result.detail
+        assert "not_implemented" in result.detail
 
     def test_burn_cleans_entire_sessions_dir(self, tmp_path: Path) -> None:
         mgr = OPSECManager()
@@ -132,8 +145,22 @@ class TestOPSECManager:
         with patch("os.name", "posix"):
             result = mgr.burn()
         assert result.success is True
-        assert "Secure zeroization" in result.detail
-        assert "Clearing swap" in result.detail
+        assert "not_implemented: OS memory secure zeroization" in result.detail
+        assert "not_implemented: swap partition wipe" in result.detail
+        assert "partial" in result.detail.lower()
+        # Must not claim OS wipe succeeded
+        assert "Clearing swap partition requested" not in result.detail
+        assert "Secure zeroization requested" not in result.detail
+
+    def test_burn_nt_branch_marks_pagefile_not_implemented(self, tmp_path: Path) -> None:
+        mgr = OPSECManager()
+        mgr._log_dir = tmp_path
+        with patch("os.name", "nt"):
+            result = mgr.burn()
+        assert result.success is True
+        assert "not_implemented: pagefile wipe" in result.detail
+        assert "not_implemented: network trace clearing" in result.detail
+        assert "no success claimed" in result.detail
 
     def test_secure_delete_normal_file(self, tmp_path: Path) -> None:
         mgr = OPSECManager()
@@ -226,6 +253,8 @@ class TestOPSECCore:
         result = mgr.burn(session_id="test123")
         assert result.items_destroyed >= 1
         assert result.success is True
+        assert "not_implemented" in result.detail
+        assert "partial" in result.detail.lower()
 
     def test_burn_all_sessions(self):
         mgr = OPSECManager()
@@ -236,6 +265,7 @@ class TestOPSECCore:
         (sub / "data.txt").write_text("data")
         result = mgr.burn()
         assert result.items_destroyed > 0
+        assert "Burn status: partial" in result.detail
 
     def test_burn_all_sessions_with_file(self):
         mgr = OPSECManager()

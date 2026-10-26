@@ -180,6 +180,8 @@ class TestSX005HtmlReportSafety:
         assert "onerror=" not in html.lower() or "&lt;img" in html
         assert "Content-Security-Policy" in html
         assert "default-src 'none'" in html
+        assert "script-src 'unsafe-inline'" not in html
+        assert "script-src 'sha256-" in html
 
     def test_medium_badge_uses_med_variable_not_medi(self) -> None:
         engine = ReportEngine()

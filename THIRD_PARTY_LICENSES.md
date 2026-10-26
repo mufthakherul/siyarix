@@ -13,7 +13,7 @@ These dependencies are installed with the base `siyarix` package:
 | aiofiles | Apache-2.0 | Apache-2.0 |
 | cryptography | Apache-2.0 / BSD-3-Clause | (Apache-2.0 OR BSD-3-Clause) |
 | defusedxml | Python-2.0 | Python-2.0 |
-| ~~google-generativeai~~ | — | Removed — Gemini uses native REST via httpx |
+| ~~google-generativeai~~ | — | Ghost dep removed (MOD-P0) — Gemini uses native REST via httpx; `siyarix[gemini]` is a documented no-op extra |
 | httpx | BSD-3-Clause | BSD-3-Clause |
 | keyring | MIT | MIT |
 | psutil | BSD-3-Clause | BSD-3-Clause |

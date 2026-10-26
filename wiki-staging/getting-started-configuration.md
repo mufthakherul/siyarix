@@ -28,7 +28,7 @@ If you are automating Siyarix via scripts or CI pipelines, environment variables
 | `SIYARIX_PROVIDER` | Forces the AI provider | `openai` |
 | `SIYARIX_PERSONA` | Overrides the active persona | `redteam` |
 | `SIYARIX_LOG_LEVEL` | Sets the logging verbosity | `debug` |
-| `SIYARIX_SAFE_MODE` | Restricts AI to reconnaissance only | `true` |
+| `SIYARIX_SAFE_MODE` | Keep PermissionGate on (default); set `0` only for labs | `1` |
 | `SIYARIX_TIMEOUT` | Max tool execution time (seconds) | `300` |
 | `SIYARIX_STEALTH` | Enables OPSEC stealth mode | `true` |
 | `SIYARIX_HOME` | Overrides the default `~/.siyarix/` folder | `/tmp/custom_dir` |

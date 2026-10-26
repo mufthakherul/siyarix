@@ -1913,7 +1913,7 @@ wheels = [
 
 [[package]]
 name = "siyarix"
-version = "1.1.0"
+version = "1.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -2079,7 +2079,7 @@ requires-dist = [
     { name = "types-psutil", marker = "extra == 'dev'", specifier = ">=5.9" },
     { name = "types-psycopg2", marker = "extra == 'dev'", specifier = ">=2.9" },
     { name = "types-pyperclip", marker = "extra == 'dev'", specifier = ">=1.8" },
-    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6" },
     { name = "types-redis", marker = "extra == 'dev'", specifier = ">=4.6" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'", specifier = ">=0.29" },
 ]

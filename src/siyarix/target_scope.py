@@ -6,7 +6,13 @@ Siyarix is built for security researchers, pentesters, and SOC analysts.
 IP (v4/v6) and domain in a command must fall inside that authorized scope so
 automation cannot accidentally pivot outside the engagement. When unset or
 empty, this module is a no-op — research tooling (nmap, ssh, mysql, …) runs
-unrestricted by scope.
+unrestricted by scope (lab default).
+
+Production posture (``SIYARIX_PRODUCTION`` / ``SIYARIX_REQUIRE_MASTER_PASSWORD``)
+does **not** change this module's runtime no-op when scope is unset — scope
+enforcement still requires an explicit allow-list. Instead,
+``siyarix production-check`` warns/fails when scope is unset under production
+unless ``SIYARIX_ALLOW_UNSCOPED=1`` (SEC-03).
 
 CIDR-only scopes never silently allow domains; there are no hardcoded
 public-domain exemptions.
@@ -1196,7 +1202,10 @@ def _normalize_tool_basename(name: str) -> str:
 def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     """Raise :class:`PermissionDeniedError` if any target is outside authorized scope.
 
-    When scope is unset or empty, this is a no-op (caller decides policy).
+    When scope is unset or empty, this is a no-op (lab default; research tooling
+    unrestricted). Production readiness still expects
+    ``SIYARIX_ALLOWED_SCOPE`` or ``SIYARIX_ALLOW_UNSCOPED=1`` via
+    ``production-check`` — this function does not invent a scope.
     Fail-closed for ``http(s)://`` URLs whose host cannot be extracted/parsed
     when a scope is configured (blocks obfuscated host bypasses).
     """

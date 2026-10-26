@@ -765,6 +765,13 @@ _INTERPRETER_AUTH_WRITE_RE = re.compile(
     + r")",
     re.IGNORECASE,
 )
+# docker/podman/nerdctl bind-mount host root then wipe (residual hunt).
+_DOCKER_HOST_ROOT_WIPE_RE = re.compile(
+    r"\b(?:docker|podman|nerdctl)\b[\s\S]{0,80}\brun\b[\s\S]{0,400}"
+    r"(?:-v|--volume)(?:=|\s+)[\"']?/(?:[:=]|:/)"
+    r"[\s\S]{0,500}\b(?:rm|mkfs|dd|shred|wipefs)\b",
+    re.IGNORECASE,
+)
 _VOLUME_DESTROY_RE = re.compile(
     r"(?:"
     r"\bzpool\s+destroy\b"
@@ -1284,6 +1291,11 @@ def assert_command_not_destructive(command: str) -> None:
                 raise PermissionDeniedError(
                     "Destructive command detected: Recursive chmod/chown on / is blocked."
                 )
+
+    if _DOCKER_HOST_ROOT_WIPE_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Container host-root bind with wipe is blocked."
+        )
 
     if _VOLUME_DESTROY_RE.search(cmd_clean):
         raise PermissionDeniedError(

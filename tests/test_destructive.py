@@ -569,6 +569,9 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "update-alternatives --set ssh /tmp/evil",
         "busybox --install -s /bin",
         "echo x > /etc/gshadow",
+        # Residual: container host-root bind then wipe
+        "docker run -v /:/host alpine rm -rf /host/etc",
+        "podman run --volume /:/mnt alpine rm -rf /mnt/etc",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

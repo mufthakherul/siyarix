@@ -444,6 +444,38 @@ def test_preflight_blocks_posix_system(
         iso.preflight_plugin_entrypoint(entry)
 
 
+def test_preflight_blocks_bound_os_system_attr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Residual: ``syscall = os.system; syscall('id')`` must fail closed."""
+    from siyarix.plugins import isolation as iso
+
+    _production_preflight_env(monkeypatch)
+    entry = tmp_path / "bound_sys.py"
+    entry.write_text(
+        "import os\n\ndef register_tools(reg):\n    syscall = os.system\n    syscall('id')\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"os\.system|system"):
+        iso.preflight_plugin_entrypoint(entry)
+
+
+def test_preflight_blocks_os_execvp_attr(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Residual: ``os.execvp`` must match from-import ban set."""
+    from siyarix.plugins import isolation as iso
+
+    _production_preflight_env(monkeypatch)
+    entry = tmp_path / "execvp.py"
+    entry.write_text(
+        "import os\n\ndef register_tools(reg):\n    os.execvp('id', ['id'])\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"execvp"):
+        iso.preflight_plugin_entrypoint(entry)
+
+
 def test_preflight_allows_benign_trusted_entrypoint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

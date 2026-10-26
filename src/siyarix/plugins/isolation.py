@@ -68,38 +68,6 @@ _DANGEROUS_CALL_NAMES = frozenset(
     }
 )
 
-# ``os.system`` / ``subprocess.run`` style attribute calls (SX-A01+).
-# ``posix`` / ``nt`` are OS-specific aliases that expose the same pivots.
-_DANGEROUS_ATTR_CALLS = frozenset(
-    {
-        ("os", "system"),
-        ("os", "popen"),
-        ("os", "execv"),
-        ("os", "execve"),
-        ("os", "execl"),
-        ("os", "spawn"),
-        ("os", "spawnl"),
-        ("os", "spawnv"),
-        ("posix", "system"),
-        ("posix", "popen"),
-        ("posix", "execv"),
-        ("posix", "execve"),
-        ("posix", "execl"),
-        ("posix", "spawn"),
-        ("posix", "spawnl"),
-        ("posix", "spawnv"),
-        ("nt", "system"),
-        ("nt", "popen"),
-        ("nt", "spawn"),
-        ("subprocess", "run"),
-        ("subprocess", "call"),
-        ("subprocess", "Popen"),
-        ("subprocess", "check_output"),
-        ("subprocess", "check_call"),
-    }
-)
-_DANGEROUS_MODULE_ROOTS_FOR_ATTR = frozenset({"os", "posix", "nt", "subprocess", "builtins"})
-
 # ``from <mod> import <name>`` bindings that are disproportionate for register_tools.
 # Keys are import roots; values are banned leaf names (system/popen/exec*/eval-related).
 _OS_LIKE_EXEC_NAMES = frozenset(
@@ -123,6 +91,25 @@ _OS_LIKE_EXEC_NAMES = frozenset(
         "spawnvpe",
     }
 )
+# ``os.system`` / ``subprocess.run`` style attribute calls (SX-A01+).
+# Keep attr-call set in sync with from-import bans (execvp/execlp/…).
+_DANGEROUS_ATTR_CALLS = frozenset(
+    {("os", name) for name in _OS_LIKE_EXEC_NAMES}
+    | {("posix", name) for name in _OS_LIKE_EXEC_NAMES}
+    | {
+        ("nt", "system"),
+        ("nt", "popen"),
+        ("nt", "spawn"),
+        ("nt", "spawnl"),
+        ("nt", "spawnv"),
+        ("subprocess", "run"),
+        ("subprocess", "call"),
+        ("subprocess", "Popen"),
+        ("subprocess", "check_output"),
+        ("subprocess", "check_call"),
+    }
+)
+_DANGEROUS_MODULE_ROOTS_FOR_ATTR = frozenset({"os", "posix", "nt", "subprocess", "builtins"})
 _DANGEROUS_FROM_IMPORT_NAMES: dict[str, frozenset[str]] = {
     "os": _OS_LIKE_EXEC_NAMES,
     "posix": _OS_LIKE_EXEC_NAMES,
@@ -314,6 +301,30 @@ def _from_import_bindings(tree: ast.AST) -> dict[str, tuple[str, str]]:
     return bindings
 
 
+def _attr_method_bindings(
+    tree: ast.AST,
+    module_aliases: dict[str, str],
+) -> dict[str, tuple[str, str]]:
+    """Map ``syscall = os.system`` → ``syscall``→``(os, system)``."""
+    bindings: dict[str, tuple[str, str]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        value = node.value
+        if not isinstance(value, ast.Attribute) or not isinstance(value.value, ast.Name):
+            continue
+        root = module_aliases.get(value.value.id, value.value.id)
+        pair = (root, value.attr)
+        if pair not in _DANGEROUS_ATTR_CALLS and not (
+            root in _DANGEROUS_MODULE_ROOTS_FOR_ATTR and value.attr in _OS_LIKE_EXEC_NAMES
+        ):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                bindings[target.id] = pair
+    return bindings
+
+
 def _banned_from_import_hits(tree: ast.AST) -> set[str]:
     """Return display labels for banned ``from … import …`` names (SEC-02)."""
     hits: set[str] = set()
@@ -369,6 +380,7 @@ def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
     hits: set[str] = set()
     module_aliases = _module_alias_map(tree)
     from_bindings = _from_import_bindings(tree)
+    attr_bindings = _attr_method_bindings(tree, module_aliases)
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -388,9 +400,18 @@ def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
                     hits.add(f"{root}.{imported}")
                 if imported in _DANGEROUS_CALL_NAMES:
                     hits.add(imported)
+            attr_bound = attr_bindings.get(name)
+            if attr_bound:
+                hits.add(f"{attr_bound[0]}.{attr_bound[1]}")
             # getattr(os, "system") as a call expression (may be nested below).
             gpair = _getattr_dangerous_pair(node, module_aliases)
-            if gpair and gpair in _DANGEROUS_ATTR_CALLS:
+            if gpair and (
+                gpair in _DANGEROUS_ATTR_CALLS
+                or (
+                    gpair[0] in _DANGEROUS_MODULE_ROOTS_FOR_ATTR
+                    and gpair[1] in _OS_LIKE_EXEC_NAMES
+                )
+            ):
                 hits.add(f"getattr({gpair[0]}, {gpair[1]!r})")
             continue
 

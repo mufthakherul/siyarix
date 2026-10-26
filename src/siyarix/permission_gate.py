@@ -57,23 +57,27 @@ def _production_posture() -> bool:
 # Encoded / piped-shell delivery (SEC-08). Lab → requires_review; production → FORBIDDEN.
 # Intentionally soft in lab so legitimate research shells still work via shell_review.
 #
-# Shell token: path-qualified (/bin/bash), alt shells (zsh/dash/ksh/fish), busybox.
+# Shell token: path-qualified (/bin/bash), ash/mksh/rbash/yash/posh, busybox.
 _SHELL_BIN = (
-    r"(?:(?:[\w./+-]+/)?(?:bash|dash|zsh|ksh|fish|csh|tcsh|sh)|busybox)"
+    r"(?:(?:[\w./+-]+/)?"
+    r"(?:bash|dash|zsh|ksh|ash|mksh|rbash|yash|posh|fish|csh|tcsh|sh)|busybox)"
 )
-# Optional wrappers between ``|`` and the shell (sudo -E, env, busybox, multi-pipe tee).
+# Wrappers between ``|`` and the shell (sudo -E, env, nice, time, script, …).
 _SHELL_WRAPPER = (
-    rf"(?:(?:sudo|env|command|busybox)\s+(?:-[a-zA-Z0-9]+\s+)*)*{_SHELL_BIN}"
+    rf"(?:(?:sudo|env|command|busybox|nice|time|nohup|script)\s+"
+    rf"(?:-[a-zA-Z0-9]+\s+)*)*{_SHELL_BIN}"
 )
 
 _PIPE_TO_SHELL = re.compile(
     rf"\b(?:curl|wget|fetch)\b[\s\S]{{0,400}}\|(?:[^|\n]{{0,120}}\|)*\s*{_SHELL_WRAPPER}\b",
     re.IGNORECASE,
 )
-# ``bash -c 'source /dev/stdin'`` / process-substitution fetch delivery.
+# ``source /dev/stdin``, ``source <(curl…)``, ``tee >(bash)``, process-subst fetch.
 _STDIN_SHELL_SOURCE = re.compile(
     rf"(?:<\s*<\(|\b(?:source|\.)\s+/dev/stdin\b|"
-    rf"\b{_SHELL_BIN}\b[^\n]{{0,120}}\b(?:source|\.)\s+/dev/stdin\b)",
+    rf"\b{_SHELL_BIN}\b[^\n]{{0,120}}\b(?:source|\.)\s+/dev/stdin\b|"
+    rf"(?:source|\.)\s*<\(|"
+    rf"tee\s+>\(\s*{_SHELL_BIN}\b)",
     re.IGNORECASE,
 )
 # Shell ``eval`` — not OpenSCAP ``… eval``, not hyphenated tool names (``eval-cli``).
@@ -88,19 +92,26 @@ _BASE64_TOOL_FP = re.compile(
     r"\b(?:openssl\s+base64|python\d*\s+-m\s+base64)\b",
     re.IGNORECASE,
 )
+_IFS_GLUE = re.compile(r"\$\{?IFS\}?", re.IGNORECASE)
+
+
+def _normalize_encoded_shell_command(command: str) -> str:
+    """Collapse ``$IFS`` / ``${IFS}`` glue used to hide shell tokens."""
+    return _IFS_GLUE.sub(" ", command)
 
 
 def encoded_shell_requires_review(command: str) -> bool:
     """True when *command* matches base64 -d / eval / curl|sh / wget|sh style patterns."""
     if not command or not command.strip():
         return False
-    if _PIPE_TO_SHELL.search(command) or _STDIN_SHELL_SOURCE.search(command):
+    normalized = _normalize_encoded_shell_command(command)
+    if _PIPE_TO_SHELL.search(normalized) or _STDIN_SHELL_SOURCE.search(normalized):
         return True
-    if _SHELL_EVAL.search(command):
+    if _SHELL_EVAL.search(normalized):
         return True
-    if _BASE64_DECODE.search(command):
+    if _BASE64_DECODE.search(normalized):
         # Carve out openssl/python -m base64 unless also piped to a shell.
-        if _BASE64_TOOL_FP.search(command) and not _PIPE_TO_SHELL.search(command):
+        if _BASE64_TOOL_FP.search(normalized) and not _PIPE_TO_SHELL.search(normalized):
             return False
         return True
     return False

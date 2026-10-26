@@ -729,3 +729,22 @@ def test_should_skip_rh56_dotenv_keys() -> None:
         "PARALLEL_SSHLOGINFILE",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_residual_jvm_rc_keys() -> None:
+    """Residual hunt: libpq / JVM opt / Ruby RC pivots skipped from .env."""
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "PGOPTIONS",
+        "SPRING_TOOL_OPTIONS",
+        "HADOOP_OPTS",
+        "SPARK_SUBMIT_OPTS",
+        "KAFKA_OPTS",
+        "LEIN_JVM_OPTS",
+        "TF_CLI_ARGS",
+        "GEMRC",
+        "IRBRC",
+        "PRYRC",
+    ):
+        assert should_skip_dotenv_key(key), key

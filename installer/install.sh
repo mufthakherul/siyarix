@@ -17,9 +17,8 @@ INSTALL_METHOD="${SIYARIX_METHOD:-}"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
 SILENT="${SIYARIX_SILENT:-0}"
 WITH_TOOLS="${SIYARIX_WITH_TOOLS:-0}"
-# Python extras ([all]) — separate from host OS tools. Windows/Termux installers
-# historically fold extras into --with-tools; this script keeps them distinct so
-# the default install stays minimal (PKG-03).
+# Python extras ([all]) — separate from host OS tools (PKG-02). Same split on
+# Windows install.ps1 (-WithExtras) and Termux install-termux.sh (--with-extras).
 WITH_EXTRAS="${SIYARIX_WITH_EXTRAS:-0}"
 NO_MODIFY_PATH="${SIYARIX_NO_MODIFY_PATH:-0}"
 TARGET_DIR="${SIYARIX_TARGET_DIR:-}"
@@ -510,8 +509,7 @@ Environment Variables:
 
 Notes:
   Default install is minimal (bare siyarix). --with-tools and --with-extras are
-  independent. Windows/Termux installers currently map their --with-tools flag to
-  Python [all] extras; this Unix script keeps host tools vs extras as two flags.
+  independent across Unix, Windows (install.ps1), and Termux (install-termux.sh).
 
 Examples:
   # Quick installation (Recommended)
@@ -520,7 +518,7 @@ Examples:
   # Unattended CI/CD install with host tools
   curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --silent --with-tools
 
-  # Match Windows-style "full" Python extras without host packages
+  # Python extras without host packages
   curl -fsSL https://siyarix.github.io/install.sh | bash -s -- --with-extras
 
   # High-speed installation via uv

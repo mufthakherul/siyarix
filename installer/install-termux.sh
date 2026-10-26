@@ -16,6 +16,8 @@ TERMUX_PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 DRY_RUN="${SIYARIX_DRY_RUN:-0}"
 SILENT="${SIYARIX_SILENT:-0}"
 WITH_TOOLS="${SIYARIX_WITH_TOOLS:-0}"
+# Python extras ([all]) — separate from host OS tools (PKG-02; matches install.sh).
+WITH_EXTRAS="${SIYARIX_WITH_EXTRAS:-0}"
 NO_MODIFY_PATH="${SIYARIX_NO_MODIFY_PATH:-0}"
 INSTALL_METHOD=""
 PYTHON=""
@@ -144,8 +146,9 @@ install_system_packages() {
 }
 
 install_siyarix() {
+  # WITH_EXTRAS → siyarix[all]; WITH_TOOLS only installs host pkg tools above.
   local pkg="siyarix"
-  if [ "$WITH_TOOLS" = "1" ]; then
+  if [ "$WITH_EXTRAS" = "1" ]; then
     pkg="siyarix[all]"
   fi
   if [ "$SIYARIX_VERSION" != "latest" ] && [ -n "$SIYARIX_VERSION" ]; then
@@ -221,13 +224,18 @@ OPTIONS:
   --version, -v <version>  Install a specific Siyarix release version
   --silent, -s             Unattended silent mode (minimal output)
   --dry-run, -d            Simulate installation without modifying files
-  --with-tools             Install auxiliary security binaries (nmap, hydra, sqlmap)
+  --with-tools             Install host OS security binaries (nmap, hydra, sqlmap)
+  --with-extras            Install Python extras siyarix[all] (not the reserved api extra)
   --no-modify-path         Do not update ~/.bashrc or PATH
   --help, -h               Display this help message
 
 ENVIRONMENT VARIABLES:
   SIYARIX_VERSION, SIYARIX_SILENT, SIYARIX_DRY_RUN, SIYARIX_WITH_TOOLS,
-  SIYARIX_NO_MODIFY_PATH
+  SIYARIX_WITH_EXTRAS, SIYARIX_NO_MODIFY_PATH
+
+NOTES:
+  Default install is minimal (bare siyarix). --with-tools and --with-extras are
+  independent (same split as Unix install.sh / Windows install.ps1).
 EOF
 }
 
@@ -248,6 +256,10 @@ main() {
         ;;
       --with-tools)
         WITH_TOOLS="1"
+        shift
+        ;;
+      --with-extras)
+        WITH_EXTRAS="1"
         shift
         ;;
       --no-modify-path)

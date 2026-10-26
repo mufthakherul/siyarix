@@ -731,6 +731,18 @@ def test_should_skip_rh56_dotenv_keys() -> None:
         assert should_skip_dotenv_key(key), key
 
 
+def test_should_skip_oci_apptainer_modulepath_keys() -> None:
+    """Residual: OCI key material / Apptainer bind / MODULEPATH from planted .env."""
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "OCI_CLI_KEY_CONTENT",
+        "APPTAINER_BIND",
+        "MODULEPATH",
+    ):
+        assert should_skip_dotenv_key(key), key
+
+
 def test_should_skip_residual_jvm_rc_keys() -> None:
     """Residual hunt: libpq / JVM opt / Ruby RC pivots skipped from .env."""
     from siyarix.dotenv_guard import should_skip_dotenv_key

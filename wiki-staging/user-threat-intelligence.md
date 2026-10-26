@@ -1,98 +1,101 @@
-> [!NOTE]
-> 👋 **Hey there!** Siyarix is a personal passion project built by a single developer that is growing and under active development. The feature described on this page is currently **Planned / Under Development** and may not be fully functional in the codebase yet. Stay tuned for updates! 🚀
+# Threat Intelligence
 
-# 🌐 Threat Intelligence
-
-A security tool is only as good as the data it uses. Siyarix integrates directly with real-world threat intelligence feeds, allowing you to instantly perform IP reputation lookups and enrich your CVE data.
-
-> [!NOTE]
-> Currently, Siyarix supports AlienVault OTX and the National Vulnerability Database (NVD). We are actively building out our MITRE ATT&CK integration!
+Siyarix can enrich targets with a small set of **live** lookups and a larger set of **offline** catalogs. This page describes what actually ships today — not a roadmap of unimplemented feeds.
 
 ---
 
-## 🔌 Active Integrations
+## Active integrations (live network)
 
-### 👽 AlienVault OTX
-Check the reputation of any IP address instantly using the AlienVault Open Threat Exchange API.
+### AlienVault OTX
+
+IPv4 reputation lookup against the Open Threat Exchange API.
 
 ```python
 from siyarix.threat_intel import AlienVaultOTX
 
 otx = AlienVaultOTX()
-
-# Instantly check if this IP is known to be malicious
 result = await otx.lookup_ip("8.8.8.8")
-# Returns: pulse_count, reputation, source
+# Returns: pulse_count, reputation, source (or error)
 ```
 
-> [!IMPORTANT]
-> To use this integration, you must set your `ALIENVAULT_API_KEY` environment variable!
+Set `ALIENVAULT_API_KEY` for authenticated requests. Lookups are IPv4-only.
 
-### 🏛️ National Vulnerability Database (NVD)
-Get the latest, most accurate details on any vulnerability directly from the NVD API 2.0.
+### National Vulnerability Database (NVD)
+
+CVE details via the NVD API 2.0.
 
 ```python
 from siyarix.threat_intel import NVDDatabase
 
 nvd = NVDDatabase()
-
-# Fetch the CVSS score and description for a CVE
-result = await nvd.lookup_cve("CVE-2024-0001")
-# Returns: description, base_score (CVSS v3.1), source
+result = await nvd.lookup_cve("CVE-2021-44228")
+# Returns: description, base_score (CVSS v3.1 when present), source
 ```
 
-### 🧠 The ThreatIntelManager
-Don't want to manage multiple APIs? Use the `ThreatIntelManager` as a unified facade! Siyarix will automatically route your request to the right provider.
+### ThreatIntelManager facade
+
+Routes a single target string to OTX (IP) or NVD (CVE-…).
 
 ```python
 from siyarix.threat_intel import ThreatIntelManager
 
 manager = ThreatIntelManager()
-
-result = await manager.analyze_target("8.8.8.8")  # Routes to OTX
-result = await manager.analyze_target("CVE-2024-0001")  # Routes to NVD
+await manager.analyze_target("8.8.8.8")       # → OTX
+await manager.analyze_target("CVE-2021-44228")  # → NVD
 ```
 
 ---
 
-## 🗺️ MITRE ATT&CK Integration (Coming Soon)
+## Offline catalogs (no network)
 
-We are building a large `MITREAttackDB` layer! Soon, Siyarix will automatically map findings to specific threat actor tactics and techniques.
+### MITRE ATT&CK (`MITREAttackDB`)
+
+A curated offline subset of Enterprise tactics and techniques, plus keyword `map_finding()` helpers for correlating text to technique IDs.
+
+```python
+from siyarix.threat_intel import MITREAttackDB
+
+db = MITREAttackDB()
+db.query_technique("T1059")
+db.search("phishing")
+db.map_finding("PowerShell encoded command execution")
+```
+
+### Offline CVE cache (`ThreatIntelFeed`)
+
+`ThreatIntelFeed.query_cve()` / `search()` hit a small built-in `KNOWN_CVES` table (e.g. Log4Shell, MOVEit). This is **not** a full NVD mirror.
+
+`list_feeds()` also advertises **CISA KEV** with status `planned` — Siyarix does **not** download the KEV catalog yet. Treat KEV as roadmap only; use the offline CVE cache or live NVD for vulnerability data.
+
+---
+
+## CLI: MITRE reference map
 
 ```bash
-# 📊 View your current MITRE ATT&CK coverage right now!
 siyarix security mitre-coverage
-
-# (Detailed technique analysis and automatic mapping coming soon!)
 ```
 
-**What to expect:**
-- A complete, offline database of MITRE tactics and techniques.
-- Automatic CVE-to-technique correlation.
-- Finding enrichment (Siyarix will tell you *how* an attacker might use a vulnerability).
-- Deep coverage analysis to spot gaps in your defenses.
+This command lists the offline `MITREAttackDB` catalog and marks techniques **Referenced** when a local hunt query technique ID or keyword-mapped incident/vulnerability text mentions them.
+
+It is **not** a measured defensive-coverage report. It never claims “Covered / Partial / Gap” for detections or controls you have not deployed.
 
 ---
 
-## 🚀 Planned Enhancements
+## Planned (not implemented in this module)
 
-We are never done building. Here is what is on the threat intel roadmap:
+These are roadmap items only — do not expect working APIs yet:
 
-- **MISP Feed Ingestion**: Consume MISP JSON events as structured threat intelligence.
-- **STIX 2.x & OpenIOC**: Import standard indicators of compromise (IoCs).
-- **Knowledge Graph Integration**: Visually link threat indicators to your scan findings.
-- **Unified Threat Model**: A standardized data format for representing threats across all providers.
+- Live **CISA KEV** fetch
+- **MISP** feed ingestion
+- **STIX 2.x** / OpenIOC import
+- Knowledge-graph linking of indicators to scan findings
 
 ---
 
-## 🎯 Key Use Cases
+## What you can do today
 
-### What You Can Do Right Now:
-- **IP Reputation Checking**: Instantly vet IPs against AlienVault during your reconnaissance phases.
-- **CVE Enrichment**: Automatically pull CVSS scores and detailed descriptions when assessing vulnerabilities.
-- **Smarter Threat Hunting**: Combine live reputation data with your offline scan findings.
-
-### What You Will Be Able To Do Soon:
-- **Advanced Threat Hunting**: Automatically match your scan findings against known attacker TTPs (Tactics, Techniques, and Procedures).
-- **Dynamic Risk Scoring**: Automatically raise the severity of a finding if it matches an active, real-world threat campaign.
-- **Compliance Reporting**: Automatically include MITRE ATT&CK mapping in your final executive reports.
+- Check IPv4 reputation via AlienVault OTX
+- Pull CVE description / CVSS from NVD
+- Look up or search offline MITRE techniques and map finding text to technique IDs
+- Query the small offline CVE cache without network access
+- Inspect which offline techniques are referenced by local hunt queries / mapped findings (`mitre-coverage`)

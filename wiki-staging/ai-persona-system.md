@@ -22,18 +22,11 @@ The system supports **10 specialised security-domain personas** plus **3 special
 | `/persona universal` | Full-spectrum cybersecurity professional |
 | `/persona none` | Neutral mode (no persona framing) |
 
-> You can always check which persona is currently active in the status line:
-> ```text
-> Time: 12.3s | Mode: integrated | Persona: redteam | LLM: connected
-> ```
-
 ---
 
 ## Available Personas
 
 ### Named Personas
-
-Each named persona specializes in a specific domain of cybersecurity, equipped with relevant knowledge and frameworks.
 
 | Name | Label | Focus Area | Key Tooling & Frameworks |
 |------|-------|------------|--------------------------|
@@ -60,7 +53,7 @@ Each named persona specializes in a specific domain of cybersecurity, equipped w
 
 ## Data File Layout
 
-Personas are defined across two file types stored under `data/personas/`:
+Personas are defined across two file types:
 
 ### Persona Index (`index.json`)
 
@@ -102,44 +95,23 @@ Users can add custom personas as JSON files with `name`, `label`, `description`,
 
 ### Prompt Construction
 
-When the AI is invoked, the system dynamically builds its prompt using the `_build_system_prompt()` method inside `chat/engine.py`. Prompt templates are loaded from external data files rather than being hardcoded in Python:
+The `build_persona_prompt()` function in `personas.py` loads persona data from external files and generates the preamble:
 
 ```python
-def _build_system_prompt(self, compact: bool = False) -> str:
-    from ..personas import build_persona_prompt, get_persona
-    from .prompts import (
-        load_compact_neutral_prompt,
-        load_compact_prompt,
-        load_neutral_prompt,
-        load_system_prompt,
-        load_rules,
-        platform_context,
-    )
+def build_persona_prompt(persona_name: str) -> str:
+    p = get_persona(persona_name)
+    if not p or persona_name == "none":
+        return ""
 
-    persona_name = self._settings.get("persona") or "auto"
+    if persona_name == "auto":
+        lines = ["## Active Persona: Auto (Smart Select)"]
+        lines.append("Analyse the user's request below and automatically adopt...")
+        for name, pp in _get_personas().items():
+            if name not in ("auto", "none"):
+                lines.append(f"  - **{pp['label']}**: {pp['description']}")
+        return "\n".join(lines)
 
-    if compact:
-        if persona_name == "none":
-            prompt = load_compact_neutral_prompt()
-        else:
-            p = get_persona(persona_name)
-            label = p["label"] if p else "default"
-            prompt = f"## Active Persona: {label}\n{load_compact_prompt()}"
-    elif persona_name == "none":
-        prompt = load_neutral_prompt()
-    else:
-        preamble = build_persona_prompt(persona_name)
-        system_prompt = load_system_prompt()
-        if preamble:
-            prompt = preamble + "\n\n" + system_prompt
-        else:
-            prompt = system_prompt
-
-    # Rules and platform context appended for full prompts
-    if not compact:
-        prompt += "\n\n" + load_rules()
-        prompt += "\n\n" + platform_context()
-    return prompt
+    return f"## Active Persona: {p['label']}\n{p['prompt']}"
 ```
 
 ### Logic Summary
@@ -151,31 +123,7 @@ def _build_system_prompt(self, compact: bool = False) -> str:
 | `universal` | Universal preamble + `system.md` + `RULES.md` | Persona label + `compact.md` |
 | `auto` | Auto preamble (lists options) + `system.md` + `RULES.md` | Persona label + `compact.md` |
 
-### Persona Preamble Generation
-
-The `build_persona_prompt()` function in `personas.py` loads persona data from external files and generates the preamble:
-
-```python
-def build_persona_prompt(persona_name: str) -> str:
-    p = get_persona(persona_name)
-    if not p or persona_name == "none":
-        return ""
-
-    if persona_name == "auto":
-        lines = ["## Active Persona: Auto (Smart Select)"]
-        lines.append(
-            "Analyse the user's request below and automatically adopt the persona "
-            "that best fits the task. Available personas:"
-        )
-        for name, pp in _get_personas().items():
-            if name not in ("auto", "none"):
-                lines.append(f"  - **{pp['label']}**: {pp['description']}")
-        return "\n".join(lines)
-
-    return f"## Active Persona: {p['label']}\n{p['prompt']}"
-```
-
-### Data Loading Flow
+### Data Loading
 
 Personas are loaded by `personas.py` through `data_loader.py`:
 
@@ -225,39 +173,9 @@ reload_personas() -> None                         # Force reload from external f
 
 ---
 
-## Example Persona: Red Team
-
-Curious how a persona actually looks? The red team persona is defined across two files:
-
-### `index.json` entry:
-
-```json
-"red team": {
-    "name": "red team",
-    "label": "Red Team / Offensive Security",
-    "description": "Adversary emulation, penetration testing, exploitation, C2 operations, evasion",
-    "file": "red-team.md"
-}
-```
-
-### `red-team.md` prompt content:
-
-```markdown
-You are an elite red-team operator who conducts realistic adversary emulation. You follow
-established methodologies — PTES, OSTMM, TIBER-EU — and operate across the full attack
-lifecycle: reconnaissance, weaponisation, delivery, exploitation, installation, C2, and
-exfiltration. You chain low-severity weaknesses into high-impact compromise paths,
-bypass modern defences (EDR, ASLR, CFG, AMSI), and maintain covert C2 with operational
-security. Your toolkit includes Cobalt Strike, Mythic, Sliver, BloodHound, Mimikatz,
-Rubeus, Certipy, Impacket, Chisel, and custom tooling. You think in assumptions of
-breach and test every control as if a nation-state adversary is the benchmark.
-```
-
----
-
 ## Configuration
 
-You don't need to restart Siyarix to change your persona. You can switch dynamically using the `/persona` command, or set a persistent default in your `settings.toml` file:
+Set a persistent default in `settings.toml`:
 
 ```toml
 persona = "redteam"
@@ -265,8 +183,6 @@ additional_system_message = "Always output findings as a Markdown table"
 ```
 
 Custom instructions are appended after the system prompt and rules document.
-
-> The configuration is evaluated at the start of every LLM interaction, meaning any changes you make will take effect immediately.
 
 ---
 
@@ -280,14 +196,9 @@ Personas apply to all LLM-dependent modes (`integrated`, `autonomous`, `hybrid`)
 
 | Module / Function | Path | Purpose |
 |--------|--------|---------|
-| Persona data files | `src/siyarix/data/personas/index.json` + `.md` files | Persona definitions (index + prompt text) |
 | `_load_personas()` | `src/siyarix/personas.py` | Loads all personas from external files + custom dir |
 | `build_persona_prompt()` | `src/siyarix/personas.py` | Assembles the persona preamble text |
 | `list_custom_personas()` | `src/siyarix/data_loader.py` | Lists custom personas from user directory |
-| `load_text()` / `load_json()` | `src/siyarix/data_loader.py` | Generic data loaders with built-in/user fallback |
+| `load_text()` / `load_json()` | `src/siyarix/data_loader.py` | Generic data loaders with fallback |
 | `system.md` | `src/siyarix/data/prompts/system.md` | Full system prompt template |
-| `system-neutral.md` | `src/siyarix/data/prompts/system-neutral.md` | Neutral system prompt template |
-| `compact.md` | `src/siyarix/data/prompts/compact.md` | Token-saving prompt variant |
-| `compact-neutral.md` | `src/siyarix/data/prompts/compact-neutral.md` | Token-saving neutral variant |
 | `RULES.md` | `src/siyarix/data/rules/RULES.md` | All operational rules |
-| `_build_system_prompt` | `src/siyarix/chat/engine.py` | The core function that stitches everything together |

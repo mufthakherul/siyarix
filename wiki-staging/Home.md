@@ -1,7 +1,9 @@
-> [!NOTE]
-> 👋 **Welcome to Siyarix!** This is a personal passion project built by a single developer. It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
 
 # 📚 Siyarix Documentation (v1.2.0)
+
+> [!NOTE]
+> **Welcome to Siyarix**
+> 👋 **Welcome to Siyarix!** It's currently under active development and growing fast. Expect rough edges, but lots of love! ❤️
 
 Welcome to the official documentation for **Siyarix**! 👋
 
@@ -84,8 +86,8 @@ Check out our [Contribution Guide](developer-contribution-guide) to get started.
 
 ## 📢 Project Status
 
-**Stable Release** — Version `1.1.0` is currently production-ready! We strictly follow semantic versioning, and any breaking changes are always thoroughly documented in our project Changelog.
+**Stable Release** — Version `1.2.0` is currently production-ready! We strictly follow semantic versioning, and any breaking changes are always thoroughly documented in our project Changelog.
 
 > [!WARNING]
-> ## Ethics & Safety Reminder
+> **Ethics & Safety Reminder**
 > Siyarix is an incredibly powerful tool designed **exclusively for authorized security testing and defensive operations**. You must review and agree to our [Ethical Hacking Policy](security-ethical-hacking-policy) before using it. Never scan systems without explicit permission.

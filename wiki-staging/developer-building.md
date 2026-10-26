@@ -27,8 +27,8 @@ pip install build
 python -m build
 
 # 🎯 Your artifacts will be ready in the dist/ folder:
-# dist/siyarix-1.1.0-py3-none-any.whl
-# dist/siyarix-1.1.0.tar.gz
+# dist/siyarix-1.2.0-py3-none-any.whl
+# dist/siyarix-1.2.0.tar.gz
 ```
 
 > [!TIP]
@@ -55,23 +55,27 @@ twine upload dist/*
 
 ## 🧩 Optional Extras
 
-You can install specific "extras" depending on what you need.
+Extras match `pyproject.toml` (source of truth). Install only what you need:
 
 | Extra | What it provides |
 |-------|----------|
-| `terminal` | UI dependencies like Rich, prompt_toolkit |
-| `cli` | Typer, Rich, prompt_toolkit |
+| `terminal` | Rich, prompt-toolkit, Textual (+ Win32 helpers) |
+| `cli` | Typer + terminal stack |
 | `siem` | httpx for SIEM integrations |
-| `autonomous` | Anthropic, Google Generative AI, and OpenAI SDKs |
-| `api` | FastAPI and Uvicorn |
-| `security` | Bandit, Safety, pip-audit |
-| `all` | 🌟 All extras combined |
-| `dev` | Pytest, ruff, mypy, pre-commit, build, twine |
+| `autonomous` | Anthropic + OpenAI SDKs |
+| `openai` / `anthropic` | Single-provider SDKs |
+| `gemini` | Documented **no-op** — Gemini uses native REST via httpx (core); extra kept so `pip install siyarix[gemini]` stays valid |
+| `api` | **Reserved** FastAPI / Uvicorn / PyJWT — **no in-tree HTTP server yet** (FEAT-02). Not pulled by `[all]` |
+| `security` | Bandit, pip-audit |
+| `mobile` / `windows` | Thin platform helpers over `terminal` |
+| `all` | `cli` + `siem` + `autonomous` + `security` + `mobile` + `windows` — **excludes `api`** |
+| `dev` | Pytest, ruff, mypy, pre-commit, build, twine, … |
 
 ### Examples:
 ```bash
 pip install "siyarix[autonomous]"
-pip install "siyarix[all]"
+pip install "siyarix[all]"          # does not install the reserved api extra
+pip install "siyarix[api]"          # deps only — no runnable HTTP API in-tree
 pip install "siyarix[dev]"
 ```
 

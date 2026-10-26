@@ -72,6 +72,20 @@ _PIPE_TO_SHELL = re.compile(
     rf"\b(?:curl|wget|fetch)\b[\s\S]{{0,400}}\|(?:[^|\n]{{0,120}}\|)*\s*{_SHELL_WRAPPER}\b",
     re.IGNORECASE,
 )
+# ``curl|python3`` / ``wget|perl`` — fetch piped to an interpreter (not only shells).
+_INTERPRETER_BIN = (
+    r"(?:(?:[\w./+-]+/)?"
+    r"(?:python\d*(?:\.\d+)*|perl|ruby|php\d*|node|nodejs|lua))"
+)
+_PIPE_TO_INTERPRETER = re.compile(
+    rf"\b(?:curl|wget|fetch)\b[\s\S]{{0,400}}\|(?:[^|\n]{{0,120}}\|)*\s*{_INTERPRETER_BIN}\b",
+    re.IGNORECASE,
+)
+# ``nc|bash`` / ``xxd|bash`` — netcat / hex-decode piped into a shell.
+_NC_XXD_TO_SHELL = re.compile(
+    rf"\b(?:ncat|netcat|nc|xxd)\b[\s\S]{{0,400}}\|(?:[^|\n]{{0,120}}\|)*\s*{_SHELL_WRAPPER}\b",
+    re.IGNORECASE,
+)
 # ``source /dev/stdin``, ``source <(curl…)``, ``tee >(bash)``, process-subst fetch.
 _STDIN_SHELL_SOURCE = re.compile(
     rf"(?:<\s*<\(|\b(?:source|\.)\s+/dev/stdin\b|"
@@ -101,17 +115,26 @@ def _normalize_encoded_shell_command(command: str) -> str:
 
 
 def encoded_shell_requires_review(command: str) -> bool:
-    """True when *command* matches base64 -d / eval / curl|sh / wget|sh style patterns."""
+    """True when *command* matches base64 -d / eval / curl|sh / curl|python3 / nc|bash."""
     if not command or not command.strip():
         return False
     normalized = _normalize_encoded_shell_command(command)
-    if _PIPE_TO_SHELL.search(normalized) or _STDIN_SHELL_SOURCE.search(normalized):
+    if (
+        _PIPE_TO_SHELL.search(normalized)
+        or _PIPE_TO_INTERPRETER.search(normalized)
+        or _NC_XXD_TO_SHELL.search(normalized)
+        or _STDIN_SHELL_SOURCE.search(normalized)
+    ):
         return True
     if _SHELL_EVAL.search(normalized):
         return True
     if _BASE64_DECODE.search(normalized):
-        # Carve out openssl/python -m base64 unless also piped to a shell.
-        if _BASE64_TOOL_FP.search(normalized) and not _PIPE_TO_SHELL.search(normalized):
+        # Carve out openssl/python -m base64 unless also piped to a shell/interpreter.
+        if _BASE64_TOOL_FP.search(normalized) and not (
+            _PIPE_TO_SHELL.search(normalized)
+            or _PIPE_TO_INTERPRETER.search(normalized)
+            or _NC_XXD_TO_SHELL.search(normalized)
+        ):
             return False
         return True
     return False

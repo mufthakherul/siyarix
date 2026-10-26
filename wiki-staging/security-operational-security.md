@@ -1,86 +1,66 @@
 # 🥷 Operational Security (OPSEC)
 
-Siyarix includes some basic `OPSECManager` and `StealthEngine` features to help configure your tools for quieter scans when doing authorized testing.
+Siyarix exposes two related surfaces: **`OPSECManager`** (`opsec.py`) for session markers / memory-only / burn, and **`StealthEngine`** (`stealth.py`) for User-Agent rotation and request jitter.
 
 > [!IMPORTANT]
-> These OPSEC features are meant for authorized engagements to avoid setting off noisy alerts while you work.
+> These controls are for **authorized** engagements. Network isolation claims (Tor circuits, DoH resolvers, MAC randomization, OS netns) via `OPSECManager.isolate()` are **not implemented**.
 
-## 🛡️ Core OPSEC Controls
+## 🛡️ OPSECManager (`opsec.py`) — what actually works
 
-### 🧅 TOR Routing
-You can route outbound Siyarix connections (including HTTP/HTTPS tool traffic) through TOR:
+### ✅ Implemented: `memory_only`
+
+```text
+/opsec isolate [--target <host>]
+```
+
+Enables in-process suppression of persistent audit/cache writes. Soft session labels are markers only — `isolated` remains `False` (no OS network namespace).
+
+> [!WARNING]
+> **Accountability loss**
+> `memory_only` discards unflushed audit events. Tamper-evident accountability for that session is **lost**. Do not enable when attestability or compliance evidence is required.
+
+### ✅ Implemented: session burn (local files only)
+
+```text
+/opsec burn [session_id]
+```
+
+Performs a **3-pass random overwrite** of session files under the config log directory. OS memory zeroization, swap/pagefile wipe, disk-cache flush, and network-trace clearing are **`not_implemented`**. Burn reports **partial** status — success applies only to the local shred path.
+
+### ❌ Planned / not implemented via `isolate()`
+
+| Control | Status |
+|---------|--------|
+| OS network namespace | Planned |
+| Tor routing | Planned |
+| DNS-over-HTTPS (DoH) | Planned |
+| MAC randomization | Planned |
+
+Requesting Tor/DoH/MAC returns `success=False` and leaves those status flags off.
+
+## 🥷 StealthEngine (`stealth.py`) — UA & jitter
+
+| Level | Jitter % | UA rotation | Proxy-chain flag | Decoy flag |
+|-------|----------|-------------|------------------|------------|
+| **none** | 0 | ❌ | ❌ | ❌ |
+| **light** | 10 | ✅ | ❌ | ❌ |
+| **medium** | 30 | ✅ | ✅ | ❌ |
+| **heavy** | 50 | ✅ | ✅ | ✅ |
+| **paranoid** | 80 | ✅ | ✅ | ✅ |
+
+- **Implemented:** User-Agent pool rotation and jittered delays.
+- **Config markers only:** proxy-chain / decoy flags may inject localhost proxy env defaults (`127.0.0.1:9050`, `8118`). Verify your local listener; this is **not** OPSECManager Tor/DoH isolation.
+
+Optional proxy via normal config (separate from `isolate()`):
 
 ```bash
 siyarix config set proxy socks5://127.0.0.1:9050
 ```
 
-### 🔒 DNS over HTTPS (DoH)
-To use encrypted DNS queries:
-
-```bash
-siyarix config set proxy dns+https://dns.cloudflare.com/dns-query
-```
-
-### ⏱️ Traffic Jitter
-Add simple jitter to your requests:
-
-```toml
-[jitter]
-enabled = true
-min_delay = 1.0
-max_delay = 5.0
-```
-
-### 🎭 User-Agent Rotation
-Siyarix can cycle through browser profiles:
-
-```toml
-client_profile = "desktop_chrome"
-# Other options: desktop_firefox, android_mobile, ios_safari
-```
-
-### 🐌 Request Pacing
-Control your scanning speed to avoid tripping basic rate limits:
-
-```toml
-[pacing]
-requests_per_second = 2.0
-burst_size = 5
-```
-
-## 👻 The Stealth Engine (`stealth.py`)
-
-The `StealthEngine` bundles these settings into easy "Evasion Levels".
-
-| Level | Jitter | UA Rotation | DoH | Pacing |
-|-------|--------|-------------|-----|--------|
-| **None** | ❌ | ❌ | ❌ | ❌ |
-| **Light** | ✅ | ✅ | ✅ | ✅ |
-| **Medium**| ✅ | ✅ | ✅ | ✅ |
-| **Heavy** | ✅ | ✅ | ✅ | ✅ |
-
-### 🎯 Decoy Traffic
-Siyarix can optionally generate background "noise" by browsing benign websites.
-
-```toml
-[decoy]
-enabled = true
-targets = ["https://example.com", "https://google.com"]
-interval_seconds = 30
-```
-
-## 🔥 Session Burning
-
-When you're done, you can clear your local session logs and history.
-
-```bash
-siyarix session-log --clear
-```
-
 ## 📜 Audit Logging Note
 
 > [!WARNING]
-> While Siyarix attempts to be quiet on the network, **it logs your actions locally** in the audit log for your own accountability.
+> By default Siyarix **persists** a local audit trail for accountability. `memory_only` intentionally turns that off for the session.
 
 ```bash
 siyarix audit-log         # View your local audit trail

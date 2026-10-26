@@ -261,6 +261,72 @@ def _getattr_dangerous_pair(
     return (root, attr_node.value)
 
 
+def _is_dangerous_attr_pair(root: str, attr: str) -> bool:
+    return (root, attr) in _DANGEROUS_ATTR_CALLS or (
+        root in _DANGEROUS_MODULE_ROOTS_FOR_ATTR and attr in _OS_LIKE_EXEC_NAMES
+    )
+
+
+def _is_named_helper(func: ast.AST, names: frozenset[str]) -> bool:
+    """True for ``partial`` / ``functools.partial`` / ``operator.methodcaller``."""
+    if isinstance(func, ast.Name) and func.id in names:
+        return True
+    if isinstance(func, ast.Attribute) and func.attr in names:
+        return True
+    return False
+
+
+def _dict_constant_key_pair(
+    node: ast.AST,
+    module_aliases: dict[str, str],
+) -> tuple[str, str] | None:
+    """Detect ``os.__dict__[\"system\"]`` with a Constant string key."""
+    if not isinstance(node, ast.Subscript):
+        return None
+    value = node.value
+    if not isinstance(value, ast.Attribute) or value.attr != "__dict__":
+        return None
+    if not isinstance(value.value, ast.Name):
+        return None
+    sl = node.slice
+    if not isinstance(sl, ast.Constant) or not isinstance(sl.value, str):
+        return None
+    root = module_aliases.get(value.value.id, value.value.id)
+    return (root, sl.value)
+
+
+def _dangerous_callable_label(
+    node: ast.AST,
+    module_aliases: dict[str, str],
+    from_bindings: dict[str, tuple[str, str]],
+    attr_bindings: dict[str, tuple[str, str]],
+) -> str | None:
+    """Label if *node* is an obvious dangerous callable expression (not full dataflow)."""
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        resolved = _resolve_attr_call_pair((node.value.id, node.attr), module_aliases)
+        if _is_dangerous_attr_pair(*resolved):
+            return f"{resolved[0]}.{resolved[1]}"
+        if _is_dangerous_attr_pair(node.value.id, node.attr):
+            return f"{node.value.id}.{node.attr}"
+    if isinstance(node, ast.Name):
+        binding = from_bindings.get(node.id)
+        if binding and _is_dangerous_attr_pair(*binding):
+            return f"{binding[0]}.{binding[1]}"
+        attr_bound = attr_bindings.get(node.id)
+        if attr_bound:
+            return f"{attr_bound[0]}.{attr_bound[1]}"
+        if node.id in _DANGEROUS_CALL_NAMES:
+            return node.id
+    if isinstance(node, ast.Call):
+        gpair = _getattr_dangerous_pair(node, module_aliases)
+        if gpair and _is_dangerous_attr_pair(*gpair):
+            return f"getattr({gpair[0]}, {gpair[1]!r})"
+    dict_pair = _dict_constant_key_pair(node, module_aliases)
+    if dict_pair and _is_dangerous_attr_pair(*dict_pair):
+        return f"{dict_pair[0]}.__dict__[{dict_pair[1]!r}]"
+    return None
+
+
 def _import_module_root(call: ast.Call) -> str | None:
     """Return module root for ``importlib.import_module(\"os\")`` style calls."""
     func = call.func
@@ -305,19 +371,23 @@ def _attr_method_bindings(
     tree: ast.AST,
     module_aliases: dict[str, str],
 ) -> dict[str, tuple[str, str]]:
-    """Map ``syscall = os.system`` → ``syscall``→``(os, system)``."""
+    """Map ``syscall = os.system`` / ``os.__dict__[\"system\"]`` → bindings."""
     bindings: dict[str, tuple[str, str]] = {}
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue
         value = node.value
-        if not isinstance(value, ast.Attribute) or not isinstance(value.value, ast.Name):
-            continue
-        root = module_aliases.get(value.value.id, value.value.id)
-        pair = (root, value.attr)
-        if pair not in _DANGEROUS_ATTR_CALLS and not (
-            root in _DANGEROUS_MODULE_ROOTS_FOR_ATTR and value.attr in _OS_LIKE_EXEC_NAMES
-        ):
+        pair: tuple[str, str] | None = None
+        if isinstance(value, ast.Attribute) and isinstance(value.value, ast.Name):
+            root = module_aliases.get(value.value.id, value.value.id)
+            candidate = (root, value.attr)
+            if _is_dangerous_attr_pair(*candidate):
+                pair = candidate
+        else:
+            dict_pair = _dict_constant_key_pair(value, module_aliases)
+            if dict_pair and _is_dangerous_attr_pair(*dict_pair):
+                pair = dict_pair
+        if pair is None:
             continue
         for target in node.targets:
             if isinstance(target, ast.Name):
@@ -381,6 +451,8 @@ def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
     module_aliases = _module_alias_map(tree)
     from_bindings = _from_import_bindings(tree)
     attr_bindings = _attr_method_bindings(tree, module_aliases)
+    _partial_names = frozenset({"partial"})
+    _methodcaller_names = frozenset({"methodcaller"})
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -405,21 +477,71 @@ def _check_dangerous_calls(tree: ast.AST, path: Path) -> None:
                 hits.add(f"{attr_bound[0]}.{attr_bound[1]}")
             # getattr(os, "system") as a call expression (may be nested below).
             gpair = _getattr_dangerous_pair(node, module_aliases)
-            if gpair and (
-                gpair in _DANGEROUS_ATTR_CALLS
-                or (
-                    gpair[0] in _DANGEROUS_MODULE_ROOTS_FOR_ATTR
-                    and gpair[1] in _OS_LIKE_EXEC_NAMES
-                )
-            ):
+            if gpair and _is_dangerous_attr_pair(*gpair):
                 hits.add(f"getattr({gpair[0]}, {gpair[1]!r})")
+            # functools.partial(os.system, ...) / operator.methodcaller("system", ...)
+            if _is_named_helper(node.func, _partial_names) and node.args:
+                label = _dangerous_callable_label(
+                    node.args[0], module_aliases, from_bindings, attr_bindings
+                )
+                if label:
+                    hits.add(f"partial({label})")
+            if _is_named_helper(node.func, _methodcaller_names) and node.args:
+                meth = node.args[0]
+                if isinstance(meth, ast.Constant) and isinstance(meth.value, str):
+                    if meth.value in _OS_LIKE_EXEC_NAMES or meth.value in _DANGEROUS_CALL_NAMES:
+                        hits.add(f"methodcaller({meth.value!r})")
+                    elif any(meth.value == attr for _, attr in _DANGEROUS_ATTR_CALLS):
+                        hits.add(f"methodcaller({meth.value!r})")
             continue
 
         # getattr(os, "system")("id") — Call whose func is itself getattr(...).
+        # Also ``functools.partial(os.system, ...)()`` / ``methodcaller(...)(os)``.
         if isinstance(node.func, ast.Call):
             gpair = _getattr_dangerous_pair(node.func, module_aliases)
-            if gpair and gpair in _DANGEROUS_ATTR_CALLS:
+            if gpair and _is_dangerous_attr_pair(*gpair):
                 hits.add(f"getattr({gpair[0]}, {gpair[1]!r})")
+            inner = node.func
+            if _is_named_helper(inner.func, _partial_names) and inner.args:
+                label = _dangerous_callable_label(
+                    inner.args[0], module_aliases, from_bindings, attr_bindings
+                )
+                if label:
+                    hits.add(f"partial({label})")
+            if _is_named_helper(inner.func, _methodcaller_names) and inner.args:
+                meth = inner.args[0]
+                if isinstance(meth, ast.Constant) and isinstance(meth.value, str):
+                    # Require obvious os-like target when applied: methodcaller(...)(os).
+                    target_root: str | None = None
+                    if node.args and isinstance(node.args[0], ast.Name):
+                        target_root = module_aliases.get(node.args[0].id, node.args[0].id)
+                    if target_root and _is_dangerous_attr_pair(target_root, meth.value):
+                        hits.add(f"methodcaller({meth.value!r})")
+                    elif meth.value in _OS_LIKE_EXEC_NAMES or meth.value in {
+                        attr for _, attr in _DANGEROUS_ATTR_CALLS
+                    }:
+                        # Construction already tripwired above; keep applied form too.
+                        hits.add(f"methodcaller({meth.value!r})")
+
+        # ``os.__dict__["system"]("id")`` — Call whose func is a Constant-key subscript.
+        dict_pair = _dict_constant_key_pair(node.func, module_aliases)
+        if dict_pair and _is_dangerous_attr_pair(*dict_pair):
+            hits.add(f"{dict_pair[0]}.__dict__[{dict_pair[1]!r}]")
+
+        # ``functools.partial(os.system, ...)`` via attribute form.
+        if _is_named_helper(node.func, _partial_names) and node.args:
+            label = _dangerous_callable_label(
+                node.args[0], module_aliases, from_bindings, attr_bindings
+            )
+            if label:
+                hits.add(f"partial({label})")
+        if _is_named_helper(node.func, _methodcaller_names) and node.args:
+            meth = node.args[0]
+            if isinstance(meth, ast.Constant) and isinstance(meth.value, str):
+                if meth.value in _OS_LIKE_EXEC_NAMES or meth.value in {
+                    attr for _, attr in _DANGEROUS_ATTR_CALLS
+                }:
+                    hits.add(f"methodcaller({meth.value!r})")
 
         name = _call_basename(node.func)
         if name and name in _DANGEROUS_CALL_NAMES:

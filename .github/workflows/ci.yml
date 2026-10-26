@@ -172,11 +172,17 @@ jobs:
           # CI has no vault password / providers — warn is expected; fail on hard fails.
           SIYARIX_SAFE_MODE: "1"
         run: |
-          uv run siyarix production-check
-          # Exit 0 with needs-attention is OK; --strict would fail on warns (file_key).
-          # Gate hard failures only: re-run and parse readiness grade.
-          out="$(uv run siyarix production-check 2>&1 || true)"
+          # Exit 0 with needs-attention (warns) is OK; --strict would fail on warns.
+          # Preserve CLI exit: do not use `|| true` (that would green-wash crashes /
+          # fail grades if greps miss). CLI already exits 1 when fails > 0.
+          set +e
+          out="$(uv run siyarix production-check 2>&1)"
+          status=$?
+          set -e
           echo "$out"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
           if echo "$out" | grep -q "not-ready"; then
             echo "production-check reported not-ready"
             exit 1

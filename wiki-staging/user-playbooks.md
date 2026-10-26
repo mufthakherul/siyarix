@@ -92,7 +92,7 @@ siyarix playbook run my-playbook.yml --var target=10.0.0.1 --var port_range=1-50
 ```
 
 > [!TIP]
-> You can also access allowlisted environment variables with `{{ env.HOME }}`, `{{ env.PATH }}`, or non-secret `{{ env.SIYARIX_* }}` feature flags. Names containing password/secret/token/key/credential/webhook are always redacted as `[REDACTED]`.
+> You can also access allowlisted environment variables with `{{ env.HOME }}`, `{{ env.PATH }}`, or non-secret `{{ env.SIYARIX_* }}` feature flags. Names containing password/secret/token/key/credential/webhook/database/dsn/url/uri/connection/sslkeylog (and provider/SSH markers) are always redacted as `[REDACTED]`.
 
 ---
 

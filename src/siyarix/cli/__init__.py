@@ -18,10 +18,8 @@ Core commands:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
-import shutil
 from typing import Any
 
 # Windows event loop policy for subprocess compatibility
@@ -41,23 +39,19 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt
 from rich.table import Table
 
 from .. import __version__
 from ..async_utils import run_async
-from ..branding import available_themes, print_banner, resolve_theme
-from ..chat import CROSS_PLATFORM_COMMANDS, CommandProfile, CommandProfileStore, start_chat
+from ..branding import resolve_theme, severity_label
+from ..chat import start_chat
 from ..compat import ExecutionEngine, ExecutionMode, SessionKernel
 from ..config import SettingsStore, get_config_dir
 from ..core.router import IntentRouter
-from ..exceptions import ValidationError
-from ..health import get_health
 from ..logging_config import configure_logging
-from ..metrics import get_metrics
 from ..registry_factory import make_tool_registry
 from ..security_commands import security_app
-from ..validators import validate_target
+from .credentials import resolve_key
 from .plugins import plugins_app
 
 logger = logging.getLogger(__name__)
@@ -86,8 +80,6 @@ def _load_dotenv(path: Path | None = None) -> None:
 
 def _display_findings_table(findings: list[Any]) -> None:
     """Render scan findings as a Rich table using theme-aware styling."""
-    from ..branding import resolve_theme, severity_label
-
     settings = SettingsStore()
     theme = resolve_theme(settings.get("color_theme"))
     ftable = Table(title="Findings", header_style="bold", border_style="dim")
@@ -113,42 +105,6 @@ def _display_findings_table(findings: list[Any]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Shell completion helpers
-# ---------------------------------------------------------------------------
-
-
-def _generate_completion(shell: str, output_path: Path) -> bool:
-    """Generate a static shell completion script using Click's built-in
-    completion classes. Returns True on success.
-
-    The generated file is sourced from the shell rc file so that no Python
-    process is launched on terminal open. Completions only run Python when
-    Tab is pressed after ``siyarix`` (handled by the generated script).
-    """
-    _SHELL_MAP = {
-        "bash": "BashComplete",
-        "zsh": "ZshComplete",
-        "fish": "FishComplete",
-    }
-    if shell not in _SHELL_MAP:
-        return False
-
-    import click.shell_completion as _sc
-
-    comp_cls = _sc._available_shells.get(shell)
-    if comp_cls is None:
-        return False
-
-    from typer.main import get_command as _get_command
-
-    cmd = _get_command(app)
-    comp = comp_cls(cmd, {}, "siyarix", "_SIYARIX_COMPLETE")  # type: ignore[arg-type]
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(comp.source())
-    return True
-
-
-# ---------------------------------------------------------------------------
 # Initialize core systems
 # ---------------------------------------------------------------------------
 
@@ -163,41 +119,8 @@ config = SettingsStore()
 configure_logging(config.get("log_level"))
 _load_dotenv()
 
-_PROVIDER_ENV_MAP: dict[str, str] = {
-    "gemini": "GEMINI_API_KEY",
-    "openai": "OPENAI_API_KEY",
-    "anthropic": "ANTHROPIC_API_KEY",
-    "openrouter": "OPENROUTER_API_KEY",
-    "groq": "GROQ_API_KEY",
-    "together": "TOGETHER_API_KEY",
-}
-
 intent_router = IntentRouter()
 session_kernel = SessionKernel()
-
-
-_creds_store: Any = None
-
-
-def _get_creds() -> Any:
-    global _creds_store
-    if _creds_store is None:
-        try:
-            from ..credential_store import CredentialStore
-
-            _creds_store = CredentialStore()
-            for provider, env_var in _PROVIDER_ENV_MAP.items():
-                if not os.environ.get(env_var):
-                    try:
-                        key = _creds_store.retrieve(provider, "api_key")
-                        if key:
-                            os.environ[env_var] = key
-                    except Exception:
-                        logger.debug("API key not available for provider %s", provider)
-        except Exception:
-            logger.debug("CredentialStore not available")
-            _creds_store = False
-    return _creds_store if _creds_store else None
 
 
 def _make_deep_scan_engine():
@@ -244,11 +167,6 @@ def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -
     console.print()
 
     if output == "table":
-        from rich.table import Table
-
-        from ..branding import resolve_theme, severity_label
-        from ..config import SettingsStore
-
         settings = SettingsStore()
         theme = resolve_theme(settings.get("color_theme"))
         ftable = Table(title="Findings", header_style="bold", border_style="dim")
@@ -271,61 +189,17 @@ def _execute_deep_scan(target: str, output: str = "table", save: bool = False) -
         console.print(ftable)
 
 
-def _resolve_key(provider: str) -> str:
-    """Resolve API key from credential store → env."""
-    from ..providers import resolve_api_key
-
-    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
-    if not os.environ.get(env_var):
-        cs = _get_creds()
-        if cs:
-            try:
-                key = cs.retrieve(provider, "api_key")
-                if key:
-                    os.environ[env_var] = key
-            except Exception:
-                logger.debug("API key not in credential store for provider %s", provider)
-    val = resolve_api_key(provider, env_var) or ""
-    if val:
-        os.environ[env_var] = val
-    return val
-
-
-def _store_key(provider: str, key: str) -> None:
-    """Store API key in CredentialStore and environment."""
-    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
-    os.environ[env_var] = key
-    cs = _get_creds()
-    if cs:
-        try:
-            cs.store(provider, key, "api_key")
-        except Exception:
-            logger.warning("Failed to store API key for provider %s", provider, exc_info=True)
-
-
-def _delete_key(provider: str) -> None:
-    """Delete API key from CredentialStore and environment."""
-    env_var = _PROVIDER_ENV_MAP.get(provider, f"{provider.upper()}_API_KEY")
-    os.environ.pop(env_var, None)
-    cs = _get_creds()
-    if cs:
-        try:
-            cs.delete(provider, "api_key")
-        except Exception:
-            logger.warning("Failed to delete API key for provider %s", provider, exc_info=True)
-
-
 def _get_engine(mode: str = "integrated") -> ExecutionEngine:
     """Build an ExecutionEngine with API keys from config/credentials."""
     engine_config: dict = {}
     if os.getenv("SIYARIX_FAST_DISCOVERY", "0") == "1":
         engine_config["fast_discovery"] = True
-    openai_key = _resolve_key("openai")
-    gemini_key = _resolve_key("gemini")
-    anthropic_key = _resolve_key("anthropic")
-    groq_key = _resolve_key("groq")
-    together_key = _resolve_key("together")
-    openrouter_key = _resolve_key("openrouter")
+    openai_key = resolve_key("openai")
+    gemini_key = resolve_key("gemini")
+    anthropic_key = resolve_key("anthropic")
+    groq_key = resolve_key("groq")
+    together_key = resolve_key("together")
+    openrouter_key = resolve_key("openrouter")
     if openai_key:
         engine_config["openai_api_key"] = openai_key
     if gemini_key:
@@ -603,317 +477,51 @@ def main_callback(
             )
 
 
-# Register security command group into the main CLI.
-app.add_typer(security_app, name="security")
-
-# ---------------------------------------------------------------------------
-# Sub-command groups (Premium ecosystem)
-# ---------------------------------------------------------------------------
-
-auth_app = typer.Typer(help="🔑 Authentication & API keys")
-app.add_typer(auth_app, name="auth")
-
-profile_app = typer.Typer(help="👤 Profile & workspace management")
-app.add_typer(profile_app, name="profile")
-
-
-@app.command()
-def palette() -> None:
-    """Open an interactive command palette (uses prompt_toolkit if installed)."""
-    store = CommandProfileStore()
-    intents = sorted(CROSS_PLATFORM_COMMANDS.keys())
-    options = [f"intent: {i}" for i in intents]
-    saved = store.list_credentials()
-    options += [f"saved: {p.name} -> {p.command}" for p in saved]
-
-    # Non-TTY mode: print palette and exit
-    if not sys.stdin.isatty():
-        console.print("[bold]Available palette commands:[/bold]")
-        for o in options:
-            console.print(f"  {o}")
-        return
-
-    try:
-        from prompt_toolkit import prompt as _ptk_prompt
-        from prompt_toolkit.completion import WordCompleter as _WordCompleter
-
-        PTK = True
-    except Exception as exc:
-        import logging
-
-        logging.getLogger(__name__).debug("prompt_toolkit not available: %s", exc)
-        PTK = False
-
-    if PTK:
-        choice = _ptk_prompt(
-            "Select or search: ", completer=_WordCompleter(options, ignore_case=True)
-        ).strip()
-    else:
-        for i, o in enumerate(options[:200], 1):
-            console.print(f"{i}. {o}")
-        sel = Prompt.ask("Select # or type text to filter", default="").strip()
-        if sel.isdigit():
-            idx = int(sel) - 1
-            if 0 <= idx < len(options):
-                choice = options[idx]
-            else:
-                console.print("[red]Invalid selection[/red]")
-                return
-        else:
-            matches = [o for o in options if sel.lower() in o.lower()]
-            if not matches:
-                console.print("[dim]No matches[/dim]")
-                return
-            choice = matches[0]
-
-    console.print(f"Selected: {choice}")
-
-
-@app.command()
-def render_cmd(
-    name: str = typer.Argument(..., help="Saved command profile name"),
-    kv: list[str] = typer.Argument(None),
-) -> None:
-    """Render a saved command profile using provided key=value pairs.
-
-    Example: siyarix render-cmd quick-nmap target=10.0.0.1 flags='-Pn'
-    """
-    store = CommandProfileStore()
-    p = store.get(name)
-    if not p:
-        console.print(f"[red]Profile not found: {name}[/red]")
-        raise typer.Exit(1)
-
-    params: dict[str, str] = {}
-    for item in kv or []:
-        if "=" in item:
-            k, v = item.split("=", 1)
-            params[k] = v
-
-    rendered = store.render(p.command, params)
-    console.print(Panel.fit(rendered, title=f"Rendered: {name}", border_style="cyan"))
-
-
-@profile_app.command("save-cmd")
-def profile_save_cmd(
-    name: str = typer.Argument(..., help="Profile name"),
-    command: str = typer.Argument(..., help="Command to save"),
-) -> None:
-    """Save a reusable command profile."""
-    store = CommandProfileStore()
-    p = CommandProfile(name=name, command=command)
-    store.save(p)
-    console.print(f"[green]✓ Saved command profile: {name}[/green]")
-
-
-@profile_app.command("list-cmds")
-def profile_list_cmds() -> None:
-    """List saved command profiles."""
-    store = CommandProfileStore()
-    rows = store.list_credentials()
-    if not rows:
-        console.print("[dim]No saved command profiles.[/dim]")
-        return
-    table = Table(title="Saved Command Profiles", header_style="bold cyan")
-    table.add_column("Name", style="cyan")
-    table.add_column("Command", style="white")
-    table.add_column("Created", style="dim")
-    for p in rows:
-        table.add_row(p.name, p.command, p.created_at or "")
-    console.print(table)
-
-
-@profile_app.command("list")
-def profile_list_alias() -> None:
-    """List saved command profiles (alias for list-cmds)."""
-    profile_list_cmds()
-
-
-@profile_app.command("rm-cmd")
-def profile_rm_cmd(name: str = typer.Argument(..., help="Profile name to remove")) -> None:
-    """Remove a saved command profile."""
-    store = CommandProfileStore()
-    ok = store.delete(name)
-    if ok:
-        console.print(f"[green]✓ Removed {name}[/green]")
-    else:
-        console.print(f"[red]Profile not found: {name}[/red]")
-
-
-from .audit_cmds import audit_app  # noqa: E402
-
-app.add_typer(audit_app, name="audit")
-
-from .config_cmds import config_app  # noqa: E402
-
-app.add_typer(config_app, name="config")
-
-completions_app = typer.Typer(help="🏁 Shell completions")
-app.add_typer(completions_app, name="completions")
-
-
-@app.command("completion", hidden=True)
-def _completion_alias(
-    shell: str = typer.Argument("bash", help="Shell (bash, zsh, fish, powershell)"),
-) -> None:
-    """Alias for 'completions'. Use 'siyarix completions' (plural) instead."""
-    # Clean up old broken line from .bashrc / .zshrc so user stops seeing this
-    import re as _re
-
-    for rc_name in (".bashrc", ".zshrc", ".config/fish/config.fish"):
-        rc = Path.home() / rc_name
-        if rc.is_file():
-            try:
-                text = rc.read_text(encoding="utf-8")
-                cleaned = _re.sub(
-                    r'\neval "\$\(siyarix? completion \w+\)".*',
-                    "",
-                    text,
-                )
-                if cleaned != text:
-                    rc.write_text(cleaned, encoding="utf-8")
-            except OSError:
-                logger.warning(
-                    "Failed to clean up broken completion line in %s", rc_name, exc_info=True
-                )
-
-    # Write to stderr so eval "$(siyarix completion bash)" doesn't choke on the output
-    print(
-        "'siyarix completion' (singular) is deprecated. "
-        f"Use 'siyarix completions install {shell}' instead.",
-        file=sys.stderr,
-    )
-    print(
-        f'Or run: eval "$(_SIYARIX_COMPLETE=source_{shell} siyarix)"',
-        file=sys.stderr,
-    )
-
-
-theme_app = typer.Typer(help="🎨 Theme customization")
-app.add_typer(theme_app, name="theme")
-
-
-@theme_app.command("list")
-def theme_list() -> None:
-    """List available color themes."""
-    themes = available_themes()
-    active = resolve_theme(config.get("color_theme") or _active_theme)
-    table = Table(title="Available Color Themes", header_style="bold cyan")
-    table.add_column("Theme", style="cyan")
-    table.add_column("Status", justify="center")
-    table.add_column("CLI Command", style="white")
-    table.add_column("REPL Command", style="dim")
-    for t in themes:
-        is_active = t == active
-        status = "[bold green]✓ (active)[/bold green]" if is_active else ""
-        table.add_row(t, status, f"siyarix theme set {t}", f"/theme set {t}")
-    console.print(table)
-
-
-@theme_app.command("set")
-def theme_set(name: str = typer.Argument(..., help="Theme name to set")) -> None:
-    """Set the default color theme in configuration."""
-    global _active_theme
-    try:
-        config.set("color_theme", name)
-        _active_theme = name
-        console.print(f"[green]Theme set to: {name}[/green]")
-    except Exception as exc:
-        console.print(f"[red]Failed to set theme: {exc}[/red]")
-
-
-@theme_app.command("preview")
-@theme_app.command("appearance")
-def theme_preview(
-    name: str = typer.Argument(default="", help="Theme to preview (optional)"),
-) -> None:
-    """Preview the current or selected theme appearance."""
-    from ..branding import print_theme_preview
-
-    selected = name or config.get("color_theme") or _active_theme
-    print_theme_preview(console, selected)
-
-
-cache_app = typer.Typer(help="💾 Cache management")
-app.add_typer(cache_app, name="cache")
-
-tool_registry_app = typer.Typer(help="🛠 Tool discovery & registry")
-app.add_typer(tool_registry_app, name="tool-registry")
-
-
-@cache_app.command("status")
-def cache_status() -> None:
-    """Show cache statistics."""
-    from ..cache_manager import cache_manager
-
-    stats = cache_manager.stats()
-    size_mb = stats.get("total_size_bytes", 0) / (1024 * 1024)
-    total_entries = stats.get("total_entries", 0)
-    hit_rate = stats.get("hit_rate", 0.0)
-    domains = stats.get("domains", [])
-    domain_str = ", ".join(domains) if domains else "None"
-
-    table = Table(title="Cache Storage & Performance", header_style="bold cyan")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", style="green")
-    table.add_row("Total Cached Entries", str(total_entries))
-    table.add_row("Cache Storage Size", f"{size_mb:.2f} MB")
-    table.add_row("Cache Hit Rate", f"{hit_rate:.1%}")
-    table.add_row("Cached Domains", domain_str)
-    console.print(table)
-
-
-@cache_app.command("clear")
-def cache_clear() -> None:
-    """Clear all cached data."""
-    from ..cache_manager import cache_manager
-
-    count = cache_manager.clear()
-    console.print(f"[green]Cache cleared: {count} entries[/green]")
-
-
-from .tools_cmds import tools_app  # noqa: E402
-
-app.add_typer(tools_app, name="tools")
-app.add_typer(tools_app, name="tool")
-
-app.add_typer(plugins_app, name="plugins")
-app.add_typer(plugins_app, name="plugin")
-
-
-@tool_registry_app.command("providers")
-def list_providers() -> None:
-    """List configured model providers (order of preference)."""
-    from ..providers.manager import ProviderManager
-
-    pm = ProviderManager.get_instance()
-    providers = pm.list_providers()
-    if not providers:
-        console.print("[dim]No providers registered[/dim]")
-        return
-
-    table = Table(title="Configured Model Providers", header_style="bold cyan")
-    table.add_column("Provider", style="cyan")
-    table.add_column("Display Name", style="white")
-    table.add_column("Configured", style="green")
-    for name in providers:
-        profile = pm.get_profile(name)
-        display = profile.display_name if profile else name.capitalize()
-        has_key = bool(pm.get_api_key(name))
-        status = "[green]✓[/green]" if has_key else "[dim]✗[/dim]"
-        table.add_row(name, display, status)
-    console.print(table)
-
-
 # ---------------------------------------------------------------------------
 # State
 # ---------------------------------------------------------------------------
 _active_theme: str = config.get("color_theme") or "default"
 
+# ---------------------------------------------------------------------------
+# Sub-command groups & extracted command modules (ARCH-01 / ENG-01)
+# ---------------------------------------------------------------------------
+app.add_typer(security_app, name="security")
 
-# ---------------------------------------------------------------------------
-# Premium: Main entry with enhanced output
-# ---------------------------------------------------------------------------
+from .auth_cmds import auth_app  # noqa: E402
+from .audit_cmds import audit_app  # noqa: E402
+from .cache_cmds import cache_app  # noqa: E402
+from .completions_cmds import (  # noqa: E402
+    _generate_completion as _generate_completion,  # re-exported for onboarding
+    register_completions,
+)
+from .config_cmds import config_app  # noqa: E402
+from .profile_cmds import register_profile_commands  # noqa: E402
+from .registry_cmds import bind_registry, tool_registry_app  # noqa: E402
+from .theme_cmds import bind_theme_sync, theme_app  # noqa: E402
+from .tools_cmds import tools_app  # noqa: E402
+
+app.add_typer(auth_app, name="auth")
+register_profile_commands(app)
+app.add_typer(audit_app, name="audit")
+app.add_typer(config_app, name="config")
+register_completions(app)
+
+
+def _sync_active_theme(name: str) -> None:
+    global _active_theme
+    _active_theme = name
+
+
+bind_theme_sync(_sync_active_theme)
+app.add_typer(theme_app, name="theme")
+app.add_typer(cache_app, name="cache")
+bind_registry(registry)
+app.add_typer(tool_registry_app, name="tool-registry")
+app.add_typer(tools_app, name="tools")
+app.add_typer(tools_app, name="tool")
+app.add_typer(plugins_app, name="plugins")
+app.add_typer(plugins_app, name="plugin")
+
 # Scan commands live in ``siyarix.cli.scan_cmds`` (ARCH-01).
 from .scan_cmds import register_scan_commands  # noqa: E402
 
@@ -928,619 +536,25 @@ register_scan_commands(
     active_theme=_active_theme,
 )
 
+from .agent_cmds import register_agent_commands  # noqa: E402
 
-@app.command()
-def discover(
-    target: str = typer.Argument(help="Target network or host"),
-    deep: bool = typer.Option(False, "--deep", "-d", help="Deep discovery (OS, services, vulns)"),
-    export: str = typer.Option("", "--export", "-e", help="Export to file (JSON/YAML)"),
-    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
-) -> None:
-    """Discover assets, services, and vulnerabilities on a target.
+register_agent_commands(
+    app,
+    console=console,
+    get_engine=_get_engine,
+    make_deep_scan_engine=_make_deep_scan_engine,
+    display_findings_table=_display_findings_table,
+    intent_router=intent_router,
+    session_kernel=session_kernel,
+    ci_mode=bool(_CI_MODE),
+    active_theme=_active_theme,
+)
 
-    Examples:
-      siyarix discover 192.168.1.0/24
-      siyarix discover example.com --deep
-      siyarix discover 10.0.0.0/8 --export results.json
-    """
-    if not no_banner and not _CI_MODE:
-        print_banner(console, _active_theme)
+from .ops_cmds import register_ops_commands  # noqa: E402
 
-    try:
-        validate_target(target)
-    except ValidationError as exc:
-        console.print(f"[red]Invalid target '{target}': {exc}[/red]")
-        raise typer.Exit(1)
+register_ops_commands(app, console=console, config=config)
 
-    if deep:
-        engine = _make_deep_scan_engine()
-        result = run_async(engine.scan(target, persist=True))
 
-        if export:
-            import json
-
-            Path(export).write_text(json.dumps(result, indent=2, default=str), encoding="utf-8")
-            console.print(f"[dim]Deep scan results exported to {export}[/dim]")
-
-        severity_counts = result.get("severity_summary", {})
-        console.print(f"\n[bold cyan]Deep discovery complete for {target}[/bold cyan]")
-        console.print(f"  Total findings: {result.get('total_findings', 0)}")
-        for sev in ("critical", "high", "medium", "low", "info"):
-            count = severity_counts.get(sev, 0)
-            if count:
-                console.print(f"    {sev}: {count}")
-        return
-
-    instruction = f"scan and discover all services on {target}"
-    scan_engine = _get_engine("integrated")
-    result = run_async(scan_engine.execute(instruction, interactive=True))
-
-    if export and result.all_findings:
-        import json
-
-        Path(export).write_text(json.dumps(result.all_findings, indent=2), encoding="utf-8")
-        console.print(f"[dim]Findings exported to {export}[/dim]")
-
-
-@app.command()
-def run(
-    ctx: typer.Context,
-    command: str | None = typer.Argument(
-        None, help="Natural language command or tool name (optional with --resume)"
-    ),
-    target: str = typer.Option("", "--target", "-t", help="Target for the command"),
-    mode: str = typer.Option(
-        None,
-        "--mode",
-        "-m",
-        help="Execution mode: autonomous|integrated|offline|registry",
-    ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Plan only, do not execute"),
-    save: bool = typer.Option(False, "--save", "-s", help="Persist workflow execution"),
-    resume_plan: str = typer.Option(
-        "", "--resume", "-r", help="Resume a persisted plan by ID (or 'latest')"
-    ),
-    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
-) -> None:
-    """Run a natural language instruction through the execution engine.
-
-    Examples:
-      siyarix run "scan example.com with nmap and nuclei"
-      siyarix run "enumerate subdomains of target.com" --mode autonomous
-      siyarix run --resume latest
-    """
-    if not no_banner and not _CI_MODE:
-        print_banner(console, _active_theme)
-
-    mode_val: Any = mode
-    if mode_val is None:
-        parent_params = ctx.parent.params if ctx.parent else {}
-        mode = str(parent_params.get("mode", "integrated"))
-
-    # Handle --resume
-    if resume_plan:
-        try:
-            from ..offline_store import OfflineStore
-        except ModuleNotFoundError:
-            console.print("[yellow]Plan persistence not available in this version[/yellow]")
-            raise typer.Exit(1)
-        store = OfflineStore()
-        resolved_id = resume_plan
-        if resume_plan.lower() == "latest":
-            resolved_id = store.get_latest_plan_id() or ""
-            if not resolved_id:
-                console.print("[red]No plans found to resume.[/red]")
-                raise typer.Exit(1)
-        engine = _get_engine(mode)
-        console.print(f"[cyan]Resuming plan: {resolved_id}[/cyan]")
-        resume_result = run_async(engine.resume(resolved_id, interactive=True))
-        if resume_result is not None and not getattr(resume_result, "success", True):
-            raise typer.Exit(1)
-        return
-
-    if not command:
-        console.print(
-            "[red]Missing command. Pass an instruction, or use --resume <id|latest>.[/red]"
-        )
-        raise typer.Exit(2)
-
-    instruction = command
-    if target:
-        try:
-            validate_target(target)
-        except ValidationError as exc:
-            console.print(f"[red]Invalid target '{target}': {exc}[/red]")
-            raise typer.Exit(1)
-        instruction += f" on {target}"
-
-    route = intent_router.route(instruction)
-    route.mode = mode if mode != "integrated" else route.mode
-    session = session_kernel.start(objective="direct-command", scope=target or "adhoc")
-    op = session_kernel.add_operation(
-        session=session,
-        instruction=instruction,
-        mode=route.mode,
-        risk_tier=route.risk_tier.value,
-    )
-
-    if route.requires_confirmation and not dry_run:
-        proceed = Prompt.ask(
-            f"Risk tier is {route.risk_tier.value}. Continue execution? (y/N)",
-            default="N",
-        )
-        if not proceed.lower().startswith("y"):
-            session_kernel.update_operation(session, op.operation_id, state="canceled")
-            console.print("[yellow]Execution canceled.[/yellow]")
-            return
-
-    is_pipeline = "|" in instruction or any(
-        t in instruction.lower() for t in [" then ", " and then ", " followed by "]
-    )
-    result: Any
-    if is_pipeline:
-        from ..core.pipeline import CommandPipeline
-
-        pipeline = CommandPipeline()
-        steps = pipeline.parse(instruction)
-
-        class PipelineExecutionResult:
-            def __init__(self, success: bool, all_findings: list) -> None:
-                self.success = success
-                self.all_findings = all_findings
-                self.retries_performed = 0
-                self.plan_id = ""
-
-        async def step_executor(step: Any, ctx: Any) -> dict[str, Any]:
-            step_engine = _get_engine(route.mode)
-            res = await step_engine.execute(
-                step.instruction, interactive=True, dry_run=dry_run, persist=save
-            )
-            return {
-                "status": "completed" if res.success else "failed",
-                "findings": res.all_findings or [],
-                "error": getattr(res, "error_message", "") if not res.success else "",
-            }
-
-        pipe_res = run_async(pipeline.execute(steps, step_executor))
-        result = PipelineExecutionResult(
-            success=pipe_res.success, all_findings=pipe_res.all_findings
-        )
-        if save and result.all_findings:
-            try:
-                from ..offline_store import OfflineStore
-
-                store = OfflineStore()
-                store.save_scan(instruction, result.all_findings, mode=route.mode)
-            except Exception:
-                logger.warning("Failed to persist scan results", exc_info=True)
-    else:
-        engine = _get_engine(route.mode)
-        result = run_async(
-            engine.execute(instruction, interactive=True, dry_run=dry_run, persist=save)
-        )
-
-    # Display results
-    if result.success:
-        if result.all_findings:
-            _display_findings_table(result.all_findings)
-        else:
-            console.print("\n[green]Execution completed successfully.[/green]")
-    else:
-        error_msg = (
-            getattr(result, "error_message", "Unknown error")
-            if hasattr(result, "error_message")
-            else "Unknown error"
-        )
-        console.print(f"\n[red]Execution failed: {error_msg}[/red]")
-
-    final_state = "completed" if result.success else "failed"
-    session_kernel.update_operation(
-        session=session,
-        operation_id=op.operation_id,
-        state=final_state,
-        retries=result.retries_performed,
-        artifact=result.plan_id or "",
-    )
-    session_kernel.save(session)
-    if not result.success:
-        raise typer.Exit(1)
-
-
-@app.command()
-def agent(
-    goal: str = typer.Argument(help="The goal for the autonomous agent to achieve"),
-    target: str = typer.Option("", "--target", "-t", help="Target host/IP/URL"),
-    max_iterations: int = typer.Option(10, "--max-iter", "-n", help="Maximum agent iterations"),
-    mode: str = typer.Option("autonomous", "--mode", "-m", help="Execution mode"),
-    no_banner: bool = typer.Option(False, "--no-banner", help="Suppress ASCII banner"),
-    stealth: bool = typer.Option(False, "--stealth", "-s", help="Enable stealth mode"),
-) -> None:
-    """Launch a goal-driven autonomous agent (observe → reason → act loop).
-
-    The agent continuously plans, executes, and adapts until the goal
-    is achieved or max iterations are reached.
-
-    Examples:
-      siyarix agent "Perform full recon on target.com" --target target.com
-      siyarix agent "Find SQL injection vulnerabilities" -t http://app.local -n 5
-      siyarix agent "Enumerate and scan 10.0.0.0/24" --max-iter 15
-    """
-    if not no_banner and not _CI_MODE:
-        print_banner(console, _active_theme)
-
-    if target:
-        try:
-            validate_target(target)
-        except ValidationError as exc:
-            console.print(f"[red]Invalid target '{target}': {exc}[/red]")
-            raise typer.Exit(1)
-
-    from ..core import AgentCore, AgentGoal, AgentMode
-
-    mode_map = {
-        "offline": AgentMode.REGISTRY,
-        "autonomous": AgentMode.AUTONOMOUS,
-        "integrated": AgentMode.HYBRID,
-    }
-    agent = AgentCore(mode=mode_map.get(mode, AgentMode.HYBRID))
-
-    settings = SettingsStore()
-    if stealth or settings.get("stealth_mode"):
-        agent.stealth.enable("medium")
-
-    async def _run_agent() -> None:
-        await agent.start()
-        try:
-            agent_goal = AgentGoal(description=goal, target=target)
-            await agent.execute_goal(agent_goal)
-        finally:
-            await agent.shutdown()
-
-    run_async(_run_agent())
-
-
-# ---------------------------------------------------------------------------
-# Health & Metrics
-# ---------------------------------------------------------------------------
-
-
-@app.command("health")
-def health_check(
-    output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
-) -> None:
-    """Run system health checks."""
-    status = run_async(get_health().check_all())
-    if output == "json":
-        console.print(json.dumps(status.to_dict(), indent=2))
-        return
-
-    table = Table(title="Siyarix Health", header_style="bold cyan")
-    table.add_column("Component", style="cyan", no_wrap=True)
-    table.add_column("State", style="magenta", no_wrap=True)
-    table.add_column("Latency (ms)", style="green", no_wrap=True)
-    table.add_column("Message", style="white")
-
-    for comp in status.components:
-        table.add_row(
-            comp.name,
-            comp.state.value,
-            f"{comp.latency_ms:.1f}",
-            comp.message,
-        )
-
-    console.print(table)
-
-
-@app.command("metrics")
-def metrics_show(
-    output: str = typer.Option("table", "--output", "-o", help="Output: table|json|prometheus"),
-    export: str = typer.Option("", "--export", "-e", help="Export metrics to file"),
-) -> None:
-    """Show metrics from the current session."""
-    metrics = get_metrics()
-
-    if output == "prometheus":
-        data = metrics.to_prometheus()
-    elif output == "json":
-        import json
-
-        data = json.dumps(metrics.to_dict(), indent=2)
-    else:
-        data = None
-
-    if data:
-        console.print(data)
-        if export:
-            Path(export).write_text(data, encoding="utf-8")
-        return
-
-    # Table output
-    table = Table(title="Siyarix Metrics", header_style="bold cyan")
-    table.add_column("Metric", style="cyan")
-    table.add_column("Value", style="green", justify="right")
-
-    m = metrics.to_dict()
-    table.add_row("Uptime (s)", f"{m['uptime_seconds']:.1f}")
-    table.add_row("Total Scans", str(m["execution"]["total_scans"]))
-    table.add_row("Successful Scans", str(m["execution"]["successful_scans"]))
-    table.add_row("Failed Scans", str(m["execution"]["failed_scans"]))
-    table.add_row("Total Findings", str(m["execution"]["total_findings"]))
-    table.add_row("Avg Duration (s)", f"{m['execution']['avg_duration_seconds']:.2f}")
-    table.add_row("Plans Generated", str(m["planner"]["plans_generated"]))
-    table.add_row("Model Calls", str(m["planner"]["model_calls"]))
-    table.add_row("Model Errors", str(m["planner"]["model_errors"]))
-
-    console.print(table)
-
-
-@app.command("ci-gate")
-def ci_gate(
-    allow_degraded: bool = typer.Option(
-        False, "--allow-degraded", help="Pass even if health is degraded"
-    ),
-) -> None:
-    """CI gate — verify system health and critical findings before deployment."""
-    store = None
-    try:
-        from ..offline_store import OfflineStore
-
-        store = OfflineStore()
-    except ModuleNotFoundError:
-        console.print("[yellow]Offline store not available — skipping finding check[/yellow]")
-
-    health = run_async(get_health().check_all())
-
-    if health.state.value == "unhealthy":
-        console.print("[red]Health check failed: UNHEALTHY[/red]")
-        raise typer.Exit(2)
-
-    if health.state.value == "degraded" and not allow_degraded:
-        console.print("[yellow]Health check is DEGRADED (use --allow-degraded to pass).[/yellow]")
-        raise typer.Exit(2)
-
-    if store:
-        critical = store.search_findings(severity="critical", limit=1)
-        if critical:
-            console.print("[red]Critical findings detected. Failing gate.[/red]")
-            raise typer.Exit(3)
-
-    console.print("[green]✓ CI gate passed[/green]")
-
-
-@app.command("production-check")
-@app.command("doctor")
-def production_check(
-    output: str = typer.Option("table", "--output", "-o", help="Output: table|json"),
-    strict: bool = typer.Option(False, "--strict", help="Exit nonzero when any check is warn/fail"),
-) -> None:
-    """Production readiness checklist (security gates, offline posture, config).
-
-    Alias: ``siyarix doctor``.
-    """
-    from .production_check import run_production_check
-
-    run_production_check(output=output, strict=strict, console=console, config=config)
-
-
-# Audit commands live in ``siyarix.cli.audit_cmds`` (registered above).
-# Security sub-commands are defined in security_commands.py.
-
-
-# ---------------------------------------------------------------------------
-# Tool registry commands (real implementation)
-# ---------------------------------------------------------------------------
-@tool_registry_app.command("list")
-def tool_registry_list(
-    category: str = typer.Option("", "--category", "-c", help="Filter by category"),
-    refresh: bool = typer.Option(False, "--refresh", "-r", help="Force re-discovery"),
-    _fast: bool = typer.Option(False, "--fast", help="Skip version probes for speed"),
-) -> None:
-    """List all discovered security tools on this system.
-
-    Examples:
-      siyarix tool-registry list
-      siyarix tool-registry list --category recon
-      siyarix tool-registry list --refresh
-    """
-    registry.discover_from_path()
-    from ..registry import ToolCategory as TC
-
-    if category:
-        tools = registry.list_tools(category=TC(category))
-    else:
-        tools = registry.list_tools()
-    if not tools:
-        console.print("[yellow]No tools found. Install security tools and run again.[/yellow]")
-        return
-
-    table = Table(
-        title=f"Security Tools ({len(tools)} found)",
-        show_header=True,
-        header_style="bold cyan",
-    )
-    table.add_column("Name", style="cyan", no_wrap=True)
-    table.add_column("Binary", style="dim")
-    table.add_column("Category", style="magenta")
-    table.add_column("Risk", style="yellow")
-    table.add_column("Tags", style="white")
-
-    for t in sorted(tools, key=lambda x: x.category):
-        tags = ", ".join(t.tags[:3])
-        table.add_row(t.name, t.binary, t.category.value, t.risk_level.value, tags)
-
-    console.print(table)
-
-
-@tool_registry_app.command("update-metadata")
-def tool_registry_update_metadata(
-    output_path: str = typer.Argument(..., help="Path to save the tool metadata JSON"),
-) -> None:
-    """Regenerate the tool metadata file by scanning all binaries on PATH."""
-    reg = make_tool_registry()
-    count = reg.update_metadata(Path(output_path))
-    console.print(f"[green]Successfully updated metadata: {count} tools recorded.[/green]")
-
-
-# ---------------------------------------------------------------------------
-# Auth commands — wire API keys to the engine
-# ---------------------------------------------------------------------------
-@auth_app.command("set-key")
-def auth_set_key(
-    provider: str = typer.Argument(help="Provider: openai | gemini | anthropic | custom"),
-    api_key: str = typer.Option(..., "--key", "-k", help="API key value", hide_input=True),
-) -> None:
-    """Store an API key for a model provider.
-
-    Examples:
-      siyarix auth set-key openai --key sk-...
-      siyarix auth set-key gemini --key AIz...
-      siyarix auth set-key anthropic --key sk-ant-...
-    """
-    _store_key(provider, api_key)
-    console.print(f"[green]✓ API key stored for provider: {provider}[/green]")
-    console.print("[dim]Key is stored in the encrypted CredentialStore.[/dim]")
-
-
-@auth_app.command("show")
-def auth_show() -> None:
-    """Show configured API key providers."""
-    try:
-        from siyarix.providers import ProviderManager
-
-        pm = ProviderManager.get_instance()
-        providers = pm.list_providers()
-    except Exception:
-        providers = ["openai", "gemini", "anthropic", "groq", "openrouter"]
-
-    table = Table(title="Configured API Keys", show_header=True, header_style="bold green")
-    table.add_column("Provider", style="cyan")
-    table.add_column("Status", justify="center")
-    table.add_column("Source")
-
-    for prov in providers:
-        from siyarix.providers import get_provider_env_var
-
-        env_key = get_provider_env_var(prov)
-        from_env = bool(os.getenv(env_key))
-        cs = _get_creds()
-        from_creds = bool(cs.retrieve(prov, "api_key")) if cs else False
-        if from_env:
-            status, source = "✓ Set", "Environment variable"
-        elif from_creds:
-            status, source = "✓ Set", "CredentialStore"
-        else:
-            status, source = "✗ Not set", "—"
-        table.add_row(prov, status, source)
-
-    console.print(table)
-
-
-# ---------------------------------------------------------------------------
-# Shell completions
-# ---------------------------------------------------------------------------
-@completions_app.command("install")
-def completions_install(
-    shell: str = typer.Argument(default="", help="Shell: bash | zsh | fish | powershell"),
-) -> None:
-    """Install shell completions for Siyarix.
-
-    Examples:
-      siyarix completions install bash
-      siyarix completions install powershell
-    """
-    if not shell:
-        shell = os.getenv("SHELL", "")
-        if shell:
-            shell = os.path.basename(shell).lower()
-        elif platform.system().lower() == "windows":
-            # Detect PowerShell Core first, then Windows PowerShell, then cmd
-            if shutil.which("pwsh"):
-                shell = "powershell"
-            elif shutil.which("powershell"):
-                shell = "powershell"
-            else:
-                shell = "powershell"  # best default on Windows
-        else:
-            # Unix fallback: detect from PATH
-            for sh in ("pwsh", "bash", "zsh", "fish", "sh"):
-                if shutil.which(sh):
-                    shell = sh
-                    break
-            shell = shell or "bash"
-
-    shell = shell.lower()
-    comp_dir = get_config_dir() / "completions"
-    comp_dir.mkdir(parents=True, exist_ok=True)
-
-    completions_map = {
-        "bash": (
-            Path("~/.bashrc").expanduser(),
-            comp_dir / "siyarix.bash",
-            f"source {comp_dir / 'siyarix.bash'}",
-        ),
-        "zsh": (
-            Path("~/.zshrc").expanduser(),
-            comp_dir / "siyarix.zsh",
-            f"source {comp_dir / 'siyarix.zsh'}",
-        ),
-        "fish": (
-            Path("~/.config/fish/config.fish").expanduser(),
-            Path("~/.config/fish/completions/siyarix.fish").expanduser(),
-            f"source {comp_dir / 'siyarix.fish'}",
-        ),
-        "powershell": (
-            Path.home() / ".config" / "powershell" / "profile.ps1",
-            comp_dir / "siyarix.powershell",
-            "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression",
-        ),
-        "pwsh": (
-            Path.home() / ".config" / "powershell" / "profile.ps1",
-            comp_dir / "siyarix.powershell",
-            "$env:_SIYARIX_COMPLETE='source_powershell'; siyarix | Out-String | Invoke-Expression",
-        ),
-    }
-
-    if shell not in completions_map:
-        console.print(f"[red]Unsupported shell: {shell}. Choose: bash, zsh, fish, powershell[/red]")
-        raise typer.Exit(1)
-
-    rc_file, comp_file, source_line = completions_map[shell]
-
-    # Generate static completion file using Click's real completion classes
-    try:
-        _generate_completion(shell, comp_file)
-        console.print(f"[green]\u2713 Completion script generated: {comp_file}[/green]")
-    except Exception as exc:
-        console.print(f"[yellow]Could not generate completions: {exc}[/yellow]")
-        console.print("[dim]Fallback: adding eval line (runs Python on terminal open)[/dim]")
-        source_line = f'eval "$(_SIYARIX_COMPLETE=source_{shell} siyarix)"'
-
-    # Add source line to rc file
-    if rc_file.exists():
-        text = rc_file.read_text(encoding="utf-8")
-        # Clean up old eval lines
-        import re as _re
-
-        cleaned = _re.sub(r"\n# Siyarix completions\n.*?\n", "", text)
-        if source_line not in cleaned:
-            rc_file.write_text(f"{cleaned}\n# Siyarix completions\n{source_line}\n")
-            console.print(f"[green]\u2713 Source line added to {rc_file}[/green]")
-        else:
-            console.print(f"[dim]Completions already configured in {rc_file}[/dim]")
-    else:
-        rc_file.parent.mkdir(parents=True, exist_ok=True)
-        rc_file.write_text(f"# Siyarix completions\n{source_line}\n")
-        console.print(f"[green]\u2713 Created {rc_file}[/green]")
-
-    console.print(f"[dim]Restart your shell or run: source {rc_file}[/dim]")
-
-
-# ---------------------------------------------------------------------------
-# Config commands — professional configuration suite
-# ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# Report command
-# ---------------------------------------------------------------------------
 @app.command("report")
 def generate_report(
     output: str = typer.Option(None, "--output", "-o", help="Output path for the report"),
@@ -1575,8 +589,6 @@ def generate_report(
         finally:
             await core.shutdown()
 
-    import asyncio
-
     asyncio.run(_run())
 
 
@@ -1588,9 +600,6 @@ app.add_typer(compliance_app, name="compliance")
 app.add_typer(playbook_app, name="playbook")
 
 
-# ---------------------------------------------------------------------------
-# Version command
-# ---------------------------------------------------------------------------
 @app.command()
 def version() -> None:
     """Show Siyarix version information."""
@@ -1608,9 +617,6 @@ def version() -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Main entry point
-# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     try:
         app()

@@ -20,7 +20,11 @@
     Simulate the installation without writing changes or downloading packages.
 
 .PARAMETER WithTools
-    Install standard security tool integrations.
+    Install host OS security utilities (e.g. nmap via winget/choco/scoop).
+    Does NOT select Python extras — use -WithExtras for siyarix[all].
+
+.PARAMETER WithExtras
+    Install Python extras siyarix[all] (independent of -WithTools; matches Unix install.sh).
 
 .PARAMETER NoModifyPath
     Skip updating User or Session PATH environment variables.
@@ -49,6 +53,8 @@ param (
     [switch]$DryRun = $(if ($env:SIYARIX_DRY_RUN -eq "1") { $true } else { $false }),
 
     [switch]$WithTools = $(if ($env:SIYARIX_WITH_TOOLS -eq "1") { $true } else { $false }),
+
+    [switch]$WithExtras = $(if ($env:SIYARIX_WITH_EXTRAS -eq "1") { $true } else { $false }),
 
     [switch]$NoModifyPath = $(if ($env:SIYARIX_NO_MODIFY_PATH -eq "1") { $true } else { $false }),
 
@@ -96,14 +102,28 @@ OPTIONS:
   -Method <string>      Force installer method: auto, uv, pipx, pip, winget, choco, scoop
   -Silent               Silent mode, suppress non-error outputs
   -DryRun               Simulate installation actions without modifying system
-  -WithTools            Install optional cybersecurity auxiliary tools
+  -WithTools            Install host OS security utilities (nmap, etc.) — not Python extras
+  -WithExtras           Install Python extras siyarix[all] (independent of -WithTools)
   -NoModifyPath         Do not append binary directories to User PATH
   -Help                 Display this help screen
 
 ENVIRONMENT VARIABLES:
   SIYARIX_VERSION, SIYARIX_METHOD, SIYARIX_SILENT, SIYARIX_DRY_RUN,
-  SIYARIX_WITH_TOOLS, SIYARIX_NO_MODIFY_PATH
+  SIYARIX_WITH_TOOLS, SIYARIX_WITH_EXTRAS, SIYARIX_NO_MODIFY_PATH
+
+NOTES:
+  Default install is minimal (bare siyarix). -WithTools and -WithExtras are
+  independent, matching Unix install.sh / Termux install-termux.sh.
 "@
+}
+
+function Get-PackageSpec {
+    # Package spec for pip/uv/pipx. Default: bare siyarix. -WithExtras → siyarix[all].
+    $base = if ($WithExtras) { "siyarix[all]" } else { "siyarix" }
+    if ($Version -and $Version -ne "latest") {
+        return "$base==$Version"
+    }
+    return $base
 }
 
 function Get-Arch {
@@ -279,10 +299,7 @@ function Install-ViaUv {
         return $false
     }
     Write-Info "Installing Siyarix using uv (enterprise high-performance)..."
-    $pkg = if ($WithTools) { "siyarix[all]" } else { "siyarix" }
-    if ($Version -and $Version -ne "latest") {
-        $pkg = "$pkg==$Version"
-    }
+    $pkg = Get-PackageSpec
 
     if ($DryRun) {
         Write-Info "[DRY-RUN] Would run: uv tool install --force $pkg"
@@ -307,10 +324,7 @@ function Install-ViaPipx {
         return $false
     }
     Write-Info "Installing Siyarix using pipx (isolated environment)..."
-    $pkg = if ($WithTools) { "siyarix[all]" } else { "siyarix" }
-    if ($Version -and $Version -ne "latest") {
-        $pkg = "$pkg==$Version"
-    }
+    $pkg = Get-PackageSpec
 
     if ($DryRun) {
         Write-Info "[DRY-RUN] Would run: pipx install --force $pkg"
@@ -335,10 +349,7 @@ function Install-ViaPip {
     if (-not $PyCmd) { return $false }
 
     Write-Info "Installing Siyarix using pip..."
-    $pkg = if ($WithTools) { "siyarix[all]" } else { "siyarix" }
-    if ($Version -and $Version -ne "latest") {
-        $pkg = "$pkg==$Version"
-    }
+    $pkg = Get-PackageSpec
 
     if ($DryRun) {
         Write-Info "[DRY-RUN] Would run: $($PyCmd -join ' ') -m pip install --upgrade $pkg"
@@ -450,6 +461,48 @@ function Rollback-Installation {
     }
 }
 
+function Install-HostSecurityTools {
+    # Host OS tools only — independent of -WithExtras / siyarix[all] (PKG-02).
+    if (-not $WithTools) { return }
+
+    Write-Info "Installing host OS security utilities (nmap)..."
+    if ($DryRun) {
+        Write-Info "[DRY-RUN] Would install nmap via winget, Chocolatey, or Scoop"
+        return
+    }
+
+    if (Get-Command nmap -ErrorAction SilentlyContinue) {
+        Write-Ok "nmap already present on PATH"
+        return
+    }
+
+    $installed = $false
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            & winget install --id Insecure.Nmap -e --accept-source-agreements --accept-package-agreements --silent 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { $installed = $true }
+        } catch {}
+    }
+    if (-not $installed -and (Get-Command choco -ErrorAction SilentlyContinue)) {
+        try {
+            & choco install nmap -y --no-progress 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { $installed = $true }
+        } catch {}
+    }
+    if (-not $installed -and (Get-Command scoop -ErrorAction SilentlyContinue)) {
+        try {
+            & scoop install nmap 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) { $installed = $true }
+        } catch {}
+    }
+
+    if ($installed -or (Get-Command nmap -ErrorAction SilentlyContinue)) {
+        Write-Ok "Host security tools setup completed."
+    } else {
+        Write-Warn "Could not auto-install nmap. Install manually if needed: https://nmap.org/download.html"
+    }
+}
+
 # --- Main Entry Point ---
 if ($Help) {
     Show-HelpGuide
@@ -535,6 +588,8 @@ if (-not $success) {
     Write-Err "Issue tracker: https://github.com/mufthakherul/siyarix/issues"
     exit 1
 }
+
+Install-HostSecurityTools
 
 # Verification check
 if (-not $DryRun) {

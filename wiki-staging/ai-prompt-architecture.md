@@ -60,6 +60,21 @@ During onboarding, the entire `data/` directory is copied to `~/.siyarix/data/`.
 
 ---
 
+## Data Loading
+
+All data is loaded through `src/siyarix/data_loader.py`:
+
+```python
+def load_text(category: str, filename: str) -> str:
+    """Load text content. Tries ~/.siyarix/data/ first, falls back to built-in."""
+
+
+def load_json(category: str, filename: str) -> Any:
+    """Load and parse JSON. Same fallback strategy."""
+```
+
+---
+
 ## Core System Prompts
 
 ### `system.md`
@@ -86,7 +101,7 @@ To save token usage during long conversations:
 | `compact.md` | Keeps the current persona active, reminding the LLM to follow instructions already received. |
 | `compact-neutral.md` | Quick reminder for neutral mode to maintain JSON output format. |
 
-> Compact variants drastically reduce the number of tokens sent in each request, making multi-turn conversations much faster and cheaper!
+> Compact variants drastically reduce token usage, making multi-turn conversations much faster and cheaper!
 
 ---
 
@@ -105,6 +120,14 @@ The rules document is appended to the full system prompt (not to compact prompts
 
 ---
 
+## Persona System
+
+Personas are defined in `data/personas/index.json` (metadata) and individual `.md` files (prompt text). Custom personas can be added to `~/.siyarix/data/personas/custom/` as JSON files with `name`, `label`, `description`, and `prompt` fields.
+
+See [Persona System](ai-persona-system) for full details.
+
+---
+
 ## Platform Context
 
 Platform context is **dynamically generated at runtime** by `platform_context()` in `chat/prompts.py`, not stored in external files. This is because the OS and shell can change between sessions:
@@ -112,70 +135,6 @@ Platform context is **dynamically generated at runtime** by `platform_context()`
 ```python
 def platform_context() -> str:
     # Detects sys.platform, OS version, shell — generated fresh each call
-```
-
-For example, on Windows, Siyarix generates:
-
-```text
-## Platform Context
-- OS: Windows 10 (AMD64)
-- Shell: cmd /c
-- WARNING: Windows system detected — commands must use Windows-compatible flags:
-  * nmap: use -sT (TCP connect) instead of -sS (SYN scan); omit -O
-  * Use forward slashes or escaped backslashes in paths
-  * For DNS: use nslookup if dig is unavailable
-  * Find binaries with `where` instead of `which`
-```
-
-> This prevents Siyarix from suggesting Linux-only commands when you're running on Windows, reducing errors and frustration.
-
----
-
-## Persona Preamble
-
-When you activate a specific persona (like a Red Teamer), Siyarix adds a special preamble to the very beginning of the prompt to set the mood and expertise:
-
-```text
-## Active Persona: Red Team / Offensive Security
-[Persona-specific expertise paragraph with methodology, tools, and mindset]
-```
-
-If you're using `auto` mode, Siyarix gets a list of all available personas and decides for itself which hat to wear based on your request:
-
-```text
-## Active Persona: Auto (Smart Select)
-Analyse the user's request below and automatically adopt the persona
-that best fits the task. Available personas:
-  - **Red Team / Offensive Security**: Adversary emulation, penetration testing...
-  - **Blue Team / Defensive Security**: Detection engineering, SOC operations...
-  ...
-```
-
-Personas are loaded from `data/personas/index.json` (metadata) and individual `.md` files (prompt text). Custom personas can be added to `~/.siyarix/data/personas/custom/` as JSON files. See [Persona System](ai-persona-system.md) for full details.
-
----
-
-## Custom Instructions & Workspace Context
-
-You can tailor Siyarix to your specific needs! The `_build_system_prompt()` method checks for custom instructions or workspace files and injects them seamlessly.
-
-```python
-# 1. Custom instructions from your settings
-extra = self._settings.get("additional_system_message", "").strip()
-if extra:
-    prompt += "\n\n## Custom Instructions\n" + extra
-
-# 2. Workspace context files (like AGENTS.md or SOUL.md)
-for filename in ("AGENTS.md", "SOUL.md"):
-    ctx_file = Path.cwd() / filename
-    if ctx_file.exists():
-        content = ctx_file.read_text(encoding="utf-8").strip()
-        if content:
-            label = filename.replace(".md", "")
-            prompt += f"\n\n## {label}\n{content}"
-
-# 3. Finally, add the execution environment
-prompt += f"\n\n## Execution Environment\n- OS: {os_name}\n- Shell: {shell}\n- ..."
 ```
 
 ---
@@ -216,28 +175,6 @@ def _should_use_compact(self) -> bool:
 
 ---
 
-## Prompt Bar Rendering
-
-It's not just about what goes *to* the LLM; it's also about what *you* see! `chat/prompts.py` generates the sleek, professional prompt bar in your terminal.
-
-```python
-from siyarix.chat.prompts import make_prompt_bar
-
-# Renders something beautiful like this:
-# ▌ siyarix  [integrated]  openai  persona:redteam  msgs:42  up:01:23:45  sid:a1b2c3  ▐
-# ╰─ ➜ (Tab: autocomplete, ?: help)
-```
-
-The prompt bar is packed with info:
-- **Mode Indicator**: Color-coded for quick visual cues (cyan for integrated, magenta for autonomous, yellow for offline, red for stealth).
-- **Provider Name**: e.g., OpenAI, Anthropic (in blue).
-- **Active Persona**: So you never forget who you're talking to (in green).
-- **Stats**: Message count and session uptime.
-- **Session ID**: A truncated identifier for your current run.
-- **Hints**: Context-aware help text tailored to your active mode.
-
----
-
 ## Related Modules
 
 | Module / Function | File Path | Purpose |
@@ -252,7 +189,4 @@ The prompt bar is packed with info:
 | `build_persona_prompt()` | `src/siyarix/personas.py` | Generates persona preamble from external files |
 | `load_text()` / `load_json()` | `src/siyarix/data_loader.py` | Generic data loaders with user-override fallback |
 | `build_messages()` | `src/siyarix/chat/openai_compat.py` | Assembles final API message array |
-| `make_prompt_bar()` | `src/siyarix/chat/prompts.py` | Draws the terminal UI bar |
-| `mode_prompt_hint()` | `src/siyarix/chat/prompts.py` | Generates mode-specific hints |
-| `CompactionEngine` | `src/siyarix/compaction.py` | Compresses large conversation histories |
 | `BootstrapEngine._copy_builtin_data()` | `src/siyarix/bootstrap.py` | Copies built-in data to ~/.siyarix/ on first run |

@@ -476,6 +476,58 @@ def test_preflight_blocks_os_execvp_attr(
         iso.preflight_plugin_entrypoint(entry)
 
 
+def test_preflight_blocks_functools_partial_os_system(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Residual: ``functools.partial(os.system, ...)`` must fail closed."""
+    from siyarix.plugins import isolation as iso
+
+    _production_preflight_env(monkeypatch)
+    entry = tmp_path / "partial_os.py"
+    entry.write_text(
+        "import functools\nimport os\n\n"
+        "def register_tools(reg):\n"
+        "    functools.partial(os.system, 'id')()\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"partial|os\.system"):
+        iso.preflight_plugin_entrypoint(entry)
+
+
+def test_preflight_blocks_operator_methodcaller_os_system(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Residual: ``operator.methodcaller(\"system\", ...)(os)`` must fail closed."""
+    from siyarix.plugins import isolation as iso
+
+    _production_preflight_env(monkeypatch)
+    entry = tmp_path / "methodcaller_os.py"
+    entry.write_text(
+        "import operator\nimport os\n\n"
+        "def register_tools(reg):\n"
+        "    operator.methodcaller('system', 'id')(os)\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"methodcaller|system"):
+        iso.preflight_plugin_entrypoint(entry)
+
+
+def test_preflight_blocks_os_dict_constant_system(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Residual: ``os.__dict__[\"system\"](...)`` Constant-key must fail closed."""
+    from siyarix.plugins import isolation as iso
+
+    _production_preflight_env(monkeypatch)
+    entry = tmp_path / "os_dict.py"
+    entry.write_text(
+        "import os\n\ndef register_tools(reg):\n    os.__dict__['system']('id')\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"__dict__|system"):
+        iso.preflight_plugin_entrypoint(entry)
+
+
 def test_preflight_allows_benign_trusted_entrypoint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

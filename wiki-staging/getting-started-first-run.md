@@ -114,6 +114,6 @@ If you are inside the REPL, simply type `/help` to see a list of all available s
 
 You have successfully run your first scan! Here is where you can go from here:
 
-- **[Interactive Chat (REPL)](../user/interactive-chat.md)** — Master the interactive terminal.
-- **[Security Workflows](../user/security-workflows.md)** — Learn how to handle real-world scenarios.
-- **[CLI Commands](../user/cli-commands.md)** — Browse the full command reference.
+- **[Interactive Chat (REPL)](user-interactive-chat)** — Master the interactive terminal.
+- **[Security Workflows](user-security-workflows)** — Learn how to handle real-world scenarios.
+- **[CLI Commands](user-cli-commands)** — Browse the full command reference.

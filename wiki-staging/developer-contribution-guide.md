@@ -153,7 +153,7 @@ Siyarix supports loading plugins from `~/.siyarix/plugins/`. When contributing c
 
 > [!CAUTION]
 > **Please don't report security vulnerabilities via public GitHub issues!**
-> Follow the [Security Policy](../security/vulnerability-reporting.md) for responsible disclosure.
+> Follow the [Security Policy](security-vulnerability-reporting) for responsible disclosure.
 
 - Standard PRs are welcome for hardening!
 
@@ -174,4 +174,4 @@ By contributing, you agree your contributions will be licensed under the **AGPL-
 > [!NOTE]
 > If you are contributing on behalf of a company, please ensure you have authorization to contribute under the AGPL-3.0-or-later license.
 
-Third-party plugins placed in `~/.siyarix/plugins/` are exempt from AGPL requirements. See our [Plugin Exception](../legal/plugin-exception.md).
+Third-party plugins placed in `~/.siyarix/plugins/` are exempt from AGPL requirements. See our [Plugin Exception](legal-plugin-exception).

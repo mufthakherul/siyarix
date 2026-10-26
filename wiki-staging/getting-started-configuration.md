@@ -29,10 +29,16 @@ If you are automating Siyarix via scripts or CI pipelines, environment variables
 | `SIYARIX_PERSONA` | Overrides the active persona | `redteam` |
 | `SIYARIX_LOG_LEVEL` | Sets the logging verbosity | `debug` |
 | `SIYARIX_SAFE_MODE` | Keep PermissionGate on (default); set `0` only for labs | `1` |
+| `SIYARIX_ALLOWED_SCOPE` | Optional engagement boundary (CIDRs/hosts). Unset = no scope restriction on research tooling | `10.0.0.0/8,*.lab.example` |
+| `SIYARIX_COMMAND_REVIEW` | Prompt before raw shell (`true` by default) | `true` |
+| `SIYARIX_PREAUTHORIZED` | Non-interactive auto-approve (CI escape hatch; audited) | `1` |
 | `SIYARIX_TIMEOUT` | Max tool execution time (seconds) | `300` |
 | `SIYARIX_STEALTH` | Enables OPSEC stealth mode | `true` |
+| `SIYARIX_PARALLEL` | Default multi-target scan workers (`default_parallel`) | `5` |
 | `SIYARIX_HOME` | Overrides the default `~/.siyarix/` folder | `/tmp/custom_dir` |
 | `SIYARIX_CONFIG` | Overrides the default `settings.toml` path | `/path/to/my_config.toml` |
+
+Tip for authorized engagements: set `SIYARIX_ALLOWED_SCOPE` to your RoE range, leave `command_review` enabled, and run `siyarix doctor` before a long campaign. For ad-hoc lab research, leaving scope unset is fine.
 
 ---
 
@@ -133,4 +139,4 @@ siyarix creds rotate               # Rotate the AES encryption key securing the 
 ## ⏭️ Next Steps
 
 - **[Troubleshooting](getting-started-troubleshooting)** — Having issues? Let's get them fixed.
-- **[CLI Commands](../user/cli-commands.md)** — See all the commands you can run!
+- **[CLI Commands](user-cli-commands)** — See all the commands you can run!

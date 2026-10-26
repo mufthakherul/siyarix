@@ -273,6 +273,10 @@ BLOCKED_EXACT: frozenset[str] = frozenset(
         "MAGICK_CODER_FILTER_PATH",
         "MAGICK_HOME",
         "KUBECTL_EXTERNAL_DIFF",
+        # Credential / container bind / env-modules pivots (residual hunter).
+        "OCI_CLI_KEY_CONTENT",
+        "APPTAINER_BIND",
+        "MODULEPATH",
     }
 )
 
@@ -639,6 +643,9 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "CLOUDFLARED_TUNNEL",
         "LOCALTUNNEL_HOST",
         "AWS_EXECUTION_ENV",
+        "OCI_CLI_KEY_CONTENT",
+        "APPTAINER_BIND",
+        "MODULEPATH",
     }
 )
 

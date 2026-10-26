@@ -62,17 +62,22 @@ siyarix scan <targets...> [OPTIONS]
 # 💡 Pro-Tip: You can scan hundreds of IPs at once using a file!
 siyarix scan @targets.txt
 
-# Concurrent multi-target scans (bounded workers; findings are merged)
+# Concurrent multi-target scans (one worker pool per host; findings merged + target-tagged)
 siyarix scan @targets.txt --parallel 5
+
+# Sequential per-target (still one scan per host — safer for fragile labs)
+siyarix scan @targets.txt --parallel 1
 ```
 
-Key options: `--tool` / `-t`, `--mode` / `-m`, `--output` / `-o`, `--parallel` / `-p` (1–32; default 3), `--timeout`, `--save`, `--notify`, `--dry-run`.
+Key options: `--tool` / `-t`, `--mode` / `-m`, `--output` / `-o`, `--parallel` / `-p` (1–32; default from `default_parallel` / `SIYARIX_PARALLEL`), `--timeout`, `--save`, `--notify`, `--dry-run`.
 
 **Scan Presets (The Fast Track):**
-- `siyarix scan-quick <target>`: Rapid port discovery (Top 100 ports, no deep service detection).
-- `siyarix scan-full <target>`: Scans all ports, fingerprints the OS, and runs default scripts.
+- `siyarix scan-quick <target|@file> [--parallel N]`: Rapid port discovery (Top 100 ports). Supports multi-target `@file` + `--parallel` like `scan`.
+- `siyarix scan-full <target|@file> [--parallel N]`: All ports, OS fingerprint, default scripts. Multi-target `@file` + `--parallel` supported.
 - `siyarix scan-deep <target>`: A heavy, multi-pass scan for maximum reconnaissance.
 - `siyarix scan-web <target>`: Specifically hunts for web application vulnerabilities (runs `nikto`, `whatweb`, `nuclei`).
+
+**Campaigns (REPL):** `/campaign create eng1 --targets hosts.txt` persists targets under `~/.siyarix/campaigns/`, then `/campaign run eng1` prints the `siyarix scan-quick @… --parallel …` command for execution.
 
 ### `discover`
 A lightweight command to map out the assets and services running on a target.
@@ -96,6 +101,16 @@ siyarix agent "find all vulnerabilities on our web server" --max-iter 15
 Run a comprehensive diagnostic check on your AI providers, terminal tools, RAM, and CPU.
 ```bash
 siyarix health
+```
+
+### `production-check` / `doctor`
+Operator readiness for researchers and production gates (Python version, shell-review, PermissionGate / tool registry, `command_review`, operator-safety hard-blocks, webhook policy, optional `SIYARIX_ALLOWED_SCOPE`, credential store, health). Unset engagement scope is **OK** (research tooling unrestricted). Live-probes hard-blocks and engagement-scope samples, then reports a **readiness score** (0–100), **grade**, and remediation hints. JSON includes `score`, `grade`, and `remediations`.
+```bash
+siyarix doctor                  # alias for production-check
+siyarix production-check
+siyarix production-check -o json
+siyarix production-check --strict   # nonzero exit on warn/fail (CI-friendly)
+make production-check
 ```
 
 ---
@@ -150,6 +165,7 @@ Siyarix includes dedicated subgroups for specialized security tasks:
 - **`siyarix security`**: Manage incidents, track vulnerabilities, and hunt for threats mapped to the MITRE ATT&CK framework.
 - **`siyarix compliance`**: Automatically run compliance assessments against frameworks like SOC2, HIPAA, NIST, and GDPR.
 - **`siyarix ci-gate`**: Drop Siyarix into a CI/CD pipeline. It will automatically fail the build if security thresholds aren't met!
+- **`siyarix production-check`**: Pre-flight production readiness table (use `--strict` in CI).
 
 ---
 

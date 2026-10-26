@@ -42,16 +42,16 @@ Here's how a request flows through the Siyarix security pipeline:
 │                          │                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │ 🎭 Layer 4: OPSEC Manager                           │    │
-│  │  • Operational security enforcement                 │    │
-│  │  • IP, UA rotation & DNS over HTTPS (DoH)           │    │
-│  │  • Timing jitter                                    │    │
+│  │  • memory_only (in-process; suppresses audit/cache) │    │
+│  │  • Session burn: local file shred (3-pass)          │    │
+│  │  • Tor / DoH / MAC / OS netns: Planned              │    │
 │  └───────────────────────┬─────────────────────────────┘    │
 │                          │                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │ 🥷 Layer 5: Stealth Engine                          │    │
-│  │  • Stealth level tiers (0-4)                        │    │
-│  │  • Evasion techniques                               │    │
-│  │  • Safe command enforcement                         │    │
+│  │  • Evasion levels (none/light/medium/heavy/paranoid)│    │
+│  │  • User-Agent rotation & request jitter (implemented)│   │
+│  │  • Proxy/decoy flags: config markers (verify locally)│   │
 │  └───────────────────────┬─────────────────────────────┘    │
 │                          │                                  │
 │  ┌─────────────────────────────────────────────────────┐    │
@@ -154,40 +154,46 @@ custom_patterns = [
 
 ## 🎭 Layer 4: OPSEC Manager
 
-When conducting operations, leaving a footprint can be risky. The **OPSECManager** (`siyarix/opsec.py`) protects your operational security dynamically.
+The **OPSECManager** (`siyarix/opsec.py`) applies **in-process** operational controls. It does **not** create OS network namespaces, Tor circuits, DoH resolvers, or MAC randomization today.
 
-### Key Features
-- **Source IP rotation:** Cycles through configured proxies.
-- **DNS over HTTPS (DoH):** Hides DNS queries from local network monitoring.
-- **User-Agent rotation:** Spoofs different browsers/tools to blend in.
-- **Timing jitter:** Adds randomized delays to make automated tasks look like human behavior.
+### Implemented
 
-### OPSEC Levels
+| Control | Behavior |
+|---------|----------|
+| **`memory_only`** | Suppresses persistent audit/cache writes for the session. Emits a loud accountability warning — the tamper-evident trail is **not** attestatable while active. |
+| **Soft session label** | Namespaced string marker only; `isolated` stays `False` (no OS netns). |
+| **`burn()`** | 3-pass random overwrite of local session files under the config log dir. OS memory/swap/pagefile/network wipe is **`not_implemented`**; burn returns **partial** status. |
 
-| Level | Proxy Required? | DoH Enabled? | Jitter Delay | UA Rotation |
-|-------|-----------------|--------------|--------------|-------------|
-| **OFF** | No | No | 0s | No |
-| **LOW** | No | Yes | 0.5–2s | Per session |
-| **MEDIUM**| Optional | Yes | 1–5s | Per request |
-| **HIGH** | Yes | Yes | 2–10s | Per request |
+### Planned / not implemented
+
+| Control | Status |
+|---------|--------|
+| OS network namespace isolation | Planned — `isolate()` refuses success when implied |
+| Tor routing | Planned — requesting `use_tor=True` → `success=False` |
+| DNS-over-HTTPS (DoH) | Planned — requesting `use_doh=True` → `success=False` |
+| MAC address randomization | Planned — requesting `randomize_mac=True` → `success=False` |
+
+> [!WARNING]
+> **Accountability tradeoff**
+> Enabling `memory_only` deliberately discards unflushed audit events. Use only when you accept loss of session attestability.
 
 ---
 
 ## 🥷 Layer 5: Stealth Engine
 
-For scenarios requiring absolute minimal detection, the **StealthEngine** (`siyarix/stealth.py`) takes over. It manages evasion tactics based on your configured stealth tier.
+The **StealthEngine** (`siyarix/stealth.py`) configures evasion **levels** (string keys, not numeric 0–4). **User-Agent rotation** and **request jitter** are implemented in-process. Proxy-chain and decoy flags set configuration markers (default proxy list points at localhost listeners such as `127.0.0.1:9050` / `8118`) — they are **not** OS-level Tor/MAC/DNS-tunnel isolation.
 
-| Tier | Name | Behavior |
-|------|------|----------|
-| `0` | **None** | Standard execution. No evasion. |
-| `1` | **Light** | Rate limiting, polite scanning. |
-| `2` | **Medium** | Decoy traffic, delays, User-Agent rotation. |
-| `3` | **High** | Proxy chaining, traffic obfuscation. |
-| `4` | **Paranoid** | Tor routing, MAC rotation, DNS tunneling, C2 mimicry. |
+| Level | Jitter % | UA rotation | Proxy-chain flag | Decoy-traffic flag |
+|-------|----------|-------------|------------------|--------------------|
+| **none** | 0 | No | No | No |
+| **light** | 10 | Yes | No | No |
+| **medium** | 30 | Yes | Yes | No |
+| **heavy** | 50 | Yes | Yes | Yes |
+| **paranoid** | 80 | Yes | Yes | Yes |
 
-> [!IMPORTANT]
-> **Safe Commands Limit**
-> The Stealth Engine restricts which commands can be run at higher tiers. If an operation is deemed too "noisy" for your active tier, Siyarix will block it or warn you.
+> [!NOTE]
+> **Honesty**
+> Advanced network OPSEC (real Tor routing, MAC rotation, DNS tunneling, C2 mimicry) is **not** implemented by OPSECManager or StealthEngine. Treat proxy injection as optional local config — verify your listener before relying on it.
 
 ---
 
@@ -269,7 +275,7 @@ We've anticipated major attack vectors and built specific countermeasures:
 | **Prompt Injection** | Layer 1: Validators (shell inject/length checks) | High |
 | **Destructive AI Commands**| Layer 2: Permission Gate (38+ signatures) | High |
 | **Data Leaks to AI** | Layer 3: DLP Engine (pattern redaction) | Critical |
-| **Operator OPSEC Leak** | Layer 4: OPSEC Manager (proxies, DoH, UA rotation)| Medium |
+| **Operator OPSEC Leak** | Layer 4: `memory_only` + burn file shred; Layer 5: UA/jitter (Tor/DoH/MAC Planned) | Medium |
 | **Defensive Detection** | Layer 5: Stealth Engine (evasion tiers) | Medium |
 | **Malformed AI Output** | Layer 6: Tool Call Repair | Medium |
 | **Log Tampering** | Layer 8: SHA-256 Cryptographic Chain | Critical |
@@ -282,7 +288,7 @@ We've anticipated major attack vectors and built specific countermeasures:
 
 You can quickly toggle the overall safety posture using the `SIYARIX_SAFE_MODE` environment variable:
 
-| Mode | Permission Gate | DLP Engine | OPSEC Level | Stealth Tier |
-|-------|----------------|------------|-------------|--------------|
-| **`strict`** (Default) | ALLOW / REVIEW / BLOCK | REDACT | MEDIUM | 1 |
-| **`permissive`** | ALLOW / REVIEW | WARN | OFF | 0 |
+| Mode | Permission Gate | DLP Engine | OPSEC (`memory_only`) | Stealth level |
+|-------|----------------|------------|----------------------|---------------|
+| **`strict`** (Default) | ALLOW / REVIEW / BLOCK | REDACT | Off by default (operator opt-in) | light |
+| **`permissive`** | ALLOW / REVIEW | WARN | Off | none |

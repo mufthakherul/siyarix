@@ -397,6 +397,17 @@ _AUTH_FILE_RE = re.compile(
     # RH-53 — fish shell login persistence (sibling of .zshrc/.bashrc).
     r"|/etc/fish(?:/\S*)?"
     r"|/(?:root|home/[^/\s]+)/\.config/fish(?:/\S*)?"
+    # RH-54 — vendor shell drop-ins + operator identity / auth surfaces.
+    r"|/usr/share/fish(?:/\S*)?"
+    r"|/etc/bashrc\.d(?:/\S*)?"
+    r"|/etc/(?:shells|securetty|hostname|machine-id|krb5\.conf|exports|auto\.master)\b"
+    r"|/etc/sssd(?:/\S*)?"
+    r"|/etc/samba/smb\.conf\b"
+    r"|/etc/docker/daemon\.json\b"
+    r"|/etc/containers(?:/\S*)?"
+    r"|/etc/apparmor\.d(?:/\S*)?"
+    r"|/etc/selinux/config\b"
+    r"|/etc/audit(?:/\S*)?"
     r")",
     re.IGNORECASE,
 )
@@ -712,8 +723,9 @@ _VOLUME_DESTROY_RE = re.compile(
     r"|\bpvremove\b"
     r"|\bdmsetup\s+remove(?:_all)?\b"
     r"|\bmdadm\b[\s\S]{0,80}--zero-superblock\b"
-    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:delete|remove|replace)|replace\s+start|balance\s+start)\b"
+    r"|\bbtrfs\s+(?:subvolume\s+delete|filesystem\s+resize|receive|device\s+(?:delete|remove|replace)|replace\s+start|balance\s+start|check\b[^\n]*--repair|scrub\s+start)\b"
     r"|\bzpool\s+labelclear\b"
+    r"|\bxfs_db\b[^\n]*\s-x\b"
     r"|\bxfs_repair\s+[^\n]*-L\b"
     r"|\bdebugfs\s+-w\b"
     # dump/restore family writing onto ``/`` (operator root clobber).

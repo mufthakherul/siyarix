@@ -89,7 +89,9 @@ _NON_HTTP_URL_RE = re.compile(
     r"redis|rediss|mongodb(?:\+srv)?|bolt|neo4j|nats|amqp|amqps|vnc|vncs|"
     r"oracle|jdbc|"
     # RH-52 — SQL URI schemes curl/clients use without -h.
-    r"postgres(?:ql)?|mysql|mariadb|sqlserver|mssql|cockroach(?:db)?|cassandra):[^\s\"']*",
+    r"postgres(?:ql)?|mysql|mariadb|sqlserver|mssql|cockroach(?:db)?|cassandra|"
+    # RH-54 — search / cache / document URI schemes.
+    r"couch(?:db)?|elasticsearch|opensearch|memcache(?:d)?|solr):[^\s\"']*",
     re.IGNORECASE,
 )
 # Host-taking tools + first non-flag single-label hostname (fail-closed under scope).
@@ -772,12 +774,18 @@ _SHELL_WRAPPERS = frozenset(
         "pwsh",
         "powershell",
         "xonsh",
+        # RH-54 — modern shells with -c payload unwrap.
+        "ion",
+        "elvish",
+        "nu",
+        "nushell",
+        "yash",
     }
 )
 # ``bash -c '…'``, ``su user -c '…'``, ``sudo -c '…'``, ``script -c '…'``.
 _SHELL_C_PAYLOAD_RE = re.compile(
     r"(?i)(?:^|\s)(?:(?:[\w./-]*/)?(?:(?:ba|da|z|k)?sh|ash|fish|t?csh|pwsh|powershell|xonsh|"
-    r"su|sudo|script))\b"
+    r"ion|elvish|nu(?:shell)?|yash|su|sudo|script))\b"
     r"[\s\S]{0,80}?(?:--command=|-c|-Command)\s+(?:'([^']*)'|\"([^\"]*)\"|(\S+))"
 )
 # UNC hosts: ``//evil-host/share`` (callers normalize ``\\`` → ``/`` first).
@@ -1264,6 +1272,35 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
     ):
         raise PermissionDeniedError(
             f"az storage transfer is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-54: Azure VM run-command is opaque remote execution outside engagement host checks.
+    if re.search(r"\baz\b", decoded_early, re.IGNORECASE) and re.search(
+        r"\brun-command\b", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"az vm run-command is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-54: podman-remote talks to an opaque remote engine (like DOCKER_HOST pivots).
+    if re.search(r"\bpodman-remote\b", decoded_early, re.IGNORECASE):
+        raise PermissionDeniedError(
+            f"podman-remote is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    # RH-54: screen/tmux key injection can drive out-of-engagement interactive tools.
+    if re.search(r"\bscreen\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)(?:-X|stuff)(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"screen -X/stuff injection is not allowed under authorized scope "
+            f"(authorized scope: {scope_display})"
+        )
+    if re.search(r"\btmux\b", decoded_early, re.IGNORECASE) and re.search(
+        r"(?:^|\s)send-keys(?:\s|$)", decoded_early, re.IGNORECASE
+    ):
+        raise PermissionDeniedError(
+            f"tmux send-keys injection is not allowed under authorized scope "
             f"(authorized scope: {scope_display})"
         )
     # RH-45: ``ip tuntap`` / ``ip tunnel`` create out-of-engagement L3 pivots.

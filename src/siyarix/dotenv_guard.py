@@ -856,6 +856,36 @@ def should_skip_dotenv_key(key: str) -> bool:
             "NEO4J_",
             "CASSANDRA_",
             "CLICKHOUSE_",
+            # RH-54 — additional DB/search/mail/proxy host families.
+            "ORACLE_",
+            "SQLSERVER_",
+            "MSSQL_",
+            "LDAP_",
+            "SMTP_",
+            "IMAP_",
+            "POP3_",
+            "PROXY_",
+            "BASTION_",
+            "JUMP_",
+            "GATEWAY_",
+            "TUNNEL_",
+            "ELASTIC_",
+            "SOLR_",
+            "CACHE_",
+            "MEMCACHE_",
+            "COUCHBASE_",
+            "INFLUX_",
+            "INFLUXDB_",
+            "OTLP_",
+            "JAEGER_",
+            "ZIPKIN_",
+            "TRINO_",
+            "PRESTO_",
+            "HIVE_",
+            "HBASE_",
+            "DB2_",
+            "SYBASE_",
+            "FIREBIRD_",
         )
     ):
         return True
@@ -873,6 +903,46 @@ def should_skip_dotenv_key(key: str) -> bool:
         "LESSCLOSE",
         "MORE",
     } or key_upper.endswith("_PAGER"):
+        return True
+    # RH-54 — shell config homes + jump/proxy/DB host pivots from planted .env.
+    if key_upper in {
+        "FISH_CONFIG",
+        "XONSHRC",
+        "ZDOTDIR",
+        "BASH_ENV",
+        "HISTFILE",
+        "CDPATH",
+        "SHELLOPTS",
+        "BASHOPTS",
+        "ORACLE_HOST",
+        "SQLSERVER_HOST",
+        "MSSQL_HOST",
+        "LDAP_HOST",
+        "LDAP_SERVER",
+        "SMTP_HOST",
+        "SMTP_SERVER",
+        "MAIL_HOST",
+        "IMAP_HOST",
+        "POP3_HOST",
+        "PROXY_HOST",
+        "PROXY_SERVER",
+        "BASTION_HOST",
+        "JUMP_HOST",
+        "GATEWAY_HOST",
+        "TUNNEL_HOST",
+        "ELASTIC_HOST",
+        "SOLR_HOST",
+        "CACHE_HOST",
+        "MEMCACHE_HOST",
+        "MEMCACHED_SERVERS",
+        "COUCHBASE_HOST",
+        "INFLUXDB_HOST",
+        "OTLP_ENDPOINT",
+    }:
+        return True
+    if key_upper.endswith(
+        ("_BASTION", "_JUMP_HOST", "_GATEWAY", "_TUNNEL_HOST")
+    ):
         return True
     if key_upper.endswith("_PROXY") and key_upper not in {"NO_PROXY", "no_proxy"}:
         return True

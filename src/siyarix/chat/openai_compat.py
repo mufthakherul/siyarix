@@ -547,9 +547,10 @@ async def _gemini_stream(
     if not api_key:
         raise LLMProviderError("Gemini API key is required but not provided")
     url = f"{_GEMINI_API_BASE}/models/{model}:streamGenerateContent"
-    async with httpx.AsyncClient(timeout=120, follow_redirects=False) as client, client.stream(
-        "POST", url, params={"key": api_key, "alt": "sse"}, json=body
-    ) as resp:
+    async with (
+        httpx.AsyncClient(timeout=120, follow_redirects=False) as client,
+        client.stream("POST", url, params={"key": api_key, "alt": "sse"}, json=body) as resp,
+    ):
         resp.raise_for_status()
         async for line in resp.aiter_lines():
             if line.startswith("data: ") and line != "data: [DONE]":

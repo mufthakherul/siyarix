@@ -47,9 +47,13 @@ async def test_onboarding_full_run(
     mock_run_result.stdout = "mocked output"
     mock_subproc.return_value = mock_run_result
 
-    with patch(
-        "siyarix.onboarding.Prompt.ask", side_effect=["c", "5", "1", "a", "1", "1", "1", "1", "1"]
-    ), patch("siyarix.onboarding.Confirm.ask", return_value=True):
+    with (
+        patch(
+            "siyarix.onboarding.Prompt.ask",
+            side_effect=["c", "5", "1", "a", "1", "1", "1", "1", "1"],
+        ),
+        patch("siyarix.onboarding.Confirm.ask", return_value=True),
+    ):
         with patch("siyarix.onboarding.BootstrapEngine") as mock_bootstrap:
             mock_bootstrap.return_value.setup_directories = MagicMock()
             mock_bootstrap.return_value.install_package = AsyncMock(return_value=True)
@@ -167,12 +171,15 @@ def test_step_preferences(mock_console):
 async def test_step_network_diagnostics(mock_console):
     wizard = OnboardingWizard(console=mock_console)
     wizard._pause = MagicMock()
-    with patch(
-        "httpx.get",
-        return_value=MagicMock(status_code=200, elapsed=MagicMock(total_seconds=lambda: 0.1)),
-    ), patch(
-        "siyarix.onboarding.socket.getaddrinfo",
-        return_value=[(None, None, None, None, ("8.8.8.8", 80))],
+    with (
+        patch(
+            "httpx.get",
+            return_value=MagicMock(status_code=200, elapsed=MagicMock(total_seconds=lambda: 0.1)),
+        ),
+        patch(
+            "siyarix.onboarding.socket.getaddrinfo",
+            return_value=[(None, None, None, None, ("8.8.8.8", 80))],
+        ),
     ):
         await wizard._step_network_diagnostics()
     assert wizard._choices["network_ok"] is True

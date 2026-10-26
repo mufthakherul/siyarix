@@ -81,12 +81,15 @@ class TestSX003PermissionGate:
         executor = AutonomousExecutor(permission_gate=gate, command_review=False)
         step = PlanStep(id="s1", tool="echo", command="echo ok")
         state = CommandResult(label="$ echo ok")
-        with patch.object(
-            executor,
-            "_execute_shell_command",
-            new_callable=AsyncMock,
-            return_value={"status": "success", "output": "ok"},
-        ) as mock_shell, patch.object(executor, "_try_parse_output", side_effect=lambda s, r: r):
+        with (
+            patch.object(
+                executor,
+                "_execute_shell_command",
+                new_callable=AsyncMock,
+                return_value={"status": "success", "output": "ok"},
+            ) as mock_shell,
+            patch.object(executor, "_try_parse_output", side_effect=lambda s, r: r),
+        ):
             _, result = await executor._exec_one(step, state)
         mock_shell.assert_awaited_once()
         assert result["status"] == "success"

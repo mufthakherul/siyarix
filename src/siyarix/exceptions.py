@@ -94,45 +94,36 @@ class ValidationError(SiyarixException):
     """Input validation failed."""
 
 
-
 class BudgetExceededError(SiyarixException):
     """The session exceeded its allowed token or cost budget."""
-
 
 
 class PermissionDeniedError(SiyarixException):
     """User rejected a permission gate (exit code 2)."""
 
 
-
 class ToolNotFoundError(SiyarixException):
     """Requested tool is not registered or not on PATH (exit code 3)."""
-
 
 
 class ToolExecutionError(SiyarixException):
     """Tool handler raised an exception during execution."""
 
 
-
 class LLMProviderError(SiyarixException):
     """LLM provider returned an error or timed out (exit code 4)."""
-
 
 
 class ConfigError(SiyarixException):
     """Invalid or missing configuration."""
 
 
-
 class CredentialError(SiyarixException):
     """Credential store lookup or storage failed."""
 
 
-
 class AuditIntegrityError(SiyarixException):
     """Audit chain integrity compromised — tamper-evident hash mismatch (exit code 5)."""
-
 
 
 # Exit codes as documented in Chapter 3.3.

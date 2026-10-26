@@ -467,9 +467,14 @@ class TestCoreErrorHandling:
         from siyarix.core import AgentCore
 
         siyarix_config = str(tmp_path / "siyarix")
-        with patch.dict(
-            os.environ, {"SIYARIX_STEALTH": "1", "SIYARIX_CONFIG_DIR": siyarix_config}, clear=True
-        ), patch("siyarix.core.StealthEngine") as MockStealth:
+        with (
+            patch.dict(
+                os.environ,
+                {"SIYARIX_STEALTH": "1", "SIYARIX_CONFIG_DIR": siyarix_config},
+                clear=True,
+            ),
+            patch("siyarix.core.StealthEngine") as MockStealth,
+        ):
             mock_stealth = MagicMock()
             MockStealth.return_value = mock_stealth
             core = AgentCore()
@@ -482,9 +487,14 @@ class TestCoreErrorHandling:
         from siyarix.core import AgentCore
 
         siyarix_config = str(tmp_path / "siyarix")
-        with patch.dict(
-            os.environ, {"SIYARIX_STEALTH": "1", "SIYARIX_CONFIG_DIR": siyarix_config}, clear=True
-        ), patch("siyarix.core.StealthEngine") as MockStealth:
+        with (
+            patch.dict(
+                os.environ,
+                {"SIYARIX_STEALTH": "1", "SIYARIX_CONFIG_DIR": siyarix_config},
+                clear=True,
+            ),
+            patch("siyarix.core.StealthEngine") as MockStealth,
+        ):
             mock_stealth = MagicMock()
             MockStealth.return_value = mock_stealth
             core = AgentCore()

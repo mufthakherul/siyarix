@@ -438,19 +438,24 @@ class TestProviderFailover:
         agent = AgentCore()
         goal = AgentGoal(description="test", timeout=5)
         agent._mode = AgentMode.AUTONOMOUS
-        with patch.object(
-            agent._planner_autonomous,
-            "plan",
-            AsyncMock(return_value=ExecutionPlan(goal="test", steps=[PlanStep(command="echo ok")])),
-        ), patch.object(
-            agent._executor_autonomous,
-            "execute_plan",
-            AsyncMock(
-                return_value=ExecutionPlan(
-                    goal="test",
-                    steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED)],
-                    status=PlanStatus.COMPLETED,
-                )
+        with (
+            patch.object(
+                agent._planner_autonomous,
+                "plan",
+                AsyncMock(
+                    return_value=ExecutionPlan(goal="test", steps=[PlanStep(command="echo ok")])
+                ),
+            ),
+            patch.object(
+                agent._executor_autonomous,
+                "execute_plan",
+                AsyncMock(
+                    return_value=ExecutionPlan(
+                        goal="test",
+                        steps=[PlanStep(command="echo ok", status=StepStatus.COMPLETED)],
+                        status=PlanStatus.COMPLETED,
+                    )
+                ),
             ),
         ):
             result = await agent.execute_goal(goal)
@@ -461,9 +466,12 @@ class TestProviderFailover:
         from siyarix.chat.openai_compat import make_openai_adapter
 
         adapter = make_openai_adapter("openai", "sk-test")
-        with patch(
-            "siyarix.chat.openai_compat.resolve_model", side_effect=Exception("provider fail")
-        ), pytest.raises(Exception):
+        with (
+            patch(
+                "siyarix.chat.openai_compat.resolve_model", side_effect=Exception("provider fail")
+            ),
+            pytest.raises(Exception),
+        ):
             await adapter("system", "user")
 
 

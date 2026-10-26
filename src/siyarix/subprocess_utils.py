@@ -242,7 +242,9 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
         re.IGNORECASE,
     ),
     re.compile(r"\bmkswap\b"),
-    re.compile(r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.IGNORECASE),
+    re.compile(
+        r"\b(?:chmod|chown|chgrp)\b.*(?:-[a-zA-Z]*R[a-zA-Z]*\b|--recursive\b).*/", re.IGNORECASE
+    ),
     re.compile(
         r"\b(?:curl|wget|fetch|aria2c|axel)\b.*"
         r"(?:-o|--output(?:-document)?|--out|--index-out|-O)"

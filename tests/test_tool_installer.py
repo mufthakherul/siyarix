@@ -71,10 +71,13 @@ class TestToolInstaller:
         assert result.success is True
 
     def test_auto_install_missing(self, installer):
-        with patch.object(installer, "is_installed", return_value=False), patch.object(
-            installer,
-            "install",
-            return_value=ToolInstallResult(tool="nmap", success=False),
+        with (
+            patch.object(installer, "is_installed", return_value=False),
+            patch.object(
+                installer,
+                "install",
+                return_value=ToolInstallResult(tool="nmap", success=False),
+            ),
         ):
             results = installer.auto_install_missing(["nmap"])
             assert len(results) == 1
@@ -96,12 +99,15 @@ class TestToolInstallerCore:
 
     def test_install_win_choco_success(self):
         installer = ToolInstaller()
-        with patch(
-            "shutil.which",
-            side_effect=lambda x: (
-                "/usr/bin/choco" if x == "choco" else "/usr/bin/nmap" if x == "nmap" else None
+        with (
+            patch(
+                "shutil.which",
+                side_effect=lambda x: (
+                    "/usr/bin/choco" if x == "choco" else "/usr/bin/nmap" if x == "nmap" else None
+                ),
             ),
-        ), patch("subprocess.run") as mock_run:
+            patch("subprocess.run") as mock_run,
+        ):
             import subprocess
 
             mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="", stderr="")

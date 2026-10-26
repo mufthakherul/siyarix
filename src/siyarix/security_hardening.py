@@ -664,7 +664,9 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "Redirect/tee onto auth file",
     ),
     (
-        re.compile(r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE),
+        re.compile(
+            r"\b(?:truncate|shred|install)\b.*/etc/(?:passwd|shadow|sudoers)", re.IGNORECASE
+        ),
         "critical",
         "truncate/shred/install onto auth file",
     ),
@@ -781,8 +783,16 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "medium",
         "Modify shell rc (persistence)",
     ),
-    (re.compile(r"\bbase64\s+-d\s*\|", re.IGNORECASE), "high", "Base64 decode pipe (encoded execution)"),
-    (re.compile(r"\|\s*base64\s+-d\b", re.IGNORECASE), "high", "Pipe to base64 decode (encoded execution)"),
+    (
+        re.compile(r"\bbase64\s+-d\s*\|", re.IGNORECASE),
+        "high",
+        "Base64 decode pipe (encoded execution)",
+    ),
+    (
+        re.compile(r"\|\s*base64\s+-d\b", re.IGNORECASE),
+        "high",
+        "Pipe to base64 decode (encoded execution)",
+    ),
     (
         re.compile(r"\bcat\s+(?:/etc/shadow|~/\.ssh/|/root/\.ssh/)", re.IGNORECASE),
         "critical",
@@ -800,10 +810,15 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "critical",
         "Windows recursive directory delete (rmdir /S)",
     ),
-    (re.compile(r"\breg\s+delete\s+HKLM", re.IGNORECASE), "critical", "Windows registry delete (HKLM)"),
+    (
+        re.compile(r"\breg\s+delete\s+HKLM", re.IGNORECASE),
+        "critical",
+        "Windows registry delete (HKLM)",
+    ),
     (
         re.compile(
-            r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE
+            r"\breg\s+delete\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+            re.IGNORECASE,
         ),
         "high",
         "Windows registry persistence key deletion",
@@ -837,25 +852,45 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
         "medium",
         "PowerShell encoded command (obfuscation)",
     ),
-    (re.compile(r"\bsc\s+(?:stop|delete)\s+\w+", re.IGNORECASE), "medium", "Windows service stop/delete"),
     (
-        re.compile(r"\breg\s+add\s+HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE),
+        re.compile(r"\bsc\s+(?:stop|delete)\s+\w+", re.IGNORECASE),
+        "medium",
+        "Windows service stop/delete",
+    ),
+    (
+        re.compile(
+            r"\breg\s+add\s+HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE
+        ),
         "medium",
         "Windows registry persistence (Run key)",
     ),
     (
-        re.compile(r"\breg\s+add\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE),
+        re.compile(
+            r"\breg\s+add\s+HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", re.IGNORECASE
+        ),
         "medium",
         "Windows registry persistence (CurrentUser Run key)",
     ),
-    (re.compile(r"\bschtasks\s+/create\b", re.IGNORECASE), "medium", "Windows scheduled task creation"),
-    (re.compile(r"\bschtasks\s+/delete\b", re.IGNORECASE), "high", "Windows scheduled task deletion"),
+    (
+        re.compile(r"\bschtasks\s+/create\b", re.IGNORECASE),
+        "medium",
+        "Windows scheduled task creation",
+    ),
+    (
+        re.compile(r"\bschtasks\s+/delete\b", re.IGNORECASE),
+        "high",
+        "Windows scheduled task deletion",
+    ),
     (
         re.compile(r"\bGet-WmiObject\s+Win32_ShadowCopy\b.*\bDelete\(\)", re.IGNORECASE),
         "medium",
         "PowerShell WMI shadow copy deletion",
     ),
-    (re.compile(r"\bRemove-Item\s+-Recurse\b", re.IGNORECASE), "high", "PowerShell recursive deletion"),
+    (
+        re.compile(r"\bRemove-Item\s+-Recurse\b", re.IGNORECASE),
+        "high",
+        "PowerShell recursive deletion",
+    ),
     (re.compile(r"\bRemove-Item\s+.*\\$", re.IGNORECASE), "high", "PowerShell drive wipe"),
     (re.compile(r"\bdel\s+/[fF]\s+/[sS]", re.IGNORECASE), "high", "Windows recursive force delete"),
     (
@@ -868,7 +903,11 @@ _DANGER_PATTERNS: list[tuple[re.Pattern[str], str, str]] = [
     # ── LOW ──
     # H-09: use start-of-line-aware pattern so tool names containing
     # "chmod" (e.g. "gochmod") don't false-positive.
-    (re.compile(r"(?:^|(?<=\s))chmod\b", re.IGNORECASE | re.MULTILINE), "low", "Permission change (chmod)"),
+    (
+        re.compile(r"(?:^|(?<=\s))chmod\b", re.IGNORECASE | re.MULTILINE),
+        "low",
+        "Permission change (chmod)",
+    ),
     (re.compile(r"\bchown\b", re.IGNORECASE), "low", "Ownership change (chown)"),
     (re.compile(r"\bcrontab\b", re.IGNORECASE), "low", "Crontab modification"),
 ]

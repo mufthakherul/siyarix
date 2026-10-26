@@ -760,10 +760,12 @@ class TestSelectProvider:
                 assert provider == "anthropic"
 
     def test_fallback_to_first_available(self, manager):
-        with patch.object(
-            manager, "get_api_key", side_effect=lambda p: "sk-key" if p == "openai" else ""
-        ), patch.object(manager, "auto_detect_provider", return_value=None), patch.object(
-            manager, "list_profiles", return_value=manager._profiles.values()
+        with (
+            patch.object(
+                manager, "get_api_key", side_effect=lambda p: "sk-key" if p == "openai" else ""
+            ),
+            patch.object(manager, "auto_detect_provider", return_value=None),
+            patch.object(manager, "list_profiles", return_value=manager._profiles.values()),
         ):
             provider, model = manager.select_provider()
             assert provider == "openai"
@@ -1059,8 +1061,9 @@ class TestResolveApiKey:
     def test_from_credential_store(self):
         mock_store = MagicMock()
         mock_store.retrieve.return_value = "sk-store"
-        with patch("siyarix.credential_store.get_creds", return_value=mock_store), patch(
-            "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
+        with (
+            patch("siyarix.credential_store.get_creds", return_value=mock_store),
+            patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"),
         ):
             result = resolve_api_key("openai")
             assert result == "sk-store"
@@ -1068,9 +1071,11 @@ class TestResolveApiKey:
     def test_from_env_var(self):
         mock_store = MagicMock()
         mock_store.retrieve.return_value = None
-        with patch("siyarix.credential_store.get_creds", return_value=mock_store), patch(
-            "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
-        ), patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env"}, clear=True):
+        with (
+            patch("siyarix.credential_store.get_creds", return_value=mock_store),
+            patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"),
+            patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env"}, clear=True),
+        ):
             result = resolve_api_key("openai")
             assert result == "sk-env"
 
@@ -1085,9 +1090,11 @@ class TestResolveApiKey:
     def test_no_credential_no_env(self):
         mock_store = MagicMock()
         mock_store.retrieve.return_value = None
-        with patch("siyarix.credential_store.get_creds", return_value=mock_store), patch(
-            "siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"
-        ), patch.dict(os.environ, {}, clear=True):
+        with (
+            patch("siyarix.credential_store.get_creds", return_value=mock_store),
+            patch("siyarix.providers.manager.get_provider_env_var", return_value="OPENAI_API_KEY"),
+            patch.dict(os.environ, {}, clear=True),
+        ):
             result = resolve_api_key("openai")
             assert result is None
 

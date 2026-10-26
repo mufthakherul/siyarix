@@ -440,9 +440,7 @@ def tools_update(
 @tools_app.command("modify")
 def tools_modify(
     tool: str = typer.Argument(..., help="Tool name to modify"),
-    binary: str | None = typer.Option(
-        None, "--binary", "-b", help="Custom executable binary path"
-    ),
+    binary: str | None = typer.Option(None, "--binary", "-b", help="Custom executable binary path"),
     risk: str | None = typer.Option(
         None, "--risk", "-r", help="Override risk level: safe|low|medium|high|critical"
     ),

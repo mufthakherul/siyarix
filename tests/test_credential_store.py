@@ -1060,10 +1060,13 @@ class TestCredentialStorePersistence:
 
     def test_save_kms_no_existing_key(self, cred_store, tmp_path):
         fake_boto3 = MagicMock()
-        with patch.dict("sys.modules", {"boto3": fake_boto3}), patch.dict(
-            os.environ,
-            {"SIYARIX_KMS_PROVIDER": "aws", "AWS_KMS_KEY_ID": "alias/test"},
-            clear=True,
+        with (
+            patch.dict("sys.modules", {"boto3": fake_boto3}),
+            patch.dict(
+                os.environ,
+                {"SIYARIX_KMS_PROVIDER": "aws", "AWS_KMS_KEY_ID": "alias/test"},
+                clear=True,
+            ),
         ):
             with patch.object(cred_store, "_kms_available", return_value=True):
                 fake_kms = MagicMock()

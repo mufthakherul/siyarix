@@ -54,11 +54,10 @@ async def test_e2e_simulation_network_scan_and_enum():
             plan.status = PlanStatus.COMPLETED
             return plan
 
-        with patch.object(
-            agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan
-        ), patch.object(
-            agent._validator, "validate_plan", new_callable=AsyncMock
-        ) as mock_val:
+        with (
+            patch.object(agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan),
+            patch.object(agent._validator, "validate_plan", new_callable=AsyncMock) as mock_val,
+        ):
             mock_val.return_value = (True, [])
 
             # Execute
@@ -106,11 +105,10 @@ async def test_e2e_simulation_failure_and_recovery():
     with patch.object(agent._planner_autonomous, "plan", new_callable=AsyncMock) as mock_plan:
         mock_plan.return_value = plan
 
-        with patch.object(
-            agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan
-        ), patch.object(
-            agent._validator, "validate_plan", new_callable=AsyncMock
-        ) as mock_val:
+        with (
+            patch.object(agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan),
+            patch.object(agent._validator, "validate_plan", new_callable=AsyncMock) as mock_val,
+        ):
             mock_val.return_value = (True, [])
 
             with patch.object(
@@ -168,22 +166,17 @@ async def test_e2e_simulation_swarm_routing():
             p.status = PlanStatus.COMPLETED
             return p
 
-        with patch.object(
-            agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan
-        ), patch.object(
-            agent._validator, "validate_plan", new_callable=AsyncMock
-        ) as mock_val:
+        with (
+            patch.object(agent._executor_autonomous, "execute_plan", side_effect=mock_execute_plan),
+            patch.object(agent._validator, "validate_plan", new_callable=AsyncMock) as mock_val,
+        ):
             mock_val.return_value = (True, [])
 
-            with patch.object(
-                agent, "execute_subagent", new_callable=AsyncMock
-            ) as mock_subagent:
+            with patch.object(agent, "execute_subagent", new_callable=AsyncMock) as mock_subagent:
                 mock_subagent.return_value = MagicMock(findings=[1, 2, 3])
 
                 result = await agent.execute_goal(goal)
 
                 assert result.success is True
                 assert result.plan.steps[0].status == StepStatus.COMPLETED
-                mock_subagent.assert_called_once_with(
-                    "database_specialist", "Audit DB on 10.0.0.3"
-                )
+                mock_subagent.assert_called_once_with("database_specialist", "Audit DB on 10.0.0.3")

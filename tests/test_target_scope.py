@@ -813,6 +813,26 @@ class TestAssertCommandInScope:
             assert_command_in_scope("cypher-shell -a1.1.1.1", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="1\\.1\\.1\\.1"):
             assert_command_in_scope("mycli -h1.1.1.1", scope_env=scope)
+        # RH-54 — modern shells -c; couchdb URI; az run-command; podman-remote; tmux
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("ion -c 'nmap evilhost'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("nu -c 'nmap evilhost'", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="URL scheme|couchdb"):
+            assert_command_in_scope(
+                "curl couchdb://evilhost:5984/", scope_env=scope
+            )
+        with pytest.raises(PermissionDeniedError, match="run-command"):
+            assert_command_in_scope(
+                "az vm run-command invoke -g g -n n --command-id RunShellScript",
+                scope_env=scope,
+            )
+        with pytest.raises(PermissionDeniedError, match="podman-remote"):
+            assert_command_in_scope("podman-remote run alpine", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="tmux send-keys"):
+            assert_command_in_scope(
+                "tmux send-keys 'nmap evilhost' Enter", scope_env=scope
+            )
         # RH-33: service-discovery / DB transport env pivots.
         with pytest.raises(PermissionDeniedError, match="CONSUL_HTTP_ADDR|Transport"):
             assert_command_in_scope(

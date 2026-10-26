@@ -543,6 +543,18 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "cp x /etc/fish/config.fish",
         "btrfs replace start /dev/sda /dev/sdb /mnt",
         "zpool labelclear -f /dev/sda",
+        # RH-54 — vendor fish/bashrc.d, identity/auth, repair/scrub
+        "cp x /usr/share/fish/vendor_conf.d/evil.fish",
+        "cp x /etc/bashrc.d/evil.sh",
+        "echo /tmp/evil >> /etc/shells",
+        "echo pts/0 >> /etc/securetty",
+        "echo evil > /etc/hostname",
+        "cp x /etc/krb5.conf",
+        "cp x /etc/sssd/sssd.conf",
+        "cp x /etc/docker/daemon.json",
+        "btrfs check --repair /dev/sda1",
+        "btrfs scrub start /",
+        "xfs_db -x -c 'write' /dev/sda1",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

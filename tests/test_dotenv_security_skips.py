@@ -684,3 +684,22 @@ def test_should_skip_rh53_dotenv_keys() -> None:
         "POSTGRES_HOST",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh54_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "FISH_CONFIG",
+        "XONSHRC",
+        "ZDOTDIR",
+        "JUMP_HOST",
+        "BASTION_HOST",
+        "PROXY_HOST",
+        "LDAP_HOST",
+        "ORACLE_HOST",
+        "SQLSERVER_HOST",
+        "ELASTIC_HOST",
+        "OTLP_ENDPOINT",
+    ):
+        assert should_skip_dotenv_key(key), key

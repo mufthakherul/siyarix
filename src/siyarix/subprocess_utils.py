@@ -291,8 +291,7 @@ _DESTRUCTIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bmv\b\s+(?:-[^\s]+\s+)*(?:/etc|/var|/usr|/boot|/root)\b", re.IGNORECASE),
     re.compile(r"\b(?:chmod|chown)\b\s+(?:-R\s+|--recursive\s+)\S+\s+/", re.IGNORECASE),
     re.compile(
-        r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|"
-        r"dmsetup\s+remove)\b",
+        r"\b(?:zpool\s+destroy|zfs\s+destroy|lvremove|vgremove|pvremove|" r"dmsetup\s+remove)\b",
         re.IGNORECASE,
     ),
     re.compile(r"\bmdadm\b.*--zero-superblock\b", re.IGNORECASE),

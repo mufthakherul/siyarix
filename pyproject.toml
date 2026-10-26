@@ -112,15 +112,16 @@ optional-dependencies.dev = [
   "ruff>=0.5",
   "siyarix[terminal]",
   "twine>=5",
-  "types-PyYAML>=6.0",
   "types-psutil>=5.9",
   "types-psycopg2>=2.9",
-  "types-redis>=4.6",
   "types-pyperclip>=1.8",
+  "types-pyyaml>=6",
+  "types-redis>=4.6",
 ]
 # Gemini uses native REST via httpx (core dependency) — no provider SDK required.
 # Extra kept as a documented no-op so ``pip install siyarix[gemini]`` stays valid.
-optional-dependencies.gemini = []
+optional-dependencies.gemini = [
+]
 optional-dependencies.mobile = [
   "httpx>=0.27",
   "siyarix[terminal]",

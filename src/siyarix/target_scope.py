@@ -51,8 +51,7 @@ _IPV4_OCTAL_RE = re.compile(r"\b(?=(?:[0-7]{1,4}\.){0,3}0[0-7]+)(?:[0-7]{1,4}\.)
 # Short IPv4 (curl/wget): 127.1 → 127.0.0.1, 10.1 → 10.0.0.1, 192.168.1 → 192.168.0.1
 # Negative lookaround avoids matching a prefix of a full dotted-quad.
 _IPV4_SHORT_RE = re.compile(
-    r"(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){1,2}"
-    r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])"
+    r"(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){1,2}" r"(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])"
 )
 # Short/octal inet_aton forms (0177.1 → 127.0.0.1). Leading-zero octet required.
 _IPV4_INET_ATON_RE = re.compile(
@@ -628,8 +627,7 @@ _SOCAT_ADDR_RE = re.compile(
 )
 # socat SOCKS/PROXY: ``SOCKS4A:proxy:dest:port`` — check proxy AND dest.
 _SOCAT_SOCKS_RE = re.compile(
-    r"(?i)^(?:SOCKS4A?|PROXY):"
-    r"(?P<proxy>[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
+    r"(?i)^(?:SOCKS4A?|PROXY):" r"(?P<proxy>[^:]+):(?:\[(?P<v6>[^\]]+)\]|(?P<host>[^:]+))(?::\d+)?$"
 )
 # Glued ssh ``-oProxyJump=evil`` / ``-oProxyCommand=…`` / ``-oDynamicForward=…`` /
 # ``-oTunnel=ethernet`` (RH-19).

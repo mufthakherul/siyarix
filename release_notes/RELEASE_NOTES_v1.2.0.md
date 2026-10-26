@@ -1,6 +1,6 @@
 # Siyarix v1.2.0 — Production-readiness & operator-safety
 
-**Date:** 2026-10-26 (Asia/Dhaka)  
+**Date:** 2026-10-26 (Asia/Dhaka)
 **Version:** 1.2.0
 
 ## Summary

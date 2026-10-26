@@ -1017,7 +1017,7 @@ class SiyarixChat(CommandHandlersMixin, LLMEngineMixin):
         )
 
         # Instantiate SplitPane and display
-        pane = SplitPane(theme=self._settings.get("color_theme") or "dark-neon")
+        pane = SplitPane(theme=self._settings.get("color_theme") or "cyber-noir")
         layout = pane.generate_layout(
             left_renderable=left_content,
             right_type=self._split_pane_type,

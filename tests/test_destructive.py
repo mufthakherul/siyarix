@@ -561,6 +561,14 @@ def test_assert_allows_safe_commands(command: str) -> None:
         "usermod -u 0 existing",
         "update-alternatives --install /usr/bin/ssh ssh /tmp/evil 100",
         "btrfs device add /dev/sdb /",
+        # RH-56 — leading-zero UID/GID, --set, busybox install, gshadow
+        "useradd -u 00 evil",
+        "usermod -u 00 bob",
+        "groupadd -g 0 evil",
+        "groupadd -g 00 evil",
+        "update-alternatives --set ssh /tmp/evil",
+        "busybox --install -s /bin",
+        "echo x > /etc/gshadow",
     ],
 )
 def test_assert_blocks_destructive_commands(command: str) -> None:

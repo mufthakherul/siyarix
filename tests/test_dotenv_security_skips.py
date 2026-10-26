@@ -719,3 +719,13 @@ def test_should_skip_rh55_dotenv_keys() -> None:
         "SSH_HOSTNAME",
     ):
         assert should_skip_dotenv_key(key), key
+
+
+def test_should_skip_rh56_dotenv_keys() -> None:
+    from siyarix.dotenv_guard import should_skip_dotenv_key
+
+    for key in (
+        "PARALLEL_SSHLOGIN",
+        "PARALLEL_SSHLOGINFILE",
+    ):
+        assert should_skip_dotenv_key(key), key

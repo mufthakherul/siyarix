@@ -64,6 +64,11 @@ _DESTRUCTIVE_PROBES: tuple[str, ...] = (
     "useradd -o -u 0 backdoor",
     "update-alternatives --install /usr/bin/ssh ssh /tmp/evil 100",
     "btrfs device add /dev/sdb /",
+    # RH-56
+    "useradd -u 00 evil",
+    "update-alternatives --set ssh /tmp/evil",
+    "busybox --install -s /bin",
+    "echo x > /etc/gshadow",
 )
 
 _SCOPE_DENY_PROBES: tuple[tuple[str, str, str], ...] = (
@@ -107,6 +112,8 @@ _SCOPE_DENY_PROBES: tuple[tuple[str, str, str], ...] = (
     ),
     ("ansible evilhost -m ping", "10.0.0.0/8,example.com", "ansible ad-hoc host"),
     ("fab -H evilhost cmd", "10.0.0.0/8,example.com", "fabric -H"),
+    ("fab --hosts=evilhost cmd", "10.0.0.0/8,example.com", "fabric --hosts="),
+    ("rsh evilhost", "10.0.0.0/8,example.com", "rsh host"),
     ("lxc exec evilhost -- id", "10.0.0.0/8,example.com", "lxc exec"),
 )
 

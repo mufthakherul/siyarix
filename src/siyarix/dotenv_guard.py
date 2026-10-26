@@ -502,6 +502,8 @@ BLOCKED_VARS: frozenset[str] = frozenset(
         "LDAPCONF",
         "LDAPRC",
         "MEMCACHED_SERVER",
+        "PARALLEL_SSHLOGIN",
+        "PARALLEL_SSHLOGINFILE",
         "YARN_REGISTRY",
         "PNPM_REGISTRY",
         "UV_INDEX",
@@ -699,6 +701,8 @@ def should_skip_dotenv_key(key: str) -> bool:
         "LDAPCONF",
         "LDAPRC",
         "MEMCACHED_SERVER",
+        "PARALLEL_SSHLOGIN",
+        "PARALLEL_SSHLOGINFILE",
         "CONTAINERD_ADDRESS",
         "CONTAINERD_NAMESPACE",
         "PIP_CONFIG_FILE",
@@ -707,6 +711,8 @@ def should_skip_dotenv_key(key: str) -> bool:
     }:
         return True
     if key_upper.startswith("CONTAINERD_") or key_upper.startswith("PIP_"):
+        return True
+    if key_upper.startswith("PARALLEL_SSH"):
         return True
     # libpq / mysql client transport pivots (RH-43).
     if key_upper in {
@@ -963,7 +969,12 @@ def should_skip_dotenv_key(key: str) -> bool:
         "MEMCACHED_SERVER",
         "SSH_PROXYCOMMAND",
         "SSH_HOSTNAME",
+        # RH-56 — GNU parallel remote login via planted .env.
+        "PARALLEL_SSHLOGIN",
+        "PARALLEL_SSHLOGINFILE",
     }:
+        return True
+    if key_upper.startswith("PARALLEL_SSH"):
         return True
     if key_upper.endswith(
         ("_BASTION", "_JUMP_HOST", "_GATEWAY", "_TUNNEL_HOST")

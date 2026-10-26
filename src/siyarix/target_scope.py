@@ -101,6 +101,9 @@ _HOST_TOOL_NAMES = frozenset(
     {
         "ssh",
         "autossh",
+        "rsh",
+        "rlogin",
+        "rexec",
         "plink",
         "dbclient",
         "putty",
@@ -570,7 +573,8 @@ _GLUED_HOST_SHORT_RE = re.compile(
 )
 # Glued long host/connect flags: ``openssl … -connect1.1.1.1:443``.
 _GLUED_HOST_LONG_RE = re.compile(
-    r"^(?P<flag>--host|--ip|--server|--proxy|-host|-connect|-proxy)"
+    # Longer flags first so ``--hosts=`` is not parsed as ``--host`` + ``s=…`` (RH-56).
+    r"^(?P<flag>--hosts|--host|--ip|--server|--proxy|-host|-connect|-proxy)"
     r"(?:=(?P<eq>.+)|(?P<glued>[^=].+))$",
     re.IGNORECASE,
 )
@@ -2341,22 +2345,33 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                 if flag in _ansible_value_flags and "=" not in nxt:
                     skip_flag_arg = True
             continue
-        # RH-55: Fabric ``fab -H host`` / ``--hosts=``.
+        # RH-55/56: Fabric ``fab -H host`` / ``--hosts=`` (exact flag before glued).
         if base in {"fab", "fabric"}:
             skip_fab_h = False
+
+            def _fab_hosts(raw: str) -> None:
+                for part in raw.replace(",", " ").split():
+                    part = part.strip().strip("'\"")
+                    if part:
+                        _assert_host_token_in_scope(
+                            part.split("@")[-1].split(":")[0],
+                            allowed_items,
+                            scope_display,
+                        )
+
             for nxt in tokens[i + 1 :]:
                 if skip_fab_h:
-                    for part in nxt.replace(",", " ").split():
-                        part = part.strip().strip("'\"")
-                        if part:
-                            _assert_host_token_in_scope(
-                                part.split("@")[-1].split(":")[0],
-                                allowed_items,
-                                scope_display,
-                            )
+                    _fab_hosts(nxt)
                     skip_fab_h = False
                     continue
                 if not nxt.startswith("-"):
+                    continue
+                flag = nxt.split("=", 1)[0]
+                if flag in {"-H", "--hosts", "--host"}:
+                    if "=" in nxt:
+                        _fab_hosts(nxt.split("=", 1)[1])
+                    else:
+                        skip_fab_h = True
                     continue
                 glued = _glued_host_flag_value(
                     nxt,
@@ -2364,28 +2379,7 @@ def assert_command_in_scope(command: str, scope_env: str | None = None) -> None:
                     long=frozenset({"--hosts", "--host"}),
                 )
                 if glued:
-                    for part in glued.replace(",", " ").split():
-                        part = part.strip().strip("'\"")
-                        if part:
-                            _assert_host_token_in_scope(
-                                part.split("@")[-1].split(":")[0],
-                                allowed_items,
-                                scope_display,
-                            )
-                    continue
-                flag = nxt.split("=", 1)[0]
-                if flag in {"-H", "--hosts", "--host"}:
-                    if "=" in nxt:
-                        for part in nxt.split("=", 1)[1].replace(",", " ").split():
-                            part = part.strip().strip("'\"")
-                            if part:
-                                _assert_host_token_in_scope(
-                                    part.split("@")[-1].split(":")[0],
-                                    allowed_items,
-                                    scope_display,
-                                )
-                    else:
-                        skip_fab_h = True
+                    _fab_hosts(glued)
             continue
         # RH-55: LXC/Incus ``exec``/``shell`` container name + ``remote add``.
         if base in {"lxc", "lxd", "incus"}:

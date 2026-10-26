@@ -905,6 +905,12 @@ class TestAssertCommandInScope:
         with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("fab -H evilhost cmd", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("fab --hosts=evilhost cmd", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("rsh evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
+            assert_command_in_scope("rlogin evilhost", scope_env=scope)
+        with pytest.raises(PermissionDeniedError, match="evilhost"):
             assert_command_in_scope("lxc exec evilhost -- id", scope_env=scope)
         with pytest.raises(PermissionDeniedError, match="evilhost|URL scheme|qemu"):
             assert_command_in_scope(

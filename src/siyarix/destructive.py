@@ -345,7 +345,7 @@ _WMIC_FORMAT_RE = re.compile(
 # Auth + persistence paths that must not be overwritten / linked over.
 _AUTH_FILE_RE = re.compile(
     r"(?:"
-    r"/etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local|"
+    r"/etc/(?:passwd|shadow|gshadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|crontab|rc\.local|"
     r"hosts|resolv\.conf|ssh/sshd_config|ssh/ssh_config|sysctl\.conf|login\.defs|"
     r"fstab|nftables\.conf|bash\.bashrc|sudo\.conf|"
     # RH-52 — system shell init + firewall/boot/polkit.
@@ -681,15 +681,27 @@ _CHOWN_SYSTEM_BIN_RE = re.compile(
     r"\b(?:chown|chgrp)\b[\s\S]{0,120}" + _SYSTEM_BIN_PATH,
     re.IGNORECASE,
 )
-# RH-55: UID-0 account create/rename (auth/persistence on the operator host).
+# RH-55/56: UID/GID 0 account pivots (leading zeros → still uid/gid 0).
 _UID0_ACCOUNT_RE = re.compile(
-    r"\b(?:useradd|adduser|usermod)\b[\s\S]{0,160}(?:-u|--uid)(?:=|\s*)0\b",
+    r"\b(?:useradd|adduser|usermod)\b[\s\S]{0,160}(?:-u|--uid)(?:=|\s*)0+\b",
     re.IGNORECASE,
 )
-# RH-55: ``update-alternatives --install`` hijacks system binaries.
+_GID0_GROUP_RE = re.compile(
+    r"\b(?:groupadd|addgroup|groupmod)\b[\s\S]{0,160}(?:-g|--gid)(?:=|\s*)0+\b",
+    re.IGNORECASE,
+)
+# RH-55/56: ``update-alternatives --install`` / ``--set`` hijacks system binaries.
 _UPDATE_ALTERNATIVES_RE = re.compile(
-    r"\bupdate-alternatives\b[\s\S]{0,120}--install\b[\s\S]{0,160}"
-    + _SYSTEM_BIN_PATH,
+    r"\bupdate-alternatives\b[\s\S]{0,120}"
+    r"(?:--install\b[\s\S]{0,160}"
+    + _SYSTEM_BIN_PATH
+    + r"|--set\b)",
+    re.IGNORECASE,
+)
+# RH-56: ``busybox --install`` overwrites the operator ``/bin`` tree.
+_BUSYBOX_INSTALL_RE = re.compile(
+    r"\bbusybox\b[\s\S]{0,100}--install\b[\s\S]{0,120}"
+    r"/(?:bin|sbin|usr/(?:s?bin|local/(?:s?bin)))\b",
     re.IGNORECASE,
 )
 _DD_OF_AUTH_RE = re.compile(
@@ -896,7 +908,7 @@ _OF_ABS_PATH_RE = re.compile(r"(\bof=)(/(?:[^\s;|&<>'\"`()]+))", re.IGNORECASE)
 # ``rsync -R`` / ``--relative``.
 _REL_AUTH_PATH_RE = re.compile(
     r"(?:^|[\s=])"
-    r"(?:etc/(?:passwd|shadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|"
+    r"(?:etc/(?:passwd|shadow|gshadow|sudoers(?:\.d(?:/\S*)?)?|group|ld\.so\.preload|"
     r"crontab|rc\.local)|"
     r"etc/cron\.(?:d|daily|hourly|weekly|monthly)(?:/\S*)?|"
     r"etc/systemd/(?:system|user)(?:/\S*)?|"
@@ -1229,9 +1241,19 @@ def assert_command_not_destructive(command: str) -> None:
             "Destructive command detected: Creating/modifying UID 0 accounts is blocked."
         )
 
+    if _GID0_GROUP_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: Creating/modifying GID 0 groups is blocked."
+        )
+
     if _UPDATE_ALTERNATIVES_RE.search(cmd_clean):
         raise PermissionDeniedError(
             "Destructive command detected: update-alternatives on system binaries is blocked."
+        )
+
+    if _BUSYBOX_INSTALL_RE.search(cmd_clean):
+        raise PermissionDeniedError(
+            "Destructive command detected: busybox --install onto system bins is blocked."
         )
 
     if _CHMOD_CHOWN_CMD_RE.search(cmd_clean) and _RECURSE_FLAG_RE.search(cmd_clean):

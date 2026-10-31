@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 # Cap hatchling below the releases that emit Metadata-Version 2.5 until the
 # Twine/pkginfo validation stack used in release CI accepts 2.5 (SX-020).
 requires = [
-  "hatchling>=1.21.1,<1.27",
+  "hatchling>=1.21.1,<1.34",
 ]
 
 [project]
